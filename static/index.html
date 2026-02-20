@@ -274,35 +274,17 @@
   </style>
 </head>
 <body>
+  <main class="app">
+    <section class="header">
+      <h1>Корпоративный ИИ-ассистент</h1>
+      <p>MVP: чат по KB, список документов и локальные действия (без интеграции с ИС).</p>
+    </section>
 
-<section class="view active" id="loginView">
-  <section class="controls">
-    <input type="email" id="loginEmail" placeholder="Email" />
-    <input type="password" id="loginPassword" placeholder="Пароль" />
-    <button class="btn btn-primary" id="loginBtn">Войти</button>
-    <button class="btn btn-soft" id="registerBtn">Регистрация</button>
-  </section>
-  <section class="messages" id="loginMessages">
-    <div class="empty">Введите email и пароль для входа.</div>
-  </section>
-</section>
-
-<main class="app" id="appContainer" style="display:none;">
-  <section class="header">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <h1>Корпоративный ИИ-ассистент</h1>
-        <p>MVP: чат по KB, список документов и локальные действия (без интеграции с ИС).</p>
-      </div>
-      <button class="btn btn-soft" id="logoutBtn">Выйти</button>
-    </div>
-  </section>
-
-  <section class="tabs">
-    <button class="tab-btn active" data-view="chatView">Чат</button>
-    <button class="tab-btn" data-view="documentsView">Документы</button>
-    <button class="tab-btn" data-view="actionsView">Действия</button>
-  </section>
+    <section class="tabs">
+      <button class="tab-btn active" data-view="chatView">Чат</button>
+      <button class="tab-btn" data-view="documentsView">Документы</button>
+      <button class="tab-btn" data-view="actionsView">Действия</button>
+    </section>
 
   <section class="view active" id="chatView">
     <section class="controls">
@@ -330,34 +312,34 @@
     <section class="panel-content" id="documentsList"></section>
   </section>
 
-  <section class="view" id="actionsView">
-    <section class="panel-content">
-      <div class="action-form">
-        <div class="row">
-          <select id="actionType">
-            <option value="transport_request">Заявка на транспорт</option>
-            <option value="training_request">Заявка на обучение</option>
-            <option value="medical_exam_request">Заявка на медосмотр</option>
-            <option value="appeal_registration">Регистрация обращения</option>
-          </select>
-          <input id="actionProcess" placeholder="Процесс (например, ЕКТП_Транспорт)" value="ЕКТП_Транспорт" />
+    <section class="view" id="actionsView">
+      <section class="panel-content">
+        <div class="action-form">
+          <div class="row">
+            <select id="actionType">
+              <option value="transport_request">Заявка на транспорт</option>
+              <option value="training_request">Заявка на обучение</option>
+              <option value="medical_exam_request">Заявка на медосмотр</option>
+              <option value="appeal_registration">Регистрация обращения</option>
+            </select>
+            <input id="actionProcess" placeholder="Процесс (например, ЕКТП_Транспорт)" value="ЕКТП_Транспорт" />
+          </div>
+          <input id="actionTitle" placeholder="Тема заявки/обращения" />
+          <textarea id="actionDetails" rows="4" placeholder="Описание"></textarea>
+          <div class="row">
+            <input id="actionRequester" placeholder="Инициатор" />
+            <button class="btn btn-primary" id="createActionBtn">Зарегистрировать действие</button>
+          </div>
+          <div class="note" id="actionStatus">MVP-режим: действия сохраняются локально и не отправляются во внутренние системы.</div>
         </div>
-        <input id="actionTitle" placeholder="Тема заявки/обращения" />
-        <textarea id="actionDetails" rows="4" placeholder="Описание"></textarea>
-        <div class="row">
-          <input id="actionRequester" placeholder="Инициатор" />
-          <button class="btn btn-primary" id="createActionBtn">Зарегистрировать действие</button>
+        <div class="card">
+          <strong>Последние действия</strong>
+          <div class="note">Локальный журнал созданных заявок/обращений.</div>
+          <div id="actionsList" style="margin-top:10px;"></div>
         </div>
-        <div class="note" id="actionStatus">MVP-режим: действия сохраняются локально и не отправляются во внутренние системы.</div>
-      </div>
-      <div class="card">
-        <strong>Последние действия</strong>
-        <div class="note">Локальный журнал созданных заявок/обращений.</div>
-        <div id="actionsList" style="margin-top:10px;"></div>
-      </div>
+      </section>
     </section>
-  </section>
-</main>
+  </main>
 
 <script>
 const SESSION_KEY = 'assistant_session_id';
@@ -379,16 +361,14 @@ const docsFormsOnlyEl = document.getElementById('docsFormsOnly');
 const docsRefreshBtn = document.getElementById('docsRefreshBtn');
 const documentsListEl = document.getElementById('documentsList');
 
-const actionTypeEl = document.getElementById('actionType');
-const actionProcessEl = document.getElementById('actionProcess');
-const actionTitleEl = document.getElementById('actionTitle');
-const actionDetailsEl = document.getElementById('actionDetails');
-const actionRequesterEl = document.getElementById('actionRequester');
-const createActionBtn = document.getElementById('createActionBtn');
-const actionsListEl = document.getElementById('actionsList');
-const actionStatusEl = document.getElementById('actionStatus');
-
-const logoutBtn = document.getElementById('logoutBtn');
+    const actionTypeEl = document.getElementById('actionType');
+    const actionProcessEl = document.getElementById('actionProcess');
+    const actionTitleEl = document.getElementById('actionTitle');
+    const actionDetailsEl = document.getElementById('actionDetails');
+    const actionRequesterEl = document.getElementById('actionRequester');
+    const createActionBtn = document.getElementById('createActionBtn');
+    const actionsListEl = document.getElementById('actionsList');
+    const actionStatusEl = document.getElementById('actionStatus');
 
 function getSessionId() {
   let value = localStorage.getItem(SESSION_KEY);
@@ -404,16 +384,16 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function switchView(viewId) {
-  document.querySelectorAll('.tab-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.view === viewId);
-  });
-  document.querySelectorAll('.view').forEach((view) => {
-    view.classList.toggle('active', view.id === viewId);
-  });
-  if (viewId === 'documentsView') loadDocuments();
-  if (viewId === 'actionsView') loadActions();
-}
+    function switchView(viewId) {
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.view === viewId);
+      });
+      document.querySelectorAll('.view').forEach((view) => {
+        view.classList.toggle('active', view.id === viewId);
+      });
+      if (viewId === 'documentsView') loadDocuments();
+      if (viewId === 'actionsView') loadActions();
+    }
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => switchView(btn.dataset.view));
@@ -605,27 +585,25 @@ async function clearDialog() {
   messagesEl.appendChild(hint);
   questionEl.focus();
 
-  try {
-    await authFetch('/api/dialog/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: getSessionId() }) });
-  } catch {}
-}
+      try {
+        await fetch('/api/dialog/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: getSessionId() }),
+        });
+      } catch (error) {
+        // UI clear should still work even if backend clear fails.
+      }
+    }
 
-askBtn.addEventListener('click', askQuestion);
-clearBtn.addEventListener('click', clearDialog);
-
-questionEl.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); askQuestion(); }
-});
-
-// --- DOCUMENTS ---
-async function loadDocuments() {
-  const q = docsSearchEl.value.trim();
-  const process = docsProcessEl.value.trim();
-  const formsOnly = docsFormsOnlyEl.checked ? '1' : '0';
-  const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  if (process) params.set('process', process);
-  params.set('forms_only', formsOnly);
+    async function loadDocuments() {
+      const q = docsSearchEl.value.trim();
+      const process = docsProcessEl.value.trim();
+      const formsOnly = docsFormsOnlyEl.checked ? '1' : '0';
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (process) params.set('process', process);
+      params.set('forms_only', formsOnly);
 
   documentsListEl.innerHTML = '<div class="empty">Загрузка документов...</div>';
   try {
@@ -707,13 +685,29 @@ async function loadActions() {
   }
 }
 
-createActionBtn.addEventListener('click', createAction);
+    askBtn.addEventListener('click', askQuestion);
+    clearBtn.addEventListener('click', clearDialog);
+    docsRefreshBtn.addEventListener('click', loadDocuments);
+    docsFormsOnlyEl.addEventListener('change', loadDocuments);
+    docsProcessEl.addEventListener('change', loadDocuments);
+    createActionBtn.addEventListener('click', createAction);
 
-// --- INIT ---
-loadDocuments();
-loadActions();
-checkAuth();
-</script>
+    questionEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        askQuestion();
+      }
+    });
 
+    docsSearchEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        loadDocuments();
+      }
+    });
+
+    loadDocuments();
+    loadActions();
+  </script>
 </body>
 </html>
