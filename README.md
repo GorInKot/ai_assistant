@@ -186,3 +186,4 @@ knowledge_base/
 - Открытие/скачивание файлов из UI: ✅
 # ai_assistant
 # ai_assistant
+# ai_assistant
