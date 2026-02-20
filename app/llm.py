@@ -19,6 +19,13 @@ class LLMService:
         self.enable_rerank = enable_rerank
         self.rerank_candidates = max(8, rerank_candidates)
         self.client = OpenAI(api_key=api_key) if api_key else None
+        # if api_key: 
+        #     self.client = OpenAI(api_key=api_key)
+        # else:
+        #     self.client = None
+        print("OPENAI KEY:", repr(api_key))
+        print("OPENAI CLIENT CREATED:", bool(self.client))
+
 
     def rerank_results(self, question: str, candidates: Sequence[RetrievalResult], top_n: int = 16) -> list[RetrievalResult]:
         shortlist = list(candidates[: self.rerank_candidates])

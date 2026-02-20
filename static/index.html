@@ -274,360 +274,446 @@
   </style>
 </head>
 <body>
-  <main class="app">
-    <section class="header">
-      <h1>Корпоративный ИИ-ассистент</h1>
-      <p>MVP: чат по KB, список документов и локальные действия (без интеграции с ИС).</p>
+
+<section class="view active" id="loginView">
+  <section class="controls">
+    <input type="email" id="loginEmail" placeholder="Email" />
+    <input type="password" id="loginPassword" placeholder="Пароль" />
+    <button class="btn btn-primary" id="loginBtn">Войти</button>
+    <button class="btn btn-soft" id="registerBtn">Регистрация</button>
+  </section>
+  <section class="messages" id="loginMessages">
+    <div class="empty">Введите email и пароль для входа.</div>
+  </section>
+</section>
+
+<main class="app" id="appContainer" style="display:none;">
+  <section class="header">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h1>Корпоративный ИИ-ассистент</h1>
+        <p>MVP: чат по KB, список документов и локальные действия (без интеграции с ИС).</p>
+      </div>
+      <button class="btn btn-soft" id="logoutBtn">Выйти</button>
+    </div>
+  </section>
+
+  <section class="tabs">
+    <button class="tab-btn active" data-view="chatView">Чат</button>
+    <button class="tab-btn" data-view="documentsView">Документы</button>
+    <button class="tab-btn" data-view="actionsView">Действия</button>
+  </section>
+
+  <section class="view active" id="chatView">
+    <section class="controls">
+      <textarea id="question" placeholder="Введите вопрос по процессу, системе или документу..."></textarea>
+      <button class="btn btn-primary" id="askBtn">Отправить</button>
+      <button class="btn btn-soft" id="clearBtn">Очистить диалог</button>
     </section>
-
-    <section class="tabs">
-      <button class="tab-btn active" data-view="chatView">Чат</button>
-      <button class="tab-btn" data-view="documentsView">Документы</button>
-      <button class="tab-btn" data-view="actionsView">Действия</button>
+    <section class="messages" id="messages">
+      <div class="empty" id="emptyHint">Задайте вопрос, например: "Что такое ЕКТП?"</div>
     </section>
+  </section>
 
-    <section class="view active" id="chatView">
-      <section class="controls">
-        <textarea id="question" placeholder="Введите вопрос по процессу, системе или документу..."></textarea>
-        <button class="btn btn-primary" id="askBtn">Отправить</button>
-        <button class="btn btn-soft" id="clearBtn">Очистить диалог</button>
-      </section>
-
-      <section class="messages" id="messages">
-        <div class="empty" id="emptyHint">Задайте вопрос, например: "Что такое ЕКТП?"</div>
-      </section>
+  <section class="view" id="documentsView">
+    <section class="filters">
+      <input id="docsSearch" placeholder="Поиск по названию/пути документа" />
+      <select id="docsProcess">
+        <option value="">Все процессы</option>
+        <option value="ЦУС_Строительный_контроль">ЦУС — Строительный контроль</option>
+        <option value="ЕКТП_Транспорт">ЕКТП — Транспорт</option>
+        <option value="Обучение_и_медосмотр">Обучение и медосмотр</option>
+      </select>
+      <label><input type="checkbox" id="docsFormsOnly" /> Только формы</label>
+      <button class="btn btn-soft" id="docsRefreshBtn">Обновить</button>
     </section>
+    <section class="panel-content" id="documentsList"></section>
+  </section>
 
-    <section class="view" id="documentsView">
-      <section class="filters">
-        <input id="docsSearch" placeholder="Поиск по названию/пути документа" />
-        <select id="docsProcess">
-          <option value="">Все процессы</option>
-          <option value="ЦУС_Строительный_контроль">ЦУС — Строительный контроль</option>
-          <option value="ЕКТП_Транспорт">ЕКТП — Транспорт</option>
-          <option value="Обучение_и_медосмотр">Обучение и медосмотр</option>
-        </select>
-        <label><input type="checkbox" id="docsFormsOnly" /> Только формы</label>
-        <button class="btn btn-soft" id="docsRefreshBtn">Обновить</button>
-      </section>
-      <section class="panel-content" id="documentsList"></section>
-    </section>
-
-    <section class="view" id="actionsView">
-      <section class="panel-content">
-        <div class="action-form">
-          <div class="row">
-            <select id="actionType">
-              <option value="transport_request">Заявка на транспорт</option>
-              <option value="training_request">Заявка на обучение</option>
-              <option value="medical_exam_request">Заявка на медосмотр</option>
-              <option value="appeal_registration">Регистрация обращения</option>
-            </select>
-            <input id="actionProcess" placeholder="Процесс (например, ЕКТП_Транспорт)" value="ЕКТП_Транспорт" />
-          </div>
-          <input id="actionTitle" placeholder="Тема заявки/обращения" />
-          <textarea id="actionDetails" rows="4" placeholder="Описание"></textarea>
-          <div class="row">
-            <input id="actionRequester" placeholder="Инициатор" />
-            <button class="btn btn-primary" id="createActionBtn">Зарегистрировать действие</button>
-          </div>
-          <div class="note" id="actionStatus">MVP-режим: действия сохраняются локально и не отправляются во внутренние системы.</div>
+  <section class="view" id="actionsView">
+    <section class="panel-content">
+      <div class="action-form">
+        <div class="row">
+          <select id="actionType">
+            <option value="transport_request">Заявка на транспорт</option>
+            <option value="training_request">Заявка на обучение</option>
+            <option value="medical_exam_request">Заявка на медосмотр</option>
+            <option value="appeal_registration">Регистрация обращения</option>
+          </select>
+          <input id="actionProcess" placeholder="Процесс (например, ЕКТП_Транспорт)" value="ЕКТП_Транспорт" />
         </div>
-        <div class="card">
-          <strong>Последние действия</strong>
-          <div class="note">Локальный журнал созданных заявок/обращений.</div>
-          <div id="actionsList" style="margin-top:10px;"></div>
+        <input id="actionTitle" placeholder="Тема заявки/обращения" />
+        <textarea id="actionDetails" rows="4" placeholder="Описание"></textarea>
+        <div class="row">
+          <input id="actionRequester" placeholder="Инициатор" />
+          <button class="btn btn-primary" id="createActionBtn">Зарегистрировать действие</button>
         </div>
-      </section>
+        <div class="note" id="actionStatus">MVP-режим: действия сохраняются локально и не отправляются во внутренние системы.</div>
+      </div>
+      <div class="card">
+        <strong>Последние действия</strong>
+        <div class="note">Локальный журнал созданных заявок/обращений.</div>
+        <div id="actionsList" style="margin-top:10px;"></div>
+      </div>
     </section>
-  </main>
+  </section>
+</main>
 
-  <script>
-    const SESSION_KEY = 'assistant_session_id';
+<script>
+const SESSION_KEY = 'assistant_session_id';
 
-    const questionEl = document.getElementById('question');
-    const askBtn = document.getElementById('askBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const messagesEl = document.getElementById('messages');
+const loginEmailEl = document.getElementById('loginEmail');
+const loginPasswordEl = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const registerBtn = document.getElementById('registerBtn');
+const loginMessagesEl = document.getElementById('loginMessages');
 
-    const docsSearchEl = document.getElementById('docsSearch');
-    const docsProcessEl = document.getElementById('docsProcess');
-    const docsFormsOnlyEl = document.getElementById('docsFormsOnly');
-    const docsRefreshBtn = document.getElementById('docsRefreshBtn');
-    const documentsListEl = document.getElementById('documentsList');
+const questionEl = document.getElementById('question');
+const askBtn = document.getElementById('askBtn');
+const clearBtn = document.getElementById('clearBtn');
+const messagesEl = document.getElementById('messages');
 
-    const actionTypeEl = document.getElementById('actionType');
-    const actionProcessEl = document.getElementById('actionProcess');
-    const actionTitleEl = document.getElementById('actionTitle');
-    const actionDetailsEl = document.getElementById('actionDetails');
-    const actionRequesterEl = document.getElementById('actionRequester');
-    const createActionBtn = document.getElementById('createActionBtn');
-    const actionsListEl = document.getElementById('actionsList');
-    const actionStatusEl = document.getElementById('actionStatus');
+const docsSearchEl = document.getElementById('docsSearch');
+const docsProcessEl = document.getElementById('docsProcess');
+const docsFormsOnlyEl = document.getElementById('docsFormsOnly');
+const docsRefreshBtn = document.getElementById('docsRefreshBtn');
+const documentsListEl = document.getElementById('documentsList');
 
-    function getSessionId() {
-      let value = localStorage.getItem(SESSION_KEY);
-      if (value) return value;
-      value = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-      localStorage.setItem(SESSION_KEY, value);
-      return value;
-    }
+const actionTypeEl = document.getElementById('actionType');
+const actionProcessEl = document.getElementById('actionProcess');
+const actionTitleEl = document.getElementById('actionTitle');
+const actionDetailsEl = document.getElementById('actionDetails');
+const actionRequesterEl = document.getElementById('actionRequester');
+const createActionBtn = document.getElementById('createActionBtn');
+const actionsListEl = document.getElementById('actionsList');
+const actionStatusEl = document.getElementById('actionStatus');
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.innerText = text == null ? '' : String(text);
-      return div.innerHTML;
-    }
+const logoutBtn = document.getElementById('logoutBtn');
 
-    function switchView(viewId) {
-      document.querySelectorAll('.tab-btn').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.view === viewId);
-      });
-      document.querySelectorAll('.view').forEach((view) => {
-        view.classList.toggle('active', view.id === viewId);
-      });
-      if (viewId === 'documentsView') loadDocuments();
-      if (viewId === 'actionsView') loadActions();
-    }
+function getSessionId() {
+  let value = localStorage.getItem(SESSION_KEY);
+  if (value) return value;
+  value = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  localStorage.setItem(SESSION_KEY, value);
+  return value;
+}
 
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.addEventListener('click', () => switchView(btn.dataset.view));
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.innerText = text == null ? '' : String(text);
+  return div.innerHTML;
+}
+
+function switchView(viewId) {
+  document.querySelectorAll('.tab-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.view === viewId);
+  });
+  document.querySelectorAll('.view').forEach((view) => {
+    view.classList.toggle('active', view.id === viewId);
+  });
+  if (viewId === 'documentsView') loadDocuments();
+  if (viewId === 'actionsView') loadActions();
+}
+
+document.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+function removeEmptyHint() {
+  const hint = document.getElementById('emptyHint');
+  if (hint && hint.parentNode) hint.parentNode.removeChild(hint);
+}
+
+function sourceTypeLabel(type) {
+  return type === 'related' ? 'Релевантный документ' : 'Использовано в ответе';
+}
+
+function renderSources(sources) {
+  if (!sources || !sources.length) {
+    return '<div class="sources"><div class="sources-title">Источники</div><div class="source-item">Нет найденных документов.</div></div>';
+  }
+
+  const items = sources.map((source) => {
+    const pages = source.pages && source.pages.length ? `Страницы: ${source.pages.join(', ')}` : '';
+    const sections = source.sections && source.sections.length ? `Разделы: ${source.sections.join(', ')}` : '';
+    const meta = [source.relative_path, pages, sections].filter(Boolean).join(' | ');
+    const badge = `<span class="badge">${sourceTypeLabel(source.source_type)}</span>`;
+
+    return `
+      <div class="source-item">
+        <div><strong>${escapeHtml(source.file_name || '')}</strong>${badge}</div>
+        <div class="source-meta">${escapeHtml(meta)}</div>
+        <div class="source-actions">
+          <a href="${source.url}" target="_blank" rel="noopener">Открыть</a>
+          <a href="${source.download_url}" target="_blank" rel="noopener">Скачать</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `<div class="sources"><div class="sources-title">Источники</div>${items}</div>`;
+}
+
+function appendMessage(role, text, sources = null) {
+  removeEmptyHint();
+  const wrap = document.createElement('div');
+  wrap.className = `message ${role}`;
+
+  const roleLabel = role === 'user' ? 'Пользователь' : 'Ассистент';
+  let html = `<div class="role">${roleLabel}</div><div class="text">${escapeHtml(text)}</div>`;
+  if (role === 'assistant') html += renderSources(sources || []);
+
+  wrap.innerHTML = html;
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// --- AUTH helpers ---
+function showLogin() {
+  document.getElementById('loginView').classList.add('active');
+  document.getElementById('appContainer').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginView').classList.remove('active');
+  document.getElementById('appContainer').style.display = 'block';
+}
+
+function authHeaders() {
+  const token = localStorage.getItem('jwt_token');
+  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+}
+
+async function authFetch(url, options = {}) {
+  const resp = await fetch(url, { ...options, headers: { ...(options.headers || {}), 'Authorization': 'Bearer ' + localStorage.getItem('jwt_token') } });
+  if (resp.status === 401) {
+    localStorage.removeItem('jwt_token');
+    showLogin();
+    throw new Error('Не авторизован');
+  }
+  return resp;
+}
+
+async function checkAuth() {
+  const token = localStorage.getItem('jwt_token');
+  if (!token) return showLogin();
+  try {
+    const resp = await authFetch('/api/user/profile');
+    if (!resp.ok) throw new Error();
+    showApp();
+  } catch { showLogin(); }
+}
+
+// --- LOGIN / REGISTER ---
+async function login() {
+  const email = loginEmailEl.value.trim();
+  const password = loginPasswordEl.value.trim();
+  if (!email || !password) return;
+  loginBtn.disabled = true;
+  registerBtn.disabled = true;
+  loginMessagesEl.innerHTML = '<div class="empty">Вход...</div>';
+
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
     });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Ошибка входа');
+    localStorage.setItem('jwt_token', data.access_token);
+    loginEmailEl.value = '';
+    loginPasswordEl.value = '';
+    showApp();
+  } catch (err) {
+    loginMessagesEl.innerHTML = `<div class="empty">Ошибка: ${err.message}</div>`;
+  } finally {
+    loginBtn.disabled = false;
+    registerBtn.disabled = false;
+  }
+}
 
-    function removeEmptyHint() {
-      const hint = document.getElementById('emptyHint');
-      if (hint && hint.parentNode) hint.parentNode.removeChild(hint);
-    }
+async function register() {
+  const email = loginEmailEl.value.trim();
+  const password = loginPasswordEl.value.trim();
+  if (!email || !password) return;
+  loginBtn.disabled = true;
+  registerBtn.disabled = true;
+  loginMessagesEl.innerHTML = '<div class="empty">Регистрация...</div>';
 
-    function sourceTypeLabel(type) {
-      return type === 'related' ? 'Релевантный документ' : 'Использовано в ответе';
-    }
+  try {
+    const resp = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Ошибка регистрации');
+    localStorage.setItem('jwt_token', data.access_token);
+    loginEmailEl.value = '';
+    loginPasswordEl.value = '';
+    showApp();
+  } catch (err) {
+    loginMessagesEl.innerHTML = `<div class="empty">Ошибка: ${err.message}</div>`;
+  } finally {
+    loginBtn.disabled = false;
+    registerBtn.disabled = false;
+  }
+}
 
-    function renderSources(sources) {
-      if (!sources || !sources.length) {
-        return '<div class="sources"><div class="sources-title">Источники</div><div class="source-item">Нет найденных документов.</div></div>';
-      }
+loginBtn.addEventListener('click', login);
+registerBtn.addEventListener('click', register);
 
-      const items = sources.map((source) => {
-        const pages = source.pages && source.pages.length ? `Страницы: ${source.pages.join(', ')}` : '';
-        const sections = source.sections && source.sections.length ? `Разделы: ${source.sections.join(', ')}` : '';
-        const meta = [source.relative_path, pages, sections].filter(Boolean).join(' | ');
-        const badge = `<span class="badge">${sourceTypeLabel(source.source_type)}</span>`;
+logoutBtn.addEventListener('click', () => {
+  localStorage.removeItem('jwt_token');
+  showLogin();
+});
 
-        return `
-          <div class="source-item">
-            <div><strong>${escapeHtml(source.file_name || '')}</strong>${badge}</div>
-            <div class="source-meta">${escapeHtml(meta)}</div>
-            <div class="source-actions">
-              <a href="${source.url}" target="_blank" rel="noopener">Открыть</a>
-              <a href="${source.download_url}" target="_blank" rel="noopener">Скачать</a>
-            </div>
+// --- CHAT ---
+async function askQuestion() {
+  const question = questionEl.value.trim();
+  if (!question) return;
+
+  appendMessage('user', question);
+  questionEl.value = '';
+  askBtn.disabled = true;
+  askBtn.innerText = '...';
+
+  try {
+    const response = await authFetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, session_id: getSessionId() }),
+    });
+    const payload = await response.json();
+    if (!response.ok) appendMessage('assistant', `Ошибка: ${payload.detail || 'Не удалось получить ответ.'}`, []);
+    else appendMessage('assistant', payload.answer, payload.sources || []);
+  } catch (error) {
+    appendMessage('assistant', `Ошибка сети: ${error.message || error}`, []);
+  } finally {
+    askBtn.disabled = false;
+    askBtn.innerText = 'Отправить';
+  }
+}
+
+async function clearDialog() {
+  messagesEl.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'empty';
+  hint.id = 'emptyHint';
+  hint.innerText = 'Диалог очищен. Задайте новый вопрос.';
+  messagesEl.appendChild(hint);
+  questionEl.focus();
+
+  try {
+    await authFetch('/api/dialog/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: getSessionId() }) });
+  } catch {}
+}
+
+askBtn.addEventListener('click', askQuestion);
+clearBtn.addEventListener('click', clearDialog);
+
+questionEl.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); askQuestion(); }
+});
+
+// --- DOCUMENTS ---
+async function loadDocuments() {
+  const q = docsSearchEl.value.trim();
+  const process = docsProcessEl.value.trim();
+  const formsOnly = docsFormsOnlyEl.checked ? '1' : '0';
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (process) params.set('process', process);
+  params.set('forms_only', formsOnly);
+
+  documentsListEl.innerHTML = '<div class="empty">Загрузка документов...</div>';
+  try {
+    const response = await authFetch(`/api/documents?${params.toString()}`);
+    const payload = await response.json();
+    const docs = payload.documents || [];
+    if (!docs.length) { documentsListEl.innerHTML = '<div class="empty">Документы не найдены.</div>'; return; }
+    documentsListEl.innerHTML = docs.map((doc) => {
+      const formBadge = doc.is_form ? '<span class="badge">Форма</span>' : '';
+      const searchBadge = doc.searchable ? '<span class="badge">Текст доступен</span>' : '<span class="badge">Без извлечения текста</span>';
+      return `
+        <div class="doc-item">
+          <div><strong>${escapeHtml(doc.file_name)}</strong>${formBadge}${searchBadge}</div>
+          <div class="meta">${escapeHtml(doc.relative_path)} | ${escapeHtml(doc.process)} | ${escapeHtml(doc.extension)}</div>
+          <div class="actions">
+            <a href="${doc.url}" target="_blank" rel="noopener">Открыть</a>
+            <a href="${doc.download_url}" target="_blank" rel="noopener">Скачать</a>
           </div>
-        `;
-      }).join('');
+        </div>`;
+    }).join('');
+  } catch (error) {
+    documentsListEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
+  }
+}
 
-      return `<div class="sources"><div class="sources-title">Источники</div>${items}</div>`;
-    }
+docsRefreshBtn.addEventListener('click', loadDocuments);
+docsFormsOnlyEl.addEventListener('change', loadDocuments);
+docsProcessEl.addEventListener('change', loadDocuments);
+docsSearchEl.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); loadDocuments(); } });
 
-    function appendMessage(role, text, sources = null) {
-      removeEmptyHint();
-      const wrap = document.createElement('div');
-      wrap.className = `message ${role}`;
+// --- ACTIONS ---
+async function createAction() {
+  const payload = {
+    action_type: actionTypeEl.value,
+    process: actionProcessEl.value.trim(),
+    title: actionTitleEl.value.trim(),
+    details: actionDetailsEl.value.trim(),
+    requester: actionRequesterEl.value.trim() || 'Не указан',
+  };
+  if (!payload.process || !payload.title || !payload.details) { actionStatusEl.innerText = 'Заполните процесс, тему и описание.'; return; }
 
-      const roleLabel = role === 'user' ? 'Пользователь' : 'Ассистент';
-      let html = `<div class="role">${roleLabel}</div><div class="text">${escapeHtml(text)}</div>`;
-      if (role === 'assistant') html += renderSources(sources || []);
+  createActionBtn.disabled = true;
+  createActionBtn.innerText = '...';
+  actionStatusEl.innerText = 'Сохраняю...';
 
-      wrap.innerHTML = html;
-      messagesEl.appendChild(wrap);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
+  try {
+    const response = await authFetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await response.json();
+    if (!response.ok) { actionStatusEl.innerText = `Ошибка: ${data.detail || 'не удалось сохранить действие.'}`; return; }
 
-    async function askQuestion() {
-      const question = questionEl.value.trim();
-      if (!question) return;
+    actionStatusEl.innerText = `${data.message} ID: ${data.action.action_id}`;
+    actionTitleEl.value = '';
+    actionDetailsEl.value = '';
+    await loadActions();
+  } catch (error) {
+    actionStatusEl.innerText = `Ошибка сети: ${error.message || error}`;
+  } finally {
+    createActionBtn.disabled = false;
+    createActionBtn.innerText = 'Зарегистрировать действие';
+  }
+}
 
-      appendMessage('user', question);
-      questionEl.value = '';
-      askBtn.disabled = true;
-      askBtn.innerText = '...';
+async function loadActions() {
+  actionsListEl.innerHTML = '<div class="empty">Загрузка...</div>';
+  try {
+    const response = await authFetch('/api/actions?limit=20');
+    const payload = await response.json();
+    const items = payload.actions || [];
+    if (!items.length) { actionsListEl.innerHTML = '<div class="empty">Пока нет зарегистрированных действий.</div>'; return; }
+    actionsListEl.innerHTML = items.map((item) => `
+      <div class="doc-item">
+        <div><strong>${escapeHtml(item.title)}</strong> <span class="badge">${escapeHtml(item.status)}</span></div>
+        <div class="meta">${escapeHtml(item.action_id)} | ${escapeHtml(item.process)} | ${escapeHtml(item.action_type)}</div>
+        <div class="meta">${escapeHtml(item.details)}</div>
+        <div class="meta">Инициатор: ${escapeHtml(item.requester)} | ${escapeHtml(item.created_at)}</div>
+      </div>`).join('');
+  } catch (error) {
+    actionsListEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
+  }
+}
 
-      try {
-        const response = await fetch('/api/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            question,
-            session_id: getSessionId(),
-          }),
-        });
-        const payload = await response.json();
+createActionBtn.addEventListener('click', createAction);
 
-        if (!response.ok) {
-          appendMessage('assistant', `Ошибка: ${payload.detail || 'Не удалось получить ответ.'}`, []);
-          return;
-        }
+// --- INIT ---
+loadDocuments();
+loadActions();
+checkAuth();
+</script>
 
-        appendMessage('assistant', payload.answer, payload.sources || []);
-      } catch (error) {
-        appendMessage('assistant', `Ошибка сети: ${error.message || error}`, []);
-      } finally {
-        askBtn.disabled = false;
-        askBtn.innerText = 'Отправить';
-      }
-    }
-
-    async function clearDialog() {
-      messagesEl.innerHTML = '';
-      const hint = document.createElement('div');
-      hint.className = 'empty';
-      hint.id = 'emptyHint';
-      hint.innerText = 'Диалог очищен. Задайте новый вопрос.';
-      messagesEl.appendChild(hint);
-      questionEl.focus();
-
-      try {
-        await fetch('/api/dialog/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: getSessionId() }),
-        });
-      } catch (error) {
-        // UI clear should still work even if backend clear fails.
-      }
-    }
-
-    async function loadDocuments() {
-      const q = docsSearchEl.value.trim();
-      const process = docsProcessEl.value.trim();
-      const formsOnly = docsFormsOnlyEl.checked ? '1' : '0';
-      const params = new URLSearchParams();
-      if (q) params.set('q', q);
-      if (process) params.set('process', process);
-      params.set('forms_only', formsOnly);
-
-      documentsListEl.innerHTML = '<div class="empty">Загрузка документов...</div>';
-
-      try {
-        const response = await fetch(`/api/documents?${params.toString()}`);
-        const payload = await response.json();
-        const docs = payload.documents || [];
-
-        if (!docs.length) {
-          documentsListEl.innerHTML = '<div class="empty">Документы не найдены.</div>';
-          return;
-        }
-
-        documentsListEl.innerHTML = docs.map((doc) => {
-          const formBadge = doc.is_form ? '<span class="badge">Форма</span>' : '';
-          const searchBadge = doc.searchable ? '<span class="badge">Текст доступен</span>' : '<span class="badge">Без извлечения текста</span>';
-          return `
-            <div class="doc-item">
-              <div><strong>${escapeHtml(doc.file_name)}</strong>${formBadge}${searchBadge}</div>
-              <div class="meta">${escapeHtml(doc.relative_path)} | ${escapeHtml(doc.process)} | ${escapeHtml(doc.extension)}</div>
-              <div class="actions">
-                <a href="${doc.url}" target="_blank" rel="noopener">Открыть</a>
-                <a href="${doc.download_url}" target="_blank" rel="noopener">Скачать</a>
-              </div>
-            </div>
-          `;
-        }).join('');
-      } catch (error) {
-        documentsListEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
-      }
-    }
-
-    async function createAction() {
-      const payload = {
-        action_type: actionTypeEl.value,
-        process: actionProcessEl.value.trim(),
-        title: actionTitleEl.value.trim(),
-        details: actionDetailsEl.value.trim(),
-        requester: actionRequesterEl.value.trim() || 'Не указан',
-      };
-
-      if (!payload.process || !payload.title || !payload.details) {
-        actionStatusEl.innerText = 'Заполните процесс, тему и описание.';
-        return;
-      }
-
-      createActionBtn.disabled = true;
-      createActionBtn.innerText = '...';
-      actionStatusEl.innerText = 'Сохраняю...';
-
-      try {
-        const response = await fetch('/api/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-          actionStatusEl.innerText = `Ошибка: ${data.detail || 'не удалось сохранить действие.'}`;
-          return;
-        }
-
-        actionStatusEl.innerText = `${data.message} ID: ${data.action.action_id}`;
-        actionTitleEl.value = '';
-        actionDetailsEl.value = '';
-        await loadActions();
-      } catch (error) {
-        actionStatusEl.innerText = `Ошибка сети: ${error.message || error}`;
-      } finally {
-        createActionBtn.disabled = false;
-        createActionBtn.innerText = 'Зарегистрировать действие';
-      }
-    }
-
-    async function loadActions() {
-      actionsListEl.innerHTML = '<div class="empty">Загрузка...</div>';
-      try {
-        const response = await fetch('/api/actions?limit=20');
-        const payload = await response.json();
-        const items = payload.actions || [];
-
-        if (!items.length) {
-          actionsListEl.innerHTML = '<div class="empty">Пока нет зарегистрированных действий.</div>';
-          return;
-        }
-
-        actionsListEl.innerHTML = items.map((item) => `
-          <div class="doc-item">
-            <div><strong>${escapeHtml(item.title)}</strong> <span class="badge">${escapeHtml(item.status)}</span></div>
-            <div class="meta">${escapeHtml(item.action_id)} | ${escapeHtml(item.process)} | ${escapeHtml(item.action_type)}</div>
-            <div class="meta">${escapeHtml(item.details)}</div>
-            <div class="meta">Инициатор: ${escapeHtml(item.requester)} | ${escapeHtml(item.created_at)}</div>
-          </div>
-        `).join('');
-      } catch (error) {
-        actionsListEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
-      }
-    }
-
-    askBtn.addEventListener('click', askQuestion);
-    clearBtn.addEventListener('click', clearDialog);
-    docsRefreshBtn.addEventListener('click', loadDocuments);
-    docsFormsOnlyEl.addEventListener('change', loadDocuments);
-    docsProcessEl.addEventListener('change', loadDocuments);
-    createActionBtn.addEventListener('click', createAction);
-
-    questionEl.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        askQuestion();
-      }
-    });
-
-    docsSearchEl.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        loadDocuments();
-      }
-    });
-
-    loadDocuments();
-    loadActions();
-  </script>
 </body>
 </html>

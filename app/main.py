@@ -5,7 +5,7 @@ from collections import Counter
 from pathlib import Path
 from threading import Lock
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Body, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -16,6 +16,14 @@ from app.kb import KnowledgeBaseIndex, RetrievalResult
 from app.llm import FALLBACK_EN, FALLBACK_RU, LLMService
 from app.logging_utils import RequestLogger
 
+from datetime import timedelta
+from sqlalchemy.orm import Session
+from app.db import init_db, User, SessionLocal
+from app.auth import get_password_hash, verify_password, create_access_token, get_db, get_current_user
+
+import os
+
+init_db()
 
 settings = load_settings()
 kb_index = KnowledgeBaseIndex(settings.kb_root)
@@ -30,6 +38,7 @@ request_logger = RequestLogger(settings.log_file)
 actions_store = ActionsStore(settings.log_file.parent / "actions.log")
 dialog_state = DialogStateStore(ttl_minutes=20)
 
+print("FROM OS:", os.environ.get("OPENAI_API_KEY"))
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
@@ -360,16 +369,24 @@ def ask(payload: AskRequest) -> AskResponse:
             return AskResponse(answer=answer, sources=final_sources, no_exact_match=False)
 
     try:
-        answer = llm_service.generate_answer(effective_question, context_results, intent=intent)
+        answer = llm_service.generate_answer(
+            effective_question, 
+            context_results,
+            intent=intent
+            )
+        
     except RuntimeError as exc:
+        # 
+        print("LLM Runtime error: ", repr(exc))
         raise HTTPException(
             status_code=503,
-            detail=f"OpenAI API key is required: {exc}",
+            detail=str(exc),   # ← больше НЕ пишем "API key is required"
         ) from exc
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:  
+        print("LLM Unexpected error:", repr(exc))
         raise HTTPException(
             status_code=502,
-            detail=f"OpenAI request failed: {exc}",
+            detail=str(exc),
         ) from exc
 
     no_exact_match = FALLBACK_RU.lower() in answer.lower() or FALLBACK_EN.lower() in answer.lower()
@@ -480,3 +497,48 @@ def get_file(file_path: str, download: int = 0) -> FileResponse:
         )
 
     return FileResponse(path=requested_path)
+
+# New code
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str | None = None
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+@app.post("/api/auth/register", response_model=TokenResponse)
+def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
+    user = User(
+        email=payload.email,
+        full_name=payload.full_name,
+        hashed_password=get_password_hash(payload.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token({"sub": user.email})
+    return TokenResponse(access_token=token)
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Неверный email или пароль")
+    token = create_access_token({"sub": user.email})
+    return TokenResponse(access_token=token)
+
+@app.get("/api/user/profile")
+def get_profile(current_user: User = Depends(get_current_user)):
+    return {
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "created_at": current_user.created_at,
+    }
