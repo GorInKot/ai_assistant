@@ -185,3 +185,4 @@ knowledge_base/
 - No-hallucination fallback: ✅
 - Открытие/скачивание файлов из UI: ✅
 # ai_assistant
+# ai_assistant
