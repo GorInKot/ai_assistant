@@ -184,3 +184,4 @@ knowledge_base/
 - Источники в каждом ответе: ✅
 - No-hallucination fallback: ✅
 - Открытие/скачивание файлов из UI: ✅
+# ai_assistant
