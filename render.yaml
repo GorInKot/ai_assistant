@@ -1,0 +1,26 @@
+# Render Blueprint — корпоративный ИИ-ассистент (FastAPI).
+# Деплой: Render Dashboard -> New -> Blueprint -> выбрать этот репозиторий.
+services:
+  - type: web
+    name: ai-assistant
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: llama-3.3-70b-versatile
+      - key: ENABLE_LLM_RERANK
+        value: "0"
+      # Секреты — задаются вручную в дашборде Render, в репозиторий не попадают.
+      - key: LLM_API_KEY
+        sync: false
+      # JWT_SECRET Render сгенерирует автоматически при первом деплое.
+      - key: JWT_SECRET
+        generateValue: true

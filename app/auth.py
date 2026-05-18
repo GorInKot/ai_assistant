@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -5,17 +6,23 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.db import User, SessionLocal
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Секрет для JWT (для MVP можно захардкодить)
-SECRET_KEY = "supersecretkey_mvp"
+# Секрет подписи JWT. В проде ОБЯЗАТЕЛЬНО задать переменную окружения JWT_SECRET —
+# иначе по дефолтному значению можно подделать токен любого пользователя.
+SECRET_KEY = os.getenv("JWT_SECRET", "dev-insecure-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 #pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],
+    #schemes=["bcrypt"],
     deprecated="auto"
 )
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 

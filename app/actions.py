@@ -13,6 +13,7 @@ class ActionRecord:
     action_id: str
     action_type: str
     process: str
+    block: str
     title: str
     details: str
     requester: str
@@ -31,6 +32,8 @@ class ActionsStore:
         self,
         action_type: str,
         process: str,
+        block: str | None,
+        status: str,
         title: str,
         details: str,
         requester: str,
@@ -39,18 +42,38 @@ class ActionsStore:
             action_id=f"ACT-{uuid4().hex[:8].upper()}",
             action_type=action_type,
             process=process,
+            block=block or "Не указан",
             title=title,
             details=details,
             requester=requester or "Не указан",
-            status="Черновик (локально)",
+            status=status or "Черновик",
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         self._append_record(record)
         return record
 
-    def list_actions(self, limit: int = 50) -> list[dict[str, Any]]:
+    def list_actions(self, limit: int = 50, block: str | None = None) -> list[dict[str, Any]]:
         if not self.file_path.exists():
             return []
+
+        def infer_block(item: dict[str, Any]) -> str:
+            block_value = str(item.get("block", "")).strip()
+            if block_value:
+                return block_value
+            search_text = " ".join(str(item.get(key, "")) for key in ("process", "title", "details")).lower()
+            candidates = [
+                ("ит-блок", "ИТ-блок"),
+                ("ит блок", "ИТ-блок"),
+                ("пботос", "ПБОТОС"),
+                ("гоичс", "ГОиЧС"),
+                ("транспорт", "транспорт"),
+                ("ахо-блок", "АХО-блок"),
+                ("ахо блок", "АХО-блок"),
+            ]
+            for needle, canonical in candidates:
+                if needle in search_text:
+                    return canonical
+            return ""
 
         lines = self.file_path.read_text(encoding="utf-8").splitlines()
         items: list[dict[str, Any]] = []
@@ -58,9 +81,18 @@ class ActionsStore:
             if not line.strip():
                 continue
             try:
-                items.append(json.loads(line))
+                item = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if not str(item.get("block", "")).strip():
+                inferred = infer_block(item)
+                if inferred:
+                    item["block"] = inferred
+            if block:
+                item_block = str(item.get("block", "")).strip().lower()
+                if item_block != block.strip().lower():
+                    continue
+            items.append(item)
             if len(items) >= limit:
                 break
         return items
@@ -70,6 +102,7 @@ class ActionsStore:
             "action_id": record.action_id,
             "action_type": record.action_type,
             "process": record.process,
+            "block": record.block,
             "title": record.title,
             "details": record.details,
             "requester": record.requester,

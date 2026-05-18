@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 .venv/
+myenv/
 .env
+.DS_Store
+app_data.db
 logs/*.log
 logs/profile.json

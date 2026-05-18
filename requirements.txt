@@ -4,3 +4,9 @@ openai==1.61.1
 python-dotenv==1.0.1
 pypdf==5.1.0
 python-docx==1.1.2
+
+# Аутентификация и БД (модуль auth/db)
+SQLAlchemy==2.0.46
+passlib==1.7.4
+python-jose==3.5.0
+python-multipart==0.0.22

@@ -27,16 +27,15 @@ from sqlalchemy.orm import Session
 from app.db import init_db, User, SessionLocal
 from app.auth import get_password_hash, verify_password, create_access_token, get_db, get_current_user
 
-import os
-
 init_db()
 
 settings = load_settings()
 kb_index = KnowledgeBaseIndex(settings.kb_root)
 kb_lock = Lock()
 llm_service = LLMService(
-    settings.openai_api_key,
-    settings.openai_model,
+    settings.llm_api_key,
+    settings.llm_model,
+    base_url=settings.llm_base_url,
     enable_rerank=settings.enable_llm_rerank,
     rerank_candidates=settings.rerank_candidates,
 )
@@ -45,7 +44,6 @@ actions_store = ActionsStore(settings.log_file.parent / "actions.log")
 profile_store = ProfileStore(settings.log_file.parent / "profile.json")
 dialog_state = DialogStateStore(ttl_minutes=20)
 
-print("FROM OS:", os.environ.get("OPENAI_API_KEY"))
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
@@ -61,6 +59,8 @@ class AskResponse(BaseModel):
 class ActionCreateRequest(BaseModel):
     action_type: str = Field(..., min_length=2)
     process: str = Field(..., min_length=2)
+    block: str | None = Field(default=None, min_length=2)
+    status: str = Field(default="Черновик", min_length=2)
     title: str = Field(..., min_length=2)
     details: str = Field(..., min_length=2)
     requester: str = Field(default="")
@@ -1003,8 +1003,11 @@ def list_documents(
 
 
 @app.get("/api/actions")
-def list_actions(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, list[dict]]:
-    return {"actions": actions_store.list_actions(limit=limit)}
+def list_actions(
+    limit: int = Query(default=50, ge=1, le=500),
+    block: str | None = Query(default=None),
+) -> dict[str, list[dict]]:
+    return {"actions": actions_store.list_actions(limit=limit, block=block)}
 
 
 @app.post("/api/actions")
@@ -1018,6 +1021,8 @@ def create_action(payload: ActionCreateRequest) -> dict[str, object]:
     record = actions_store.create_action(
         action_type=payload.action_type.strip(),
         process=payload.process.strip(),
+        block=payload.block.strip() if payload.block else None,
+        status=payload.status.strip() if payload.status else "Черновик",
         title=payload.title.strip(),
         details=payload.details.strip(),
         requester=requester_value,
@@ -1084,7 +1089,12 @@ def get_file(file_path: str, download: int = 0) -> FileResponse:
 class RegisterRequest(BaseModel):
     email: str
     password: str
-    full_name: str | None = None
+    confirm_password: str
+    last_name: str
+    first_name: str
+    middle_name: str | None = None
+    division: str
+    subdivision: str | None = None
 
 class LoginRequest(BaseModel):
     email: str
@@ -1096,11 +1106,27 @@ class TokenResponse(BaseModel):
 
 @app.post("/api/auth/register", response_model=TokenResponse)
 def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Пароли не совпадают")
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
+    full_name = " ".join(
+        part
+        for part in (
+            payload.last_name.strip(),
+            payload.first_name.strip(),
+            (payload.middle_name or "").strip(),
+        )
+        if part
+    )
     user = User(
         email=payload.email,
-        full_name=payload.full_name,
+        full_name=full_name,
+        first_name=payload.first_name.strip(),
+        last_name=payload.last_name.strip(),
+        middle_name=(payload.middle_name or "").strip() or None,
+        division=payload.division.strip(),
+        subdivision=(payload.subdivision or "").strip() or None,
         hashed_password=get_password_hash(payload.password),
     )
     db.add(user)

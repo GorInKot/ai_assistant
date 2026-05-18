@@ -14,17 +14,26 @@ FALLBACK_EN = "There is no exact information in the knowledge base for your ques
 
 
 class LLMService:
-    def __init__(self, api_key: str | None, model: str, enable_rerank: bool = True, rerank_candidates: int = 28) -> None:
+    def __init__(
+        self,
+        api_key: str | None,
+        model: str,
+        base_url: str | None = None,
+        enable_rerank: bool = True,
+        rerank_candidates: int = 28,
+    ) -> None:
         self.model = model
         self.enable_rerank = enable_rerank
         self.rerank_candidates = max(8, rerank_candidates)
-        self.client = OpenAI(api_key=api_key) if api_key else None
-        # if api_key: 
-        #     self.client = OpenAI(api_key=api_key)
-        # else:
-        #     self.client = None
-        print("OPENAI KEY:", repr(api_key))
-        print("OPENAI CLIENT CREATED:", bool(self.client))
+
+        if base_url:
+            # OpenAI-совместимый бэкенд (Groq, Ollama, LM Studio, vLLM).
+            # Локальным серверам ключ обычно не нужен — подставляем заглушку.
+            self.client = OpenAI(base_url=base_url, api_key=api_key or "not-needed")
+        elif api_key:
+            self.client = OpenAI(api_key=api_key)
+        else:
+            self.client = None
 
 
     def rerank_results(self, question: str, candidates: Sequence[RetrievalResult], top_n: int = 16) -> list[RetrievalResult]:
@@ -93,7 +102,7 @@ class LLMService:
 
     def generate_answer(self, question: str, context_results: Sequence[RetrievalResult], intent: str = "procedure") -> str:
         if not self.client:
-            raise RuntimeError("OPENAI_API_KEY is not set")
+            raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
 
         context_payload = self._format_context(context_results)
         language_hint = self._detect_language(question)

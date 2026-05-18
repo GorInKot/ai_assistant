@@ -263,6 +263,127 @@
       margin-top: -2px;
     }
 
+    .dashboard-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: #fbfcfd;
+    }
+
+    .dashboard-controls .subtitle {
+      color: var(--subtle);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .dashboard-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 12px;
+      padding: 20px 24px;
+    }
+
+    .metric-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric-card .metric-label {
+      color: var(--subtle);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .metric-card .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .dashboard-panels {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      padding: 0 24px 24px;
+    }
+
+    .dashboard-panel {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .dashboard-panel h3 {
+      margin: 0;
+      font-size: 15px;
+      color: var(--text);
+    }
+
+    .dashboard-row {
+      display: grid;
+      gap: 10px;
+    }
+
+    .dashboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .dashboard-item .label {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .dashboard-item .count {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .dashboard-bar {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: #e8eef3;
+      overflow: hidden;
+    }
+
+    .dashboard-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #0e7a5f, #24b27b);
+    }
+
+    .top-topic {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    @media (max-width: 980px) {
+      .dashboard-summary,
+      .dashboard-panels {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 760px) {
       .app { margin: 0; border-radius: 0; border: 0; }
       .controls { flex-direction: column; }
@@ -271,19 +392,161 @@
       .messages, .panel-content { max-height: none; min-height: 55vh; }
       .btn, .controls button { width: 100%; }
     }
+
+    .login-container {
+      max-width: 400px;
+      margin: 60px auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 30px;
+      box-shadow: 0 12px 30px rgba(28, 43, 61, 0.08);
+      display: none;
+    }
+
+    .login-container.active {
+      display: block;
+    }
+
+    .login-container h2 {
+      margin: 0 0 24px 0;
+      color: var(--text);
+      font-size: 20px;
+    }
+
+    .login-field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .login-field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .login-field input {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .login-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    #authMessages,
+    #registerMessages {
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
-  <main class="app">
+  <div id="authMessages"></div>
+
+  <div class="login-container active" id="loginView">
+    <h2>Вход</h2>
+    <div class="login-field">
+      <label>Email:</label>
+      <input type="email" id="loginEmail" placeholder="test@example.com">
+    </div>
+    <div class="login-field">
+      <label>Пароль:</label>
+      <input type="password" id="loginPassword" placeholder="••••••••">
+    </div>
+    <div class="login-buttons">
+      <button type="button" class="btn btn-primary" id="loginBtn">Вход</button>
+      <button type="button" class="btn btn-soft" id="registerNavBtn">Регистрация</button>
+    </div>
+  </div>
+
+  <div class="login-container" id="registerView">
+    <h2>Регистрация</h2>
+    <div id="registerMessages"></div>
+    <div class="login-field">
+      <label>Фамилия:</label>
+      <input type="text" id="registerLastName" placeholder="Иванов">
+    </div>
+    <div class="login-field">
+      <label>Имя:</label>
+      <input type="text" id="registerFirstName" placeholder="Иван">
+    </div>
+    <div class="login-field">
+      <label>Отчество:</label>
+      <input type="text" id="registerMiddleName" placeholder="Иванович">
+    </div>
+    <div class="login-field">
+      <label>Email:</label>
+      <input type="email" id="registerEmail" placeholder="test@example.com">
+    </div>
+    <div class="login-field">
+      <label>Филиал:</label>
+      <input type="text" id="registerDivision" placeholder="Филиал Уфа">
+    </div>
+    <div class="login-field">
+      <label>Производственный участок:</label>
+      <input type="text" id="registerSubdivision" placeholder="ПУ Уфа">
+    </div>
+    <div class="login-field">
+      <label>Пароль:</label>
+      <input type="password" id="registerPassword" placeholder="••••••••">
+    </div>
+    <div class="login-field">
+      <label>Подтверждение пароля:</label>
+      <input type="password" id="registerConfirmPassword" placeholder="••••••••">
+    </div>
+    <div class="login-buttons">
+      <button type="button" class="btn btn-primary" id="registerSubmitBtn">Зарегистрироваться</button>
+      <button type="button" class="btn btn-soft" id="registerBackBtn">Назад</button>
+    </div>
+  </div>
+
+  <div id="appContainer" style="display: none;">
+    <main class="app">
     <section class="header">
-      <h1>Корпоративный ИИ-ассистент</h1>
-      <p>MVP: чат по KB, список документов и локальные действия (без интеграции с ИС).</p>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1>Корпоративный ИИ-ассистент</h1>
+          <p>MVP: чат по KB, список документов и локальные действия (без интеграции с ИС).</p>
+        </div>
+        <button class="btn btn-soft" id="logoutBtn" style="height: fit-content;">Выход</button>
+      </div>
     </section>
 
     <section class="tabs">
       <button class="tab-btn active" data-view="chatView">Чат</button>
       <button class="tab-btn" data-view="documentsView">Документы</button>
       <button class="tab-btn" data-view="actionsView">Действия</button>
+      <button class="tab-btn" data-view="blockCabinetView">Кабинет блока</button>
+      <button class="tab-btn" data-view="dashboardView">Дашборд</button>
+      <button class="tab-btn" data-view="lkView">ЛК</button>
     </section>
 
   <section class="view active" id="chatView">
@@ -305,6 +568,7 @@
         <option value="ЦУС_Строительный_контроль">ЦУС — Строительный контроль</option>
         <option value="ЕКТП_Транспорт">ЕКТП — Транспорт</option>
         <option value="Обучение_и_медосмотр">Обучение и медосмотр</option>
+        <option value="Лаборатория_ИИ">Лаборатория ИИ</option>
       </select>
       <label><input type="checkbox" id="docsFormsOnly" /> Только формы</label>
       <button class="btn btn-soft" id="docsRefreshBtn">Обновить</button>
@@ -322,7 +586,17 @@
               <option value="medical_exam_request">Заявка на медосмотр</option>
               <option value="appeal_registration">Регистрация обращения</option>
             </select>
-            <input id="actionProcess" placeholder="Процесс (например, ЕКТП_Транспорт)" value="ЕКТП_Транспорт" />
+            <input id="actionProcess" placeholder="Процесс (например, ЕКТП_Транспорт или Лаборатория_ИИ)" value="ЕКТП_Транспорт" />
+          </div>
+          <div class="row">
+            <select id="actionBlock">
+              <option value="">Блок не выбран</option>
+              <option value="Транспорт">транспорт</option>
+              <option value="ПБОТОС">ПБОТОС</option>
+              <option value="ГОиЧС">ГОиЧС</option>
+              <option value="ИТ-блок">ИТ-блок</option>
+              <option value="АХО-блок">АХО-блок</option>
+            </select>
           </div>
           <input id="actionTitle" placeholder="Тема заявки/обращения" />
           <textarea id="actionDetails" rows="4" placeholder="Описание"></textarea>
@@ -339,16 +613,114 @@
         </div>
       </section>
     </section>
+
+    <section class="view" id="blockCabinetView">
+      <section class="filters">
+        <select id="blockFilter">
+          <option value="">Все блоки</option>
+          <option value="Транспорт">транспорт</option>
+          <option value="ПБОТОС">ПБОТОС</option>
+          <option value="ГОиЧС">ГОиЧС</option>
+          <option value="ИТ-блок">ИТ-блок</option>
+          <option value="АХО-блок">АХО-блок</option>
+        </select>
+        <button class="btn btn-soft" id="refreshBlockCabinetBtn">Обновить</button>
+      </section>
+      <section class="panel-content" id="blockCabinetList">
+        <div class="empty">Выберите блок, чтобы увидеть заявки сотрудников.</div>
+      </section>
+    </section>
+
+    <section class="view" id="dashboardView">
+      <section class="dashboard-controls">
+        <div>
+          <label>
+            Период:
+            <select id="dashboardPeriod">
+              <option value="7">7 дней</option>
+              <option value="30" selected>30 дней</option>
+              <option value="90">90 дней</option>
+            </select>
+          </label>
+          <div class="subtitle">Данные по анонимным обращениям для комиссии.</div>
+        </div>
+        <button class="btn btn-soft" id="dashboardRefreshBtn">Обновить</button>
+      </section>
+      <section class="dashboard-summary" id="dashboardSummary"></section>
+      <section class="dashboard-panels">
+        <div class="dashboard-panel" id="dashboardByBlockPanel">
+          <h3>Обращения по блокам</h3>
+          <div class="dashboard-row" id="dashboardByBlock"></div>
+        </div>
+        <div class="dashboard-panel" id="dashboardByStatusPanel">
+          <h3>Статусы обращений</h3>
+          <div class="dashboard-row" id="dashboardByStatus"></div>
+        </div>
+        <div class="dashboard-panel" id="dashboardTopTopicsPanel">
+          <h3>Топ тем обращений</h3>
+          <div class="dashboard-row" id="dashboardTopTopics"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="view" id="lkView">
+      <section class="panel-content">
+        <div class="card">
+          <h3>Личный кабинет</h3>
+          <div class="note">Здесь вы можете редактировать свой профиль и настройки.</div>
+          <form id="profileForm">
+            <div class="form-group">
+              <label for="profileFullName">ФИО</label>
+              <input type="text" id="profileFullName" placeholder="Иванов Иван Иванович" required>
+            </div>
+            <div class="form-group">
+              <label for="profileDivision">Филиал</label>
+              <select id="profileDivision" required>
+                <option value="">Выберите филиал</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="profileSubdivision">Подразделение</label>
+              <select id="profileSubdivision">
+                <option value="">Выберите подразделение</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="profileJobTitle">Должность</label>
+              <input type="text" id="profileJobTitle" placeholder="Инженер" required>
+            </div>
+            <div class="form-group">
+              <label for="profileEmail">Email</label>
+              <input type="email" id="profileEmail" placeholder="ivanov@example.com" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Сохранить профиль</button>
+          </form>
+          <div id="profileStatus"></div>
+        </div>
+      </section>
+    </section>
   </main>
 
 <script>
 const SESSION_KEY = 'assistant_session_id';
 
+const authMessagesEl = document.getElementById('authMessages');
+const registerMessagesEl = document.getElementById('registerMessages');
 const loginEmailEl = document.getElementById('loginEmail');
 const loginPasswordEl = document.getElementById('loginPassword');
+const registerLastNameEl = document.getElementById('registerLastName');
+const registerFirstNameEl = document.getElementById('registerFirstName');
+const registerMiddleNameEl = document.getElementById('registerMiddleName');
+const registerEmailEl = document.getElementById('registerEmail');
+const registerDivisionEl = document.getElementById('registerDivision');
+const registerSubdivisionEl = document.getElementById('registerSubdivision');
+const registerPasswordEl = document.getElementById('registerPassword');
+const registerConfirmPasswordEl = document.getElementById('registerConfirmPassword');
 const loginBtn = document.getElementById('loginBtn');
-const registerBtn = document.getElementById('registerBtn');
-const loginMessagesEl = document.getElementById('loginMessages');
+const registerNavBtn = document.getElementById('registerNavBtn');
+const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+const registerBackBtn = document.getElementById('registerBackBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 
 const questionEl = document.getElementById('question');
 const askBtn = document.getElementById('askBtn');
@@ -363,12 +735,30 @@ const documentsListEl = document.getElementById('documentsList');
 
     const actionTypeEl = document.getElementById('actionType');
     const actionProcessEl = document.getElementById('actionProcess');
+    const actionBlockEl = document.getElementById('actionBlock');
     const actionTitleEl = document.getElementById('actionTitle');
     const actionDetailsEl = document.getElementById('actionDetails');
     const actionRequesterEl = document.getElementById('actionRequester');
     const createActionBtn = document.getElementById('createActionBtn');
     const actionsListEl = document.getElementById('actionsList');
+
+    const profileFormEl = document.getElementById('profileForm');
+    const profileFullNameEl = document.getElementById('profileFullName');
+    const profileDivisionEl = document.getElementById('profileDivision');
+    const profileSubdivisionEl = document.getElementById('profileSubdivision');
+    const profileJobTitleEl = document.getElementById('profileJobTitle');
+    const profileEmailEl = document.getElementById('profileEmail');
+    const profileStatusEl = document.getElementById('profileStatus');
     const actionStatusEl = document.getElementById('actionStatus');
+    const blockFilterEl = document.getElementById('blockFilter');
+    const refreshBlockCabinetBtn = document.getElementById('refreshBlockCabinetBtn');
+    const blockCabinetListEl = document.getElementById('blockCabinetList');
+    const dashboardPeriodEl = document.getElementById('dashboardPeriod');
+    const dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
+    const dashboardSummaryEl = document.getElementById('dashboardSummary');
+    const dashboardByBlockEl = document.getElementById('dashboardByBlock');
+    const dashboardByStatusEl = document.getElementById('dashboardByStatus');
+    const dashboardTopTopicsEl = document.getElementById('dashboardTopTopics');
 
 function getSessionId() {
   let value = localStorage.getItem(SESSION_KEY);
@@ -393,6 +783,9 @@ function escapeHtml(text) {
       });
       if (viewId === 'documentsView') loadDocuments();
       if (viewId === 'actionsView') loadActions();
+      if (viewId === 'blockCabinetView') loadBlockCabinet();
+      if (viewId === 'dashboardView') loadDashboard();
+      if (viewId === 'lkView') loadLk();
     }
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -449,14 +842,27 @@ function appendMessage(role, text, sources = null) {
 }
 
 // --- AUTH helpers ---
-function showLogin() {
+function showLoginPage() {
   document.getElementById('loginView').classList.add('active');
+  document.getElementById('registerView').classList.remove('active');
   document.getElementById('appContainer').style.display = 'none';
+  registerMessagesEl.innerHTML = '';
+}
+
+function showRegisterPage() {
+  document.getElementById('loginView').classList.remove('active');
+  document.getElementById('registerView').classList.add('active');
+  document.getElementById('appContainer').style.display = 'none';
+  authMessagesEl.innerHTML = '';
+  registerMessagesEl.innerHTML = '';
 }
 
 function showApp() {
   document.getElementById('loginView').classList.remove('active');
+  document.getElementById('registerView').classList.remove('active');
   document.getElementById('appContainer').style.display = 'block';
+  authMessagesEl.innerHTML = '';
+  registerMessagesEl.innerHTML = '';
 }
 
 function authHeaders() {
@@ -468,7 +874,7 @@ async function authFetch(url, options = {}) {
   const resp = await fetch(url, { ...options, headers: { ...(options.headers || {}), 'Authorization': 'Bearer ' + localStorage.getItem('jwt_token') } });
   if (resp.status === 401) {
     localStorage.removeItem('jwt_token');
-    showLogin();
+    showLoginPage();
     throw new Error('Не авторизован');
   }
   return resp;
@@ -476,22 +882,25 @@ async function authFetch(url, options = {}) {
 
 async function checkAuth() {
   const token = localStorage.getItem('jwt_token');
-  if (!token) return showLogin();
+  if (!token) return showLoginPage();
   try {
     const resp = await authFetch('/api/user/profile');
     if (!resp.ok) throw new Error();
     showApp();
-  } catch { showLogin(); }
+  } catch { showLoginPage(); }
 }
 
 // --- LOGIN / REGISTER ---
 async function login() {
   const email = loginEmailEl.value.trim();
   const password = loginPasswordEl.value.trim();
-  if (!email || !password) return;
+  if (!email || !password) {
+    authMessagesEl.innerHTML = '<div class="empty">Введите email и пароль для входа.</div>';
+    return;
+  }
   loginBtn.disabled = true;
-  registerBtn.disabled = true;
-  loginMessagesEl.innerHTML = '<div class="empty">Вход...</div>';
+  registerNavBtn.disabled = true;
+  authMessagesEl.innerHTML = '<div class="empty">Вход...</div>';
 
   try {
     const resp = await fetch('/api/auth/login', {
@@ -506,47 +915,74 @@ async function login() {
     loginPasswordEl.value = '';
     showApp();
   } catch (err) {
-    loginMessagesEl.innerHTML = `<div class="empty">Ошибка: ${err.message}</div>`;
+    authMessagesEl.innerHTML = `<div class="empty">Ошибка: ${err.message}</div>`;
   } finally {
     loginBtn.disabled = false;
-    registerBtn.disabled = false;
+    registerNavBtn.disabled = false;
   }
 }
 
 async function register() {
-  const email = loginEmailEl.value.trim();
-  const password = loginPasswordEl.value.trim();
-  if (!email || !password) return;
-  loginBtn.disabled = true;
-  registerBtn.disabled = true;
-  loginMessagesEl.innerHTML = '<div class="empty">Регистрация...</div>';
+  const last_name = registerLastNameEl.value.trim();
+  const first_name = registerFirstNameEl.value.trim();
+  const middle_name = registerMiddleNameEl.value.trim();
+  const email = registerEmailEl.value.trim();
+  const division = registerDivisionEl.value.trim();
+  const subdivision = registerSubdivisionEl.value.trim();
+  const password = registerPasswordEl.value.trim();
+  const confirmPassword = registerConfirmPasswordEl.value.trim();
+
+  if (!last_name || !first_name || !email || !division || !password || !confirmPassword) {
+    registerMessagesEl.innerHTML = '<div class="empty">Заполните все обязательные поля и подтвердите пароль.</div>';
+    return;
+  }
+  if (password !== confirmPassword) {
+    registerMessagesEl.innerHTML = '<div class="empty">Пароли не совпадают.</div>';
+    return;
+  }
+
+  registerSubmitBtn.disabled = true;
+  registerBackBtn.disabled = true;
+  registerMessagesEl.innerHTML = '<div class="empty">Регистрация...</div>';
 
   try {
     const resp = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email,
+        password,
+        confirm_password: confirmPassword,
+        last_name,
+        first_name,
+        middle_name,
+        division,
+        subdivision,
+      })
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.detail || 'Ошибка регистрации');
-    localStorage.setItem('jwt_token', data.access_token);
-    loginEmailEl.value = '';
-    loginPasswordEl.value = '';
-    showApp();
+    authMessagesEl.innerHTML = '<div class="empty">Регистрация прошла успешно. Теперь войдите в систему.</div>';
+    registerEmailEl.value = '';
+    registerPasswordEl.value = '';
+    registerConfirmPasswordEl.value = '';
+    showLoginPage();
   } catch (err) {
-    loginMessagesEl.innerHTML = `<div class="empty">Ошибка: ${err.message}</div>`;
+    registerMessagesEl.innerHTML = `<div class="empty">Ошибка: ${err.message}</div>`;
   } finally {
-    loginBtn.disabled = false;
-    registerBtn.disabled = false;
+    registerSubmitBtn.disabled = false;
+    registerBackBtn.disabled = false;
   }
 }
 
 loginBtn.addEventListener('click', login);
-registerBtn.addEventListener('click', register);
+registerNavBtn.addEventListener('click', showRegisterPage);
+registerSubmitBtn.addEventListener('click', register);
+registerBackBtn.addEventListener('click', showLoginPage);
 
 logoutBtn.addEventListener('click', () => {
   localStorage.removeItem('jwt_token');
-  showLogin();
+  showLoginPage();
 });
 
 // --- CHAT ---
@@ -639,6 +1075,7 @@ async function createAction() {
   const payload = {
     action_type: actionTypeEl.value,
     process: actionProcessEl.value.trim(),
+    block: actionBlockEl.value.trim() || null,
     title: actionTitleEl.value.trim(),
     details: actionDetailsEl.value.trim(),
     requester: actionRequesterEl.value.trim() || 'Не указан',
@@ -658,6 +1095,7 @@ async function createAction() {
     actionTitleEl.value = '';
     actionDetailsEl.value = '';
     await loadActions();
+    await loadDashboard();
   } catch (error) {
     actionStatusEl.innerText = `Ошибка сети: ${error.message || error}`;
   } finally {
@@ -675,13 +1113,227 @@ async function loadActions() {
     if (!items.length) { actionsListEl.innerHTML = '<div class="empty">Пока нет зарегистрированных действий.</div>'; return; }
     actionsListEl.innerHTML = items.map((item) => `
       <div class="doc-item">
-        <div><strong>${escapeHtml(item.title)}</strong> <span class="badge">${escapeHtml(item.status)}</span></div>
-        <div class="meta">${escapeHtml(item.action_id)} | ${escapeHtml(item.process)} | ${escapeHtml(item.action_type)}</div>
+        <div><strong>${escapeHtml(item.title)}</strong></div>
+        <div class="meta">${escapeHtml(item.action_id)} | ${escapeHtml(item.process)} | ${escapeHtml(item.block || 'Не указан')} | ${escapeHtml(item.action_type)}</div>
         <div class="meta">${escapeHtml(item.details)}</div>
         <div class="meta">Инициатор: ${escapeHtml(item.requester)} | ${escapeHtml(item.created_at)}</div>
       </div>`).join('');
   } catch (error) {
     actionsListEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
+  }
+}
+
+async function loadBlockCabinet() {
+  blockCabinetListEl.innerHTML = '<div class="empty">Загрузка заявок...</div>';
+  const block = blockFilterEl.value.trim();
+  const params = new URLSearchParams();
+  if (block) params.set('block', block);
+  try {
+    const response = await authFetch(`/api/actions?${params.toString()}`);
+    const payload = await response.json();
+    const items = payload.actions || [];
+    if (!items.length) {
+      blockCabinetListEl.innerHTML = '<div class="empty">Заявки не найдены.</div>';
+      return;
+    }
+    blockCabinetListEl.innerHTML = items.map((item) => `
+      <div class="doc-item">
+        <div><strong>${escapeHtml(item.title)}</strong> <span class="badge">${escapeHtml(item.status)}</span></div>
+        <div class="meta">${escapeHtml(item.action_id)} | ${escapeHtml(item.block || 'Не указан')} | ${escapeHtml(item.process)}</div>
+        <div class="meta">${escapeHtml(item.details)}</div>
+        <div class="meta">Инициатор: ${escapeHtml(item.requester)} | ${escapeHtml(item.created_at)}</div>
+      </div>`).join('');
+  } catch (error) {
+    blockCabinetListEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
+  }
+}
+
+function createDashboardBar(name, value, max) {
+  const width = max > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0;
+  return `
+    <div class="dashboard-item">
+      <div class="label">${escapeHtml(name)}</div>
+      <div class="count">${escapeHtml(String(value))}</div>
+    </div>
+    <div class="dashboard-bar"><div class="dashboard-bar-fill" style="width: ${width}%;"></div></div>
+  `;
+}
+
+function createDashboardMetric(label, value, note = '') {
+  return `
+    <div class="metric-card">
+      <div class="metric-label">${escapeHtml(label)}</div>
+      <div class="metric-value">${escapeHtml(String(value))}</div>
+      ${note ? `<div class="note">${escapeHtml(note)}</div>` : ''}
+    </div>
+  `;
+}
+
+async function loadDashboard() {
+  dashboardSummaryEl.innerHTML = '<div class="empty">Загрузка данных дашборда...</div>';
+  dashboardByBlockEl.innerHTML = '';
+  dashboardByStatusEl.innerHTML = '';
+  dashboardTopTopicsEl.innerHTML = '';
+
+  const periodDays = Number(dashboardPeriodEl.value) || 30;
+  const cutoffTime = Date.now() - periodDays * 24 * 60 * 60 * 1000;
+
+  try {
+    const response = await authFetch('/api/actions?limit=500');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ошибка сервера ${response.status}: ${errorText}`);
+    }
+    const payload = await response.json();
+    const items = (payload.actions || []).filter((item) => {
+      const ts = Date.parse(item.created_at || '');
+      return Number.isFinite(ts) && ts >= cutoffTime;
+    });
+
+    const total = items.length;
+    const statusCounts = {};
+    const blockCounts = {};
+    const topicCounts = {};
+
+    items.forEach((item) => {
+      const status = item.status || 'Не указан';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      const block = item.block || 'Не указан';
+      blockCounts[block] = (blockCounts[block] || 0) + 1;
+      const topic = item.title ? item.title.trim() : 'Без темы';
+      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+    });
+
+    const closedCount = statusCounts['Закрыто'] || 0;
+    const closedShare = total ? Math.round((closedCount / total) * 100) : 0;
+    const averageCloseTime = '0 ч';
+
+    const maxBlock = Math.max(...Object.values(blockCounts), 1);
+    const maxStatus = Math.max(...Object.values(statusCounts), 1);
+
+    const blocks = Object.entries(blockCounts).sort((a, b) => b[1] - a[1]);
+    const statuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
+    const topics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+    dashboardSummaryEl.innerHTML = [
+      createDashboardMetric('Всего за период', total),
+      createDashboardMetric('Закрыто', closedCount),
+      createDashboardMetric('В работе', statusCounts['В работе'] || 0),
+      createDashboardMetric('Нужны уточнения', statusCounts['Нужны уточнения'] || 0),
+      createDashboardMetric('Доля закрытых', `${closedShare}%`),
+      createDashboardMetric('Среднее закрытие', averageCloseTime, 'На текущем этапе рассчитывается как 0 ч'),
+    ].join('');
+
+    if (!blocks.length) {
+      dashboardByBlockEl.innerHTML = '<div class="empty">Нет данных по блокам.</div>';
+    } else {
+      dashboardByBlockEl.innerHTML = blocks.map(([name, count]) => createDashboardBar(name, count, maxBlock)).join('');
+    }
+
+    if (!statuses.length) {
+      dashboardByStatusEl.innerHTML = '<div class="empty">Нет данных по статусам.</div>';
+    } else {
+      dashboardByStatusEl.innerHTML = statuses.map(([name, count]) => createDashboardBar(name, count, maxStatus)).join('');
+    }
+
+    if (!topics.length) {
+      dashboardTopTopicsEl.innerHTML = '<div class="empty">Нет тем обращений.</div>';
+    } else {
+      dashboardTopTopicsEl.innerHTML = topics.map(([name, count]) => `
+        <div class="top-topic">
+          <div class="label">${escapeHtml(name)}</div>
+          <div class="count">${escapeHtml(String(count))}</div>
+        </div>
+      `).join('');
+    }
+  } catch (error) {
+    dashboardSummaryEl.innerHTML = `<div class="empty">Ошибка загрузки: ${escapeHtml(error.message || error)}</div>`;
+    dashboardByBlockEl.innerHTML = '';
+    dashboardByStatusEl.innerHTML = '';
+    dashboardTopTopicsEl.innerHTML = '';
+  }
+}
+
+async function loadLk() {
+  profileStatusEl.innerText = 'Загрузка профиля...';
+  try {
+    const response = await authFetch('/api/profile');
+    if (!response.ok) {
+      throw new Error(`Ошибка сервера ${response.status}`);
+    }
+    const data = await response.json();
+    const profile = data.profile;
+    const options = data.options || {};
+    window.profileOptions = options; // Store for subdivision updates
+
+    // Fill divisions
+    profileDivisionEl.innerHTML = '<option value="">Выберите филиал</option>';
+    (options.divisions || []).forEach((div) => {
+      const opt = document.createElement('option');
+      opt.value = div;
+      opt.textContent = div;
+      if (profile && profile.division === div) opt.selected = true;
+      profileDivisionEl.appendChild(opt);
+    });
+
+    // Fill subdivisions based on selected division
+    updateSubdivisions(profile ? profile.division : '');
+
+    // Fill other fields
+    if (profile) {
+      profileFullNameEl.value = profile.full_name || '';
+      profileJobTitleEl.value = profile.job_title || '';
+      profileEmailEl.value = profile.email || '';
+      profileSubdivisionEl.value = profile.subdivision || '';
+    } else {
+      profileFullNameEl.value = '';
+      profileJobTitleEl.value = '';
+      profileJobTitleEl.value = '';
+      profileEmailEl.value = '';
+      profileSubdivisionEl.value = '';
+    }
+
+    profileStatusEl.innerText = '';
+  } catch (error) {
+    profileStatusEl.innerText = `Ошибка загрузки профиля: ${error.message || error}`;
+  }
+}
+
+function updateSubdivisions(division) {
+  profileSubdivisionEl.innerHTML = '<option value="">Выберите подразделение</option>';
+  const options = window.profileOptions || {};
+  const subs = options.subdivisions_by_division && options.subdivisions_by_division[division];
+  if (subs) {
+    subs.forEach((sub) => {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.textContent = sub;
+      profileSubdivisionEl.appendChild(opt);
+    });
+  }
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  profileStatusEl.innerText = 'Сохранение...';
+  const payload = {
+    full_name: profileFullNameEl.value.trim(),
+    division: profileDivisionEl.value.trim(),
+    subdivision: profileSubdivisionEl.value.trim() || null,
+    job_title: profileJobTitleEl.value.trim(),
+    email: profileEmailEl.value.trim(),
+  };
+  try {
+    const response = await authFetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Ошибка сохранения');
+    }
+    const data = await response.json();
+    profileStatusEl.innerText = 'Профиль сохранен успешно!';
+    setTimeout(() => profileStatusEl.innerText = '', 3000);
+  } catch (error) {
+    profileStatusEl.innerText = `Ошибка: ${error.message || error}`;
   }
 }
 
@@ -691,6 +1343,10 @@ async function loadActions() {
     docsFormsOnlyEl.addEventListener('change', loadDocuments);
     docsProcessEl.addEventListener('change', loadDocuments);
     createActionBtn.addEventListener('click', createAction);
+    blockFilterEl.addEventListener('change', loadBlockCabinet);
+    refreshBlockCabinetBtn.addEventListener('click', loadBlockCabinet);
+    dashboardPeriodEl.addEventListener('change', loadDashboard);
+    dashboardRefreshBtn.addEventListener('click', loadDashboard);
 
     questionEl.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
@@ -706,8 +1362,17 @@ async function loadActions() {
       }
     });
 
+    profileFormEl.addEventListener('submit', saveProfile);
+    profileDivisionEl.addEventListener('change', () => updateSubdivisions(profileDivisionEl.value));
+
     loadDocuments();
     loadActions();
+    loadDashboard();
+
+    // Check authentication on page load
+    checkAuth();
   </script>
+    </main>
+  </div>
 </body>
 </html>
