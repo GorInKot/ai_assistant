@@ -29,6 +29,9 @@ app.include_router(documents.router)
 app.include_router(actions.router)
 app.include_router(profile.router)
 
+# Раздача JS/CSS-бандла нового React-фронта (frontend/dist/assets) — если фронт собран.
+system.attach_static_assets(app)
+
 
 @app.on_event("startup")
 def startup_event() -> None:

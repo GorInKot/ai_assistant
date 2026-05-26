@@ -1,5 +1,17 @@
-# Render Blueprint — корпоративный ИИ-ассистент (FastAPI).
+# Render Blueprint — корпоративный ИИ-ассистент (FastAPI + React).
 # Деплой: Render Dashboard -> New -> Blueprint -> выбрать этот репозиторий.
+#
+# ВНИМАНИЕ. После перехода на React-фронт (frontend/dist) на Render runtime: python
+# нет Node.js. Варианты для production-деплоя нового UI:
+#   1. Перейти на runtime: docker и описать сборку в Dockerfile
+#      (RUN apt-get install nodejs && npm install && npm run build).
+#   2. Использовать Render Native Runtime с buildpack, который включает Node.
+#   3. Разнести: фронт — Render Static Site (npm run build), бэкенд — Web Service.
+#
+# Текущая конфигурация ниже работает только со старым static/index.html
+# (новый UI отдаётся только если frontend/dist собран локально и закоммичен,
+# что делать НЕ рекомендуется). До решения по Docker prod-деплой нового UI
+# не работает — изучайте локально через npm run dev + uvicorn.
 services:
   - type: web
     name: ai-assistant

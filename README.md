@@ -98,11 +98,33 @@
    - `RERANK_TOP_N=16`
 
 ## Запуск
-```bash
-uvicorn app.main:app --reload
-```
 
-Откройте: `http://127.0.0.1:8000`
+### Production-режим (новый React UI как единое приложение)
+1. Соберите фронт (один раз или после правок в `frontend/`):
+   ```bash
+   cd frontend && npm install && npm run build
+   ```
+2. Запустите бэкенд:
+   ```bash
+   uvicorn app.main:app
+   ```
+3. Откройте `http://127.0.0.1:8000` — будет отдан собранный React-UI из `frontend/dist`.
+
+### Dev-режим (горячая перезагрузка фронта)
+В двух терминалах:
+```bash
+# Терминал 1: backend
+uvicorn app.main:app --reload
+
+# Терминал 2: frontend (HMR на 5173, /api/* проксируется на 8000)
+cd frontend && npm run dev
+```
+Откройте `http://127.0.0.1:5173`.
+
+### Старый UI (fallback)
+Если `frontend/dist` отсутствует, бэкенд автоматически отдаст старый `static/index.html`
+со вкладками Чат/Документы/Действия. Это deprecated-режим — используется только для
+сравнения поведения; новый функционал в нём не появляется.
 
 ## База знаний
 Поддерживаемые форматы: `PDF`, `DOC`, `DOCX`, `MD`.
