@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: "Segoe UI", "Arial", sans-serif;
+}
+
+/* Markdown в ответах ассистента */
+.prose-msg p {
+  margin: 0.4em 0;
+}
+.prose-msg p:first-child {
+  margin-top: 0;
+}
+.prose-msg p:last-child {
+  margin-bottom: 0;
+}
+.prose-msg ul,
+.prose-msg ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+.prose-msg li {
+  margin: 0.15em 0;
+}
+.prose-msg code {
+  background: #eef2f6;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+.prose-msg pre {
+  background: #1e293b;
+  color: #f1f5f9;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.88em;
+}
+.prose-msg pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+.prose-msg h1,
+.prose-msg h2,
+.prose-msg h3 {
+  margin: 0.6em 0 0.3em;
+  font-weight: 600;
+}
