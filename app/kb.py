@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import hashlib
+import logging
 import math
 import re
 import subprocess
 from collections import Counter, OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import quote
+
+import numpy as np
+
+if TYPE_CHECKING:
+    from app.embeddings import YandexEmbedder
 
 try:
     from docx import Document  # type: ignore
@@ -17,6 +25,9 @@ try:
     from pypdf import PdfReader  # type: ignore
 except Exception:  # pragma: no cover
     PdfReader = None
+
+
+logger = logging.getLogger(__name__)
 
 
 TOKEN_PATTERN = re.compile(r"[A-Za-zА-Яа-яЁё0-9]+")
@@ -387,14 +398,50 @@ class RetrievalResult:
     coverage: float
 
 
+# Дополнительные триггер-токены для определения процесса по запросу.
+# Используются в дополнение к токенам, извлечённым из имени папки.
+# Нужны для случаев, когда имя папки общее (например, "Законодательство_РФ"),
+# но в вопросе пользователя могут быть специфичные термины типа "ТК РФ" или "статья".
+PROCESS_EXTRA_TRIGGERS: dict[str, set[str]] = {
+    "Законодательство_РФ": {
+        "закон",
+        "законодательств",
+        "тк",
+        "кодекс",
+        "статья",
+        "стать",
+        "пункт",
+        "трудов",
+        "право",
+        "норматив",
+        "регламент",
+        "приказ",
+        "постановлени",
+        "минтруд",
+        "фз",
+        "редакц",
+    },
+}
+
+
 class KnowledgeBaseIndex:
-    def __init__(self, kb_root: Path) -> None:
+    def __init__(
+        self,
+        kb_root: Path,
+        embedder: "YandexEmbedder | None" = None,
+        embeddings_cache_path: Path | None = None,
+    ) -> None:
         self.kb_root = kb_root
         self.documents: dict[str, DocumentRecord] = {}
         self.chunks: list[ChunkRecord] = []
         self.token_idf: dict[str, float] = {}
         self.avg_chunk_len: float = 1.0
         self.process_tokens: dict[str, set[str]] = {}
+        # Векторный индекс — заполняется при build(), если embedder передан.
+        self.embedder = embedder
+        self.embeddings_cache_path = embeddings_cache_path
+        self.embedding_matrix: np.ndarray = np.zeros((0, 256), dtype=np.float32)
+        self.chunk_id_to_row: dict[str, int] = {}
 
     def build(self) -> None:
         self.documents = {}
@@ -421,6 +468,8 @@ class KnowledgeBaseIndex:
 
             metadata_tokens = set(self._tokenize(f"{relative_path} {file_path.stem}"))
             process_tokens[process].update(self._tokenize(process))
+            if process in PROCESS_EXTRA_TRIGGERS:
+                process_tokens[process].update(PROCESS_EXTRA_TRIGGERS[process])
 
             text_units: list[TextUnit] = []
             if extension == ".md":
@@ -476,6 +525,141 @@ class KnowledgeBaseIndex:
 
         self.process_tokens = dict(process_tokens)
         self._recompute_index_stats()
+        self._rebuild_embeddings()
+
+    def _rebuild_embeddings(self) -> None:
+        """Считает эмбеддинги всех чанков с использованием дискового кэша.
+
+        Кэш — npz-файл с ключами hash(chunk.text) → vector. При повторном build()
+        перебираем только новые/изменённые чанки, сохраняем обновлённый кэш.
+        Если embedder не настроен — embedding_matrix остаётся пустой,
+        retrieve() будет работать только на BM25.
+        """
+        self.embedding_matrix = np.zeros((0, 256), dtype=np.float32)
+        self.chunk_id_to_row = {}
+
+        if not self.embedder or not self.chunks:
+            return
+
+        cache = self._load_embeddings_cache()
+        chunk_keys = [self._chunk_hash(chunk.text) for chunk in self.chunks]
+        missing_indices = [i for i, key in enumerate(chunk_keys) if key not in cache]
+
+        if missing_indices:
+            logger.info(
+                "Computing %d new embeddings (cache hit %d/%d)",
+                len(missing_indices),
+                len(chunk_keys) - len(missing_indices),
+                len(chunk_keys),
+            )
+            texts_to_embed = [self.chunks[i].text for i in missing_indices]
+            try:
+                new_vectors = self.embedder.embed_documents(texts_to_embed)
+            except Exception as err:  # pragma: no cover
+                logger.error("Embedding batch failed, falling back to BM25-only: %s", err)
+                return
+            for idx, vec in zip(missing_indices, new_vectors):
+                cache[chunk_keys[idx]] = vec
+
+        matrix = np.stack([cache[key] for key in chunk_keys], axis=0)
+        self.embedding_matrix = matrix.astype(np.float32, copy=False)
+        self.chunk_id_to_row = {chunk.chunk_id: row for row, chunk in enumerate(self.chunks)}
+
+        if missing_indices:
+            self._save_embeddings_cache(cache)
+
+    @staticmethod
+    def _chunk_hash(text: str) -> str:
+        return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+    def _load_embeddings_cache(self) -> dict[str, np.ndarray]:
+        cache: dict[str, np.ndarray] = {}
+        path = self.embeddings_cache_path
+        if not path or not path.exists():
+            return cache
+        try:
+            data = np.load(path, allow_pickle=False)
+            keys = data["keys"]
+            vectors = data["vectors"]
+            for key, vec in zip(keys, vectors):
+                cache[str(key)] = vec
+        except Exception as err:  # pragma: no cover
+            logger.warning("Failed to load embeddings cache from %s: %s", path, err)
+        return cache
+
+    def _save_embeddings_cache(self, cache: dict[str, np.ndarray]) -> None:
+        path = self.embeddings_cache_path
+        if not path:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            keys = np.array(list(cache.keys()))
+            vectors = np.stack(list(cache.values()), axis=0).astype(np.float32, copy=False)
+            np.savez(path, keys=keys, vectors=vectors)
+        except Exception as err:  # pragma: no cover
+            logger.warning("Failed to save embeddings cache to %s: %s", path, err)
+
+    def hybrid_retrieve(
+        self,
+        query: str,
+        top_k: int = 20,
+        rrf_k: int = 60,
+    ) -> list[RetrievalResult]:
+        """Reciprocal Rank Fusion поверх BM25 + vector search.
+
+        Если векторный индекс не готов — отдаёт чистый BM25.
+        """
+        bm25_results = self.retrieve(query, top_k=top_k)
+        vector_results = self.vector_retrieve(query, top_k=top_k)
+
+        if not vector_results:
+            return bm25_results
+
+        scores: dict[str, float] = {}
+        seen_chunks: dict[str, RetrievalResult] = {}
+
+        for rank, result in enumerate(bm25_results):
+            key = result.chunk.chunk_id
+            scores[key] = scores.get(key, 0.0) + 1.0 / (rrf_k + rank)
+            seen_chunks[key] = result
+
+        for rank, result in enumerate(vector_results):
+            key = result.chunk.chunk_id
+            scores[key] = scores.get(key, 0.0) + 1.0 / (rrf_k + rank)
+            # Если чанк есть в BM25 — оставляем "богатый" RetrievalResult с coverage оттуда.
+            if key not in seen_chunks:
+                seen_chunks[key] = result
+
+        fused = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        output: list[RetrievalResult] = []
+        for chunk_id, fused_score in fused[:top_k]:
+            base = seen_chunks[chunk_id]
+            # Заменяем score на fused, но сохраняем coverage из исходного источника.
+            output.append(RetrievalResult(chunk=base.chunk, score=fused_score, coverage=base.coverage))
+        return output
+
+    def vector_retrieve(self, query: str, top_k: int = 20) -> list[RetrievalResult]:
+        """Косинусный поиск по векторному индексу. Возвращает [] если индекс не готов."""
+        if not self.embedder or self.embedding_matrix.shape[0] == 0:
+            return []
+
+        from app.embeddings import cosine_similarity_topk
+
+        try:
+            query_vec = self.embedder.embed_query(query)
+        except Exception as err:  # pragma: no cover
+            logger.error("Query embedding failed: %s", err)
+            return []
+
+        ranked = cosine_similarity_topk(query_vec, self.embedding_matrix, top_k=top_k)
+        results: list[RetrievalResult] = []
+        for row, score in ranked:
+            if row < 0 or row >= len(self.chunks):
+                continue
+            chunk = self.chunks[row]
+            # coverage не имеет смысла для cosine — ставим долю позитивных весов как proxy.
+            results.append(RetrievalResult(chunk=chunk, score=float(score), coverage=float(max(score, 0.0))))
+        return results
 
     def retrieve(self, query: str, top_k: int = 20) -> list[RetrievalResult]:
         query_tokens = self._query_tokens(query)

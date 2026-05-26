@@ -540,7 +540,9 @@ def process_ask(raw_question: str, session_id_raw: str | None, user_id: int) -> 
 
     with kb_lock:
         process_hint = kb_index.detect_process_hint(effective_question)
-        lexical_results = kb_index.retrieve(
+        # Hybrid: BM25 + векторный поиск (RRF). Если эмбеддинги не настроены —
+        # внутри отдаст чистый BM25.
+        lexical_results = kb_index.hybrid_retrieve(
             effective_question,
             top_k=max(50, settings.rerank_candidates * 2),
         )

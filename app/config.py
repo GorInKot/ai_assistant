@@ -21,6 +21,11 @@ class Settings:
     enable_llm_rerank: bool
     rerank_candidates: int
     rerank_top_n: int
+    # Векторный поиск через Yandex Foundation Models (опционально):
+    # если оба значения заданы — KnowledgeBaseIndex использует hybrid retrieval (BM25 + cosine).
+    yc_api_key: str | None
+    yc_folder_id: str | None
+    embeddings_cache_path: Path
 
 
 def _as_bool(value: str | None, default: bool) -> bool:
@@ -46,6 +51,15 @@ def load_settings() -> Settings:
     llm_api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
     llm_model = os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL") or "llama-3.3-70b-versatile"
 
+    yc_api_key = (os.getenv("YC_API_KEY") or "").strip() or None
+    yc_folder_id = (os.getenv("YC_FOLDER_ID") or "").strip() or None
+    embeddings_cache_raw = os.getenv("EMBEDDINGS_CACHE", "logs/embeddings_cache.npz")
+    embeddings_cache_path = (
+        (base_dir / embeddings_cache_raw).resolve()
+        if not Path(embeddings_cache_raw).is_absolute()
+        else Path(embeddings_cache_raw)
+    )
+
     return Settings(
         base_dir=base_dir,
         kb_root=kb_root,
@@ -56,4 +70,7 @@ def load_settings() -> Settings:
         enable_llm_rerank=_as_bool(os.getenv("ENABLE_LLM_RERANK"), True),
         rerank_candidates=int(os.getenv("RERANK_CANDIDATES", "28")),
         rerank_top_n=int(os.getenv("RERANK_TOP_N", "16")),
+        yc_api_key=yc_api_key,
+        yc_folder_id=yc_folder_id,
+        embeddings_cache_path=embeddings_cache_path,
     )
