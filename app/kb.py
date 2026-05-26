@@ -607,6 +607,12 @@ class KnowledgeBaseIndex:
     ) -> list[RetrievalResult]:
         """Reciprocal Rank Fusion поверх BM25 + vector search.
 
+        ВАЖНО: RRF-score используется ТОЛЬКО для финальной сортировки.
+        В RetrievalResult.score возвращается ОРИГИНАЛЬНОЕ значение
+        (BM25-скор или cosine), чтобы вся логика is_context_strong,
+        select_context_results, extract_participants_from_results и т.д.,
+        которая опирается на BM25-шкалу, продолжала работать.
+
         Если векторный индекс не готов — отдаёт чистый BM25.
         """
         bm25_results = self.retrieve(query, top_k=top_k)
@@ -615,28 +621,26 @@ class KnowledgeBaseIndex:
         if not vector_results:
             return bm25_results
 
-        scores: dict[str, float] = {}
-        seen_chunks: dict[str, RetrievalResult] = {}
+        rrf_scores: dict[str, float] = {}
+        # Источник истины для score/coverage: приоритет — BM25 (если чанк там есть),
+        # потому что остальной код калиброван на BM25-шкалу.
+        sources: dict[str, RetrievalResult] = {}
 
         for rank, result in enumerate(bm25_results):
             key = result.chunk.chunk_id
-            scores[key] = scores.get(key, 0.0) + 1.0 / (rrf_k + rank)
-            seen_chunks[key] = result
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (rrf_k + rank)
+            sources[key] = result
 
         for rank, result in enumerate(vector_results):
             key = result.chunk.chunk_id
-            scores[key] = scores.get(key, 0.0) + 1.0 / (rrf_k + rank)
-            # Если чанк есть в BM25 — оставляем "богатый" RetrievalResult с coverage оттуда.
-            if key not in seen_chunks:
-                seen_chunks[key] = result
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (rrf_k + rank)
+            if key not in sources:
+                # Чанк нашёл только vector. score = cosine (низкое значение в шкале BM25),
+                # но порядок благодаря RRF будет адекватный.
+                sources[key] = result
 
-        fused = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        output: list[RetrievalResult] = []
-        for chunk_id, fused_score in fused[:top_k]:
-            base = seen_chunks[chunk_id]
-            # Заменяем score на fused, но сохраняем coverage из исходного источника.
-            output.append(RetrievalResult(chunk=base.chunk, score=fused_score, coverage=base.coverage))
-        return output
+        fused = sorted(rrf_scores.items(), key=lambda item: item[1], reverse=True)
+        return [sources[key] for key, _ in fused[:top_k]]
 
     def vector_retrieve(self, query: str, top_k: int = 20) -> list[RetrievalResult]:
         """Косинусный поиск по векторному индексу. Возвращает [] если индекс не готов."""
