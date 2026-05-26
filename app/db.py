@@ -21,6 +21,7 @@ class User(Base):
     middle_name = Column(String, nullable=True)
     division = Column(String, nullable=True)
     subdivision = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -52,6 +53,7 @@ def _migrate_user_table():
             ("middle_name", "TEXT"),
             ("division", "TEXT"),
             ("subdivision", "TEXT"),
+            ("job_title", "TEXT"),
         ):
             if column_name not in existing_columns:
                 connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))

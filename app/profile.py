@@ -1,8 +1,12 @@
+"""Справочники подразделений и нормализация профиля.
+
+Хранение профиля переехало в таблицу users (см. app/db.py).
+Здесь остаются только данные, которые нужны для валидации форм и UI-выпадашек.
+"""
+
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
 
 
 ALLOWED_DIVISIONS = (
@@ -50,52 +54,10 @@ BRANCH_SUBDIVISIONS: dict[str, tuple[str, ...]] = {
 
 @dataclass
 class UserProfile:
+    """DTO для передачи профиля между слоями (UI/БД)."""
+
     full_name: str
     division: str
     subdivision: str | None
     job_title: str
     email: str
-
-
-class ProfileStore:
-    def __init__(self, file_path: Path) -> None:
-        self.file_path = file_path
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    def load_profile(self) -> UserProfile | None:
-        if not self.file_path.exists():
-            return None
-
-        try:
-            raw = json.loads(self.file_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return None
-
-        if not isinstance(raw, dict):
-            return None
-
-        return UserProfile(
-            full_name=str(raw.get("full_name", "")).strip(),
-            division=str(raw.get("division", "")).strip(),
-            subdivision=(
-                str(raw.get("subdivision", "")).strip()
-                or str(raw.get("subdivision_type", "")).strip()
-                or None
-            ),
-            job_title=str(raw.get("job_title", "")).strip(),
-            email=str(raw.get("email", "")).strip(),
-        )
-
-    def save_profile(self, profile: UserProfile) -> UserProfile:
-        payload = {
-            "full_name": profile.full_name,
-            "division": profile.division,
-            "subdivision": profile.subdivision or "",
-            "job_title": profile.job_title,
-            "email": profile.email,
-        }
-        self.file_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        return profile
