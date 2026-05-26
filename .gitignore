@@ -7,3 +7,5 @@ myenv/
 app_data.db
 logs/*.log
 logs/profile.json
+logs/embeddings_cache.npz
+.claude/
