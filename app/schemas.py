@@ -8,16 +8,28 @@ from pydantic import BaseModel, Field
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
     session_id: str | None = None
+    # Если передан — сообщения сохраняются в эту беседу.
+    # Если None — обратная совместимость со старым UI: ответ возвращается, но в БД не пишется.
+    conversation_id: int | None = None
 
 
 class AskResponse(BaseModel):
     answer: str
     sources: list[dict]
     no_exact_match: bool
+    conversation_id: int | None = None
 
 
 class DialogClearRequest(BaseModel):
     session_id: str | None = None
+
+
+class ConversationCreateRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+
+
+class ConversationPatchRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
 
 
 class ActionCreateRequest(BaseModel):

@@ -1,6 +1,16 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    func,
+    text,
+)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import relationship, sessionmaker
 
 DATABASE_URL = "sqlite:///./app_data.db"
 
@@ -34,6 +44,54 @@ class UserAction(Base):
     title = Column(String, nullable=False)
     details = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Conversation(Base):
+    """Одна беседа пользователя с ассистентом. Аналог treda в ChatGPT-сайдбаре."""
+
+    __tablename__ = "conversations"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False, default="Новая беседа")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    messages = relationship(
+        "Message",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="Message.id",
+    )
+
+
+class Message(Base):
+    """Одно сообщение внутри беседы.
+
+    role: 'user' | 'assistant'.
+    sources_json — JSON-строка со списком источников; для user-сообщений пусто.
+    """
+
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(
+        Integer,
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    sources_json = Column(Text, nullable=True)
+    no_exact_match = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    conversation = relationship("Conversation", back_populates="messages")
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)

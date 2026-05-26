@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from app.db import init_db
-from app.routers import actions, auth, chat, documents, profile, system
+from app.routers import actions, auth, chat, conversations, documents, profile, system
 from app.state import kb_index, kb_lock, settings
 
 
@@ -24,6 +24,7 @@ app = FastAPI(title="Corporate AI Assistant MVP")
 app.include_router(system.router)
 app.include_router(auth.router)
 app.include_router(chat.router)
+app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(actions.router)
 app.include_router(profile.router)
