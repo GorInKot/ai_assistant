@@ -13,7 +13,16 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from app.db import init_db
-from app.routers import actions, auth, chat, conversations, documents, profile, system
+from app.routers import (
+    actions,
+    auth,
+    chat,
+    conversations,
+    documents,
+    employees,
+    profile,
+    system,
+)
 from app.state import kb_index, kb_lock, settings
 
 
@@ -28,6 +37,7 @@ app.include_router(conversations.router)
 app.include_router(documents.router)
 app.include_router(actions.router)
 app.include_router(profile.router)
+app.include_router(employees.router)
 
 # Раздача JS/CSS-бандла нового React-фронта (frontend/dist/assets) — если фронт собран.
 system.attach_static_assets(app)

@@ -70,3 +70,72 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class EmployeeIn(BaseModel):
+    email: str = Field(..., min_length=5, max_length=160)
+    full_name: str = Field(..., min_length=2, max_length=200)
+    position: str | None = Field(default=None, max_length=200)
+    division: str | None = Field(default=None, max_length=120)
+    subdivision: str | None = Field(default=None, max_length=120)
+    phone: str | None = Field(default=None, max_length=40)
+    is_active: bool = True
+    # slug-и областей ответственности, которые сотрудник курирует
+    responsibility_area_slugs: list[str] = Field(default_factory=list)
+
+
+class EmployeeOut(BaseModel):
+    id: int
+    user_id: int | None
+    email: str
+    full_name: str
+    position: str | None
+    division: str | None
+    subdivision: str | None
+    phone: str | None
+    is_active: bool
+    responsibility_area_slugs: list[str]
+
+    model_config = {"from_attributes": True}
+
+
+class ResponsibilityAreaIn(BaseModel):
+    slug: str = Field(..., min_length=2, max_length=80, pattern=r"^[a-z0-9_-]+$")
+    name: str = Field(..., min_length=2, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class ResponsibilityAreaOut(BaseModel):
+    id: int
+    slug: str
+    name: str
+    description: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class ResponsibilityAssign(BaseModel):
+    employee_id: int
+    area_slug: str
+    scope_division: str | None = None
+    scope_subdivision: str | None = None
+    is_primary: bool = True
+
+
+class ResponsibilityOut(BaseModel):
+    id: int
+    employee_id: int
+    employee_full_name: str
+    employee_email: str
+    area_slug: str
+    area_name: str
+    scope_division: str | None
+    scope_subdivision: str | None
+    is_primary: bool
+
+
+class EmployeeImportResult(BaseModel):
+    created: int
+    updated: int
+    skipped: int
+    errors: list[str]

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { EmployeesAdmin } from "../admin/EmployeesAdmin";
 import { api, ApiError } from "../api/client";
 import { clearToken } from "../auth/store";
+import { useCurrentUser } from "../auth/useCurrentUser";
 import type {
   AskResponse,
   ChatMessage,
@@ -21,7 +23,9 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [view, setView] = useState<"chat" | "admin-employees">("chat");
   const [error, setError] = useState<string | null>(null);
+  const { isAdmin } = useCurrentUser();
 
   const loadConversations = useCallback(async () => {
     const data = await api.get<{ conversations: ConversationSummary[] }>("/api/conversations");
@@ -127,28 +131,42 @@ export function ChatPage() {
       <Sidebar
         conversations={conversations}
         activeId={activeId}
-        onSelect={(id) => openConversation(id).catch((err) => setError(err?.message))}
-        onNew={handleNew}
+        isAdmin={isAdmin}
+        onSelect={(id) => {
+          setView("chat");
+          openConversation(id).catch((err) => setError(err?.message));
+        }}
+        onNew={() => {
+          setView("chat");
+          handleNew();
+        }}
         onRename={handleRename}
         onDelete={handleDelete}
         onOpenProfile={() => setProfileOpen(true)}
+        onOpenAdmin={() => setView("admin-employees")}
         onLogout={handleLogout}
       />
-      <main className="flex-1 flex flex-col bg-slate-50">
-        <Header />
-        <MessageList messages={messages} loading={sending} />
-        {error && (
-          <div className="mx-auto max-w-3xl w-full px-6">
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
-              {error}
-              <button onClick={() => setError(null)} className="ml-2 underline text-red-600">
-                закрыть
-              </button>
+      {view === "admin-employees" ? (
+        <main className="flex-1">
+          <EmployeesAdmin onBackToChat={() => setView("chat")} />
+        </main>
+      ) : (
+        <main className="flex-1 flex flex-col bg-slate-50">
+          <Header />
+          <MessageList messages={messages} loading={sending} />
+          {error && (
+            <div className="mx-auto max-w-3xl w-full px-6">
+              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
+                {error}
+                <button onClick={() => setError(null)} className="ml-2 underline text-red-600">
+                  закрыть
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-        <Composer onSend={handleSend} disabled={sending} />
-      </main>
+          )}
+          <Composer onSend={handleSend} disabled={sending} />
+        </main>
+      )}
       {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}
     </div>
   );

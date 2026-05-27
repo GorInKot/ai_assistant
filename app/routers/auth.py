@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import (
+    assign_initial_role,
     create_access_token,
     get_current_user,
     get_db,
@@ -45,6 +46,7 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> To
         subdivision=(payload.subdivision or "").strip() or None,
         hashed_password=get_password_hash(payload.password),
     )
+    assign_initial_role(db, user)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -67,4 +69,5 @@ def get_current_user_profile(current_user: User = Depends(get_current_user)) -> 
         "email": current_user.email,
         "full_name": current_user.full_name,
         "created_at": current_user.created_at,
+        "roles": [role.name for role in current_user.roles],
     }

@@ -4,22 +4,26 @@ import type { ConversationSummary } from "../api/types";
 interface Props {
   conversations: ConversationSummary[];
   activeId: number | null;
+  isAdmin: boolean;
   onSelect: (id: number) => void;
   onNew: () => void;
   onRename: (id: number, title: string) => void;
   onDelete: (id: number) => void;
   onOpenProfile: () => void;
+  onOpenAdmin: () => void;
   onLogout: () => void;
 }
 
 export function Sidebar({
   conversations,
   activeId,
+  isAdmin,
   onSelect,
   onNew,
   onRename,
   onDelete,
   onOpenProfile,
+  onOpenAdmin,
   onLogout,
 }: Props) {
   return (
@@ -50,6 +54,11 @@ export function Sidebar({
       </div>
 
       <div className="p-3 border-t border-slate-800 space-y-1">
+        {isAdmin && (
+          <button onClick={onOpenAdmin} className={footerBtn}>
+            👥 Сотрудники
+          </button>
+        )}
         <button onClick={onOpenProfile} className={footerBtn}>
           ⚙ Профиль
         </button>

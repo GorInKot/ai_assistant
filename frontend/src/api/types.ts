@@ -58,3 +58,37 @@ export interface ProfileResponse {
   profile: ProfileData;
   options: ProfileOptions;
 }
+
+export interface CurrentUser {
+  email: string;
+  full_name: string;
+  created_at: string | null;
+  roles: string[];
+}
+
+export interface ResponsibilityArea {
+  id: number;
+  slug: string;
+  name: string;
+  description: string | null;
+}
+
+export interface Employee {
+  id: number;
+  user_id: number | null;
+  email: string;
+  full_name: string;
+  position: string | null;
+  division: string | null;
+  subdivision: string | null;
+  phone: string | null;
+  is_active: boolean;
+  responsibility_area_slugs: string[];
+}
+
+export interface EmployeeImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}

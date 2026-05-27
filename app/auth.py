@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from app.db import User, SessionLocal
+from app.db import ROLE_ADMIN, ROLE_USER, Role, User, SessionLocal
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,10 +16,8 @@ SECRET_KEY = os.getenv("JWT_SECRET", "dev-insecure-secret-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-#pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],
-    #schemes=["bcrypt"],
     deprecated="auto"
 )
 
@@ -63,3 +61,39 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
     return user
+
+
+def user_has_role(user: User, role_name: str) -> bool:
+    return any(role.name == role_name for role in user.roles)
+
+
+def require_role(*allowed_roles: str):
+    """Dependency-фабрика для защиты эндпоинтов ролями.
+
+    Использование: `current_user: User = Depends(require_role("admin"))`.
+    Пользователь должен иметь хотя бы одну из перечисленных ролей.
+    """
+
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if any(role.name in allowed_roles for role in current_user.roles):
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Требуется одна из ролей: {', '.join(allowed_roles)}",
+        )
+
+    return dependency
+
+
+def assign_initial_role(db: Session, user: User) -> None:
+    """При регистрации: первый пользователь становится admin, остальные — user.
+
+    Делается в той же транзакции, что и создание user — вызвать ДО commit.
+    """
+    user_count = db.query(User).count()
+    role_name = ROLE_ADMIN if user_count == 0 else ROLE_USER
+    role = db.query(Role).filter(Role.name == role_name).first()
+    if role:
+        user.roles.append(role)
+    else:
+        logger.warning("Role %s not seeded — user %s will have no role", role_name, user.email)
