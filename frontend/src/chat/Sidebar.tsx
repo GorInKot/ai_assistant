@@ -11,6 +11,7 @@ interface Props {
   onDelete: (id: number) => void;
   onOpenProfile: () => void;
   onOpenAdmin: () => void;
+  onOpenUsersAdmin: () => void;
   onLogout: () => void;
 }
 
@@ -24,6 +25,7 @@ export function Sidebar({
   onDelete,
   onOpenProfile,
   onOpenAdmin,
+  onOpenUsersAdmin,
   onLogout,
 }: Props) {
   return (
@@ -55,9 +57,14 @@ export function Sidebar({
 
       <div className="p-3 border-t border-slate-800 space-y-1">
         {isAdmin && (
-          <button onClick={onOpenAdmin} className={footerBtn}>
-            👥 Сотрудники
-          </button>
+          <>
+            <button onClick={onOpenAdmin} className={footerBtn}>
+              👥 Сотрудники
+            </button>
+            <button onClick={onOpenUsersAdmin} className={footerBtn}>
+              🔑 Пользователи
+            </button>
+          </>
         )}
         <button onClick={onOpenProfile} className={footerBtn}>
           ⚙ Профиль

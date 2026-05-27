@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { EmployeesAdmin } from "../admin/EmployeesAdmin";
+import { UsersAdmin } from "../admin/UsersAdmin";
 import { api, ApiError } from "../api/client";
 import { clearToken } from "../auth/store";
 import { useCurrentUser } from "../auth/useCurrentUser";
@@ -23,7 +24,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [view, setView] = useState<"chat" | "admin-employees">("chat");
+  const [view, setView] = useState<"chat" | "admin-employees" | "admin-users">("chat");
   const [error, setError] = useState<string | null>(null);
   const { isAdmin } = useCurrentUser();
 
@@ -144,11 +145,16 @@ export function ChatPage() {
         onDelete={handleDelete}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenAdmin={() => setView("admin-employees")}
+        onOpenUsersAdmin={() => setView("admin-users")}
         onLogout={handleLogout}
       />
       {view === "admin-employees" ? (
         <main className="flex-1">
           <EmployeesAdmin onBackToChat={() => setView("chat")} />
+        </main>
+      ) : view === "admin-users" ? (
+        <main className="flex-1">
+          <UsersAdmin onBackToChat={() => setView("chat")} />
         </main>
       ) : (
         <main className="flex-1 flex flex-col bg-slate-50">

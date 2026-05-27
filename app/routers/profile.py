@@ -7,10 +7,10 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_db
+from app.auth import get_current_user, get_db, get_password_hash, verify_password
 from app.db import User
 from app.profile import ALLOWED_DIVISIONS, BRANCH_SUBDIVISIONS, UserProfile
-from app.schemas import ProfileRequest
+from app.schemas import PasswordChangeRequest, ProfileRequest
 
 
 router = APIRouter(prefix="/api")
@@ -95,3 +95,17 @@ def save_profile(
     db.refresh(current_user)
 
     return {"status": "saved", "profile": _user_to_profile_dict(current_user)}
+
+
+@router.post("/profile/password")
+def change_password(
+    payload: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Текущий пароль неверный")
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"status": "changed"}

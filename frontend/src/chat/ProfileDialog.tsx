@@ -118,7 +118,103 @@ export function ProfileDialog({ onClose }: Props) {
           </button>
         </div>
       </form>
+
+      <div className="pt-4 mt-4 border-t border-slate-200">
+        <PasswordChangeSection />
+      </div>
     </ModalShell>
+  );
+}
+
+function PasswordChangeSection() {
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm text-accent hover:underline"
+      >
+        Сменить пароль
+      </button>
+    );
+  }
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setStatus(null);
+    if (newPassword !== confirmPassword) {
+      setError("Новые пароли не совпадают");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.post("/api/profile/password", {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setStatus("Пароль обновлён");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Ошибка смены пароля");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="space-y-3" onSubmit={handleSubmit}>
+      <div className="text-xs font-semibold text-slate-700">Смена пароля</div>
+      <Field label="Текущий пароль">
+        <input
+          type="password"
+          required
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          className={inputClass}
+        />
+      </Field>
+      <Field label="Новый пароль (мин. 6 символов)">
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className={inputClass}
+        />
+      </Field>
+      <Field label="Повторите новый пароль">
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className={inputClass}
+        />
+      </Field>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {status && <p className="text-sm text-emerald-700">{status}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={() => setOpen(false)} className={secondaryBtn}>
+          Закрыть
+        </button>
+        <button type="submit" disabled={submitting} className={primaryBtn}>
+          {submitting ? "Меняем…" : "Сменить"}
+        </button>
+      </div>
+    </form>
   );
 }
 

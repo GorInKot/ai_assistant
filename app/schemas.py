@@ -139,3 +139,26 @@ class EmployeeImportResult(BaseModel):
     updated: int
     skipped: int
     errors: list[str]
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6, max_length=200)
+
+
+class UserSummary(BaseModel):
+    id: int
+    email: str
+    full_name: str | None
+    division: str | None
+    subdivision: str | None
+    created_at: str | None
+    roles: list[str]
+
+
+class UserRolesUpdate(BaseModel):
+    roles: list[str]
+
+
+class AdminPasswordResetRequest(BaseModel):
+    new_password: str = Field(..., min_length=6, max_length=200)

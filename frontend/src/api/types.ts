@@ -92,3 +92,13 @@ export interface EmployeeImportResult {
   skipped: number;
   errors: string[];
 }
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  full_name: string | null;
+  division: string | null;
+  subdivision: string | null;
+  created_at: string | null;
+  roles: string[];
+}
