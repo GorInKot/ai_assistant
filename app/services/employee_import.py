@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.db import Employee, Responsibility, ResponsibilityArea
+from app.db import Employee, Responsibility, ResponsibilityArea, User
 
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -188,6 +188,13 @@ def import_employees(
             db.add(existing)
             db.flush()
             updated = False
+
+        # Автолинк к User по email — импорт делает admin, поэтому email-матч
+        # тут безопасен (см. _employee_for_user в requests.py).
+        if existing.user_id is None:
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                existing.user_id = user.id
 
         # Обновляем области (только если поле явно указано в файле).
         if "areas" in record:

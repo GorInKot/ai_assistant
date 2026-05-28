@@ -1,19 +1,27 @@
-"""Работа с документами KB: список, файлы, переиндексация, отладка retrieval."""
+"""Работа с документами KB: список, файлы, переиндексация, отладка retrieval.
+
+Все эндпоинты требуют авторизации (раньше были публичными — это позволяло
+любому скачивать корпоративную KB). /reindex и /debug/retrieval — только admin/manager.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
+from app.auth import get_current_user, require_role
+from app.db import ROLE_ADMIN, ROLE_MANAGER, User
 from app.kb import RetrievalResult
 from app.state import kb_index, kb_lock, llm_service, settings
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
+
+admin_or_manager = require_role(ROLE_ADMIN, ROLE_MANAGER)
 
 
 @router.post("/reindex")
-def reindex() -> dict[str, int | str]:
+def reindex(current_user: User = Depends(admin_or_manager)) -> dict[str, int | str]:
     with kb_lock:
         kb_index.build()
         documents = len(kb_index.documents)
@@ -36,6 +44,7 @@ def list_documents(
 def debug_retrieval(
     q: str = Query(..., min_length=2),
     limit: int = Query(default=12, ge=1, le=50),
+    current_user: User = Depends(admin_or_manager),
 ) -> dict[str, object]:
     def serialize(results: list[RetrievalResult], size: int) -> list[dict[str, object]]:
         payload: list[dict[str, object]] = []

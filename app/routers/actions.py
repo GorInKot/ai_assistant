@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api")
 def list_actions(
     limit: int = Query(default=50, ge=1, le=500),
     block: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, list[dict]]:
     return {"actions": actions_store.list_actions(limit=limit, block=block)}
 

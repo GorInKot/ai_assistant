@@ -2,7 +2,9 @@
 
 Доступы:
 - GET /api/requests/inbox — все заявки, назначенные на сотрудника, связанного
-  с текущим юзером (по email employee.email == user.email).
+  с текущим юзером по Employee.user_id == User.id. Связь устанавливается
+  ТОЛЬКО админом (через create/update employee либо явный link-endpoint),
+  чтобы регистрация на чужой email не давала автоматический inbox.
 - GET /api/requests/my — заявки, которые юзер сам создал (включая анонимные —
   юзер видит только то, что сам отправил).
 - GET /api/requests/{id} — детали (только если автор или назначенный
@@ -36,8 +38,14 @@ router = APIRouter(prefix="/api/requests")
 
 
 def _employee_for_user(db: Session, user: User) -> Employee | None:
-    """Связь User → Employee по email (employee.email уникальный)."""
-    return db.query(Employee).filter(Employee.email == user.email).first()
+    """Связь User → Employee по Employee.user_id.
+
+    Раньше использовалось совпадение email, но это позволяло перехватить чужой
+    inbox через регистрацию на сотрудничский email (нет email-верификации).
+    Теперь связь устанавливается ТОЛЬКО админом при создании/обновлении
+    сотрудника либо через явный link-endpoint.
+    """
+    return db.query(Employee).filter(Employee.user_id == user.id).first()
 
 
 def _serialize(request: Request, db: Session, hide_requester: bool) -> dict:

@@ -42,6 +42,20 @@ router = APIRouter(prefix="/api")
 
 # ---------- Employees ----------
 
+def _autolink_user(db: Session, employee: Employee) -> None:
+    """Подвязать Employee.user_id к существующему User с тем же email.
+
+    Вызывается из admin-действий (create/update/import) — админ доверенный,
+    поэтому email-матч безопасен. На /api/auth/register линковка НЕ делается,
+    чтобы атакующий не мог захватить чужой inbox.
+    """
+    if employee.user_id is not None or not employee.email:
+        return
+    user = db.query(User).filter(User.email == employee.email).first()
+    if user:
+        employee.user_id = user.id
+
+
 def _employee_to_dict(emp: Employee) -> dict:
     return {
         "id": emp.id,
@@ -153,6 +167,8 @@ def create_employee(
     db.add(employee)
     db.flush()
 
+    _autolink_user(db, employee)
+
     if payload.responsibility_area_slugs:
         _sync_employee_areas(db, employee, payload.responsibility_area_slugs)
 
@@ -190,6 +206,7 @@ def update_employee(
     if email != emp.email and db.query(Employee).filter(Employee.email == email).first():
         raise HTTPException(status_code=400, detail="Email уже занят другим сотрудником")
 
+    email_changed = email != emp.email
     emp.email = email
     emp.full_name = payload.full_name.strip()
     emp.position = (payload.position or "").strip() or None
@@ -197,6 +214,13 @@ def update_employee(
     emp.subdivision = (payload.subdivision or "").strip() or None
     emp.phone = (payload.phone or "").strip() or None
     emp.is_active = payload.is_active
+
+    # При смене email связанный user_id уже не релевантен — переподвяжем.
+    if email_changed:
+        emp.user_id = None
+        _autolink_user(db, emp)
+    else:
+        _autolink_user(db, emp)
 
     _sync_employee_areas(db, emp, payload.responsibility_area_slugs)
 
@@ -238,6 +262,54 @@ def delete_employee(
     emp.is_active = False
     db.commit()
     return {"status": "deactivated"}
+
+
+@router.post("/admin/employees/{employee_id}/link")
+def link_employee_to_user(
+    employee_id: int,
+    payload: dict,
+    current_user: User = Depends(admin_only),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Связать сотрудника с учётной записью пользователя (или отвязать).
+
+    Body: {"user_id": <int>} — связать, {"user_id": null} — отвязать.
+    Линковка важна: только связанный user видит inbox этого Employee.
+    """
+    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Сотрудник не найден")
+
+    user_id = payload.get("user_id")
+    if user_id is None:
+        emp.user_id = None
+        db.commit()
+        return _employee_to_dict(emp)
+
+    if not isinstance(user_id, int):
+        raise HTTPException(status_code=400, detail="user_id должен быть числом или null")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    # user_id в Employee уникален НЕ принудительно — но логически один user =
+    # один employee. Если связь уже занята другим employee, явно ругаемся.
+    occupied = (
+        db.query(Employee)
+        .filter(Employee.user_id == user.id, Employee.id != emp.id)
+        .first()
+    )
+    if occupied:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Пользователь уже связан с сотрудником id={occupied.id}",
+        )
+
+    emp.user_id = user.id
+    db.commit()
+    db.refresh(emp)
+    return _employee_to_dict(emp)
 
 
 # ---------- Responsibility Areas ----------

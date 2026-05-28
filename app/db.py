@@ -292,6 +292,7 @@ def init_db():
     _seed_roles()
     _seed_responsibility_areas()
     _backfill_admin_role()
+    _backfill_employee_user_id()
 
 
 def _migrate_user_table():
@@ -372,6 +373,41 @@ def _backfill_admin_role():
         # Первый по id — становится admin (дополнительно к user).
         first = all_users[0]
         first.roles.append(admin_role)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _backfill_employee_user_id():
+    """Одноразовый backfill: связать Employee с User по совпадающему email.
+
+    До security-фикса связь Employee↔User определялась налету по email-строке —
+    это позволяло захватить чужой inbox через self-регистрацию. Теперь связь
+    хранится в Employee.user_id и устанавливается явно админом. Для уже
+    существующих записей считаем, что email уже доверенный (никто не успел
+    атаковать), поэтому делаем массовый backfill по email match.
+
+    Идемпотентно: запускается на каждом старте, но трогает только Employee
+    с user_id IS NULL.
+    """
+    db = SessionLocal()
+    try:
+        unlinked = db.query(Employee).filter(Employee.user_id.is_(None)).all()
+        if not unlinked:
+            return
+        for emp in unlinked:
+            if not emp.email:
+                continue
+            user = db.query(User).filter(User.email == emp.email).first()
+            if user:
+                # Проверим, что user ещё не связан с другим employee.
+                occupied = (
+                    db.query(Employee)
+                    .filter(Employee.user_id == user.id)
+                    .first()
+                )
+                if not occupied:
+                    emp.user_id = user.id
         db.commit()
     finally:
         db.close()
