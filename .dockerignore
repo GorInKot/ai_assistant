@@ -1,0 +1,52 @@
+# Контекст сборки Docker — исключаем всё, что не нужно ни для бэкенда,
+# ни для сборки фронта. Уменьшает размер контекста (быстрее upload в
+# Render) и не пускает в image секреты/локальное состояние.
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Локальные виртуалки и кэши Python
+myenv/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Node артефакты — пересобираются в Stage 1
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Локальная БД и логи (на Render создадутся новые)
+app_data.db
+app_data.db-*
+logs/
+*.log
+*.npz
+
+# Секреты
+.env
+.env.*
+!.env.example
+
+# IDE/системное
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# Рабочие/временные файлы пользователя
+text.md
+RoadMap05.md
+
+# Docker-сама
+Dockerfile
+.dockerignore

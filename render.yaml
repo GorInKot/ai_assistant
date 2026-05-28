@@ -1,38 +1,64 @@
-# Render Blueprint — корпоративный ИИ-ассистент (FastAPI + React).
-# Деплой: Render Dashboard -> New -> Blueprint -> выбрать этот репозиторий.
+# Render Blueprint — корпоративный ИИ-ассистент (FastAPI + React + Vite).
 #
-# ВНИМАНИЕ. После перехода на React-фронт (frontend/dist) на Render runtime: python
-# нет Node.js. Варианты для production-деплоя нового UI:
-#   1. Перейти на runtime: docker и описать сборку в Dockerfile
-#      (RUN apt-get install nodejs && npm install && npm run build).
-#   2. Использовать Render Native Runtime с buildpack, который включает Node.
-#   3. Разнести: фронт — Render Static Site (npm run build), бэкенд — Web Service.
+# Деплой:
+#   1. Render Dashboard → New → Blueprint → выбрать этот репозиторий.
+#   2. После создания сервиса в разделе Environment задать секреты,
+#      помеченные ниже как `sync: false` (LLM_API_KEY, YC_*,
+#      INITIAL_ADMIN_*). JWT_SECRET Render сгенерирует автоматически.
+#   3. Открыть https://<your-service>.onrender.com — авторизоваться под
+#      INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD.
 #
-# Текущая конфигурация ниже работает только со старым static/index.html
-# (новый UI отдаётся только если frontend/dist собран локально и закоммичен,
-# что делать НЕ рекомендуется). До решения по Docker prod-деплой нового UI
-# не работает — изучайте локально через npm run dev + uvicorn.
+# ВНИМАНИЕ для free-плана:
+# - БД (SQLite), embeddings cache и логи живут на эфемерной FS — пропадают
+#   при каждом деплое и при cold start (15 мин без запросов = сервис гасится).
+# - Регистрации пользователей и истории чатов теряются. Pre-seeded admin
+#   из INITIAL_ADMIN_* пересоздаётся при каждом старте — это безопасно.
+# - Cold start с YC_API_KEY = ~3 мин пересчёта эмбеддингов через Yandex.
+#   Чтобы ускорить — либо платный план с persistent disk, либо закоммитить
+#   logs/embeddings_cache.npz в репо (он попадёт в Docker image).
+#
+# Для платного прода (persistent state):
+#   - Открыть `disk:` блок ниже.
+#   - Задать env DATABASE_URL=sqlite:////data/app_data.db
+#     LOG_FILE=/data/logs/assistant.log
+#     EMBEDDINGS_CACHE=/data/logs/embeddings_cache.npz
+
 services:
   - type: web
     name: ai-assistant
-    runtime: python
+    runtime: docker
     plan: free
     region: frankfurt
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
+    # disk:
+    #   name: ai-assistant-data
+    #   mountPath: /data
+    #   sizeGB: 1
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.12.8"
+      # LLM (Groq, OpenAI-compatible API).
       - key: LLM_BASE_URL
         value: https://api.groq.com/openai/v1
       - key: LLM_MODEL
         value: llama-3.3-70b-versatile
       - key: ENABLE_LLM_RERANK
         value: "0"
-      # Секреты — задаются вручную в дашборде Render, в репозиторий не попадают.
       - key: LLM_API_KEY
         sync: false
-      # JWT_SECRET Render сгенерирует автоматически при первом деплое.
+
+      # JWT — Render сгенерирует случайное значение при первом деплое.
       - key: JWT_SECRET
         generateValue: true
+
+      # Yandex Foundation Models (опционально, для hybrid retrieval).
+      # Если оба пустые — KB работает только на BM25 (быстрее cold start).
+      - key: YC_API_KEY
+        sync: false
+      - key: YC_FOLDER_ID
+        sync: false
+
+      # Pre-seeded admin: создаётся при каждом старте, если не существует.
+      # Закрывает дыру "первый зарегистрировавшийся = admin" на ephemeral БД.
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false

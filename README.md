@@ -312,11 +312,39 @@ PYTHONPATH=. myenv/bin/python scripts/run_eval.py \
 
 ## Деплой (Render)
 
-Текущий [render.yaml](render.yaml) собирает только бэкенд (`runtime: python` без Node.js) и поэтому в проде отдаёт старый `static/index.html`.
+Проект собирается на Render как Docker-сервис: multi-stage [Dockerfile](Dockerfile) сначала строит React-фронт в Node-образе, потом кладёт `frontend/dist/` в Python-образ с FastAPI. Конфигурация в [render.yaml](render.yaml).
 
-Для деплоя нового React-UI на Render нужен либо переход на `runtime: docker` с собственным Dockerfile (`apt-get install nodejs && npm install && npm run build`), либо разнесение на два сервиса: Static Site для фронта + Web Service для бэкенда. См. комментарии в `render.yaml`.
+### Первый деплой
 
-⚠️ SQLite на Render free tier живёт на эфемерной FS — при каждом деплое БД теряется. Для прод-использования мигрировать на Postgres.
+1. Render Dashboard → **New → Blueprint** → выбрать этот репозиторий.
+2. В разделе **Environment** задать секреты (помечены `sync: false`):
+   - `LLM_API_KEY` — Groq API key.
+   - `YC_API_KEY`, `YC_FOLDER_ID` — Yandex Cloud Foundation Models (для hybrid retrieval; без них работает только BM25, но быстрее cold start).
+   - `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` — pre-seeded админ. Создаётся при каждом старте, если не существует, и закрывает дыру «первый зарегистрировавшийся = admin».
+   - `JWT_SECRET` Render сгенерирует автоматически (`generateValue: true`).
+3. После первого билда открыть `https://<your-service>.onrender.com` и залогиниться под `INITIAL_ADMIN_*`.
+
+### Ограничения free-плана
+
+- ⚠️ Файловая система эфемерная: при каждом деплое и cold start (>15 мин без запросов) пропадают:
+  - SQLite БД (`app_data.db`) — теряются пользователи, история чатов, заявки.
+  - Embeddings cache (`logs/embeddings_cache.npz`) — пересчёт при следующем старте ~3 мин через Yandex API.
+  - Логи запросов и действий.
+- Pre-seeded admin (`INITIAL_ADMIN_*`) пересоздаётся при каждом старте — это безопасно.
+- Чтобы ускорить cold start без платного плана: закоммитить `logs/embeddings_cache.npz` в репо (попадёт в Docker image, готов к старту), убрав его из `.gitignore` и `.dockerignore`.
+
+### Прод с persistent state
+
+Перейти на платный план Starter ($7/мес) + персистентный диск 1 GB ($1/мес):
+
+1. В [render.yaml](render.yaml) раскомментировать блок `disk:`.
+2. В Environment добавить:
+   - `DATABASE_URL=sqlite:////data/app_data.db`
+   - `LOG_FILE=/data/logs/assistant.log`
+   - `EMBEDDINGS_CACHE=/data/logs/embeddings_cache.npz`
+3. Передеплоить — состояние теперь переживает рестарты.
+
+Альтернатива — Postgres вместо SQLite (Render даёт бесплатный Postgres-инстанс): задать `DATABASE_URL=postgresql://...` из дашборда Postgres.
 
 ## Roadmap
 
@@ -330,9 +358,8 @@ PYTHONPATH=. myenv/bin/python scripts/run_eval.py \
 - ✅ Этап 5 — заявки через чат с маршрутизацией ответственному
 
 Открытые улучшения (вне роадмапа):
-- Заполнение раздела «Законодательство РФ» полными кодексами
 - Email/Telegram уведомления о новых заявках (сейчас только UI inbox)
-- Admin-UI для управления каталогом типов заявок (сейчас правка YAML + рестарт)
 - Alembic для миграций БД (сейчас ручной `ALTER TABLE`)
 - Pytest-тесты на ключевые сценарии
-- Docker-образ для деплоя на Render с Node.js
+- Опциональные слоты в заявках с возможностью «пропустить»
+- Eval cases для intent classifier и slot-filling

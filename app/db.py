@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -14,11 +16,12 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
-DATABASE_URL = "sqlite:///./app_data.db"
+# DATABASE_URL env-driven: для prod на Render с persistent disk можно
+# поставить sqlite:////data/app_data.db, для Postgres — postgresql://...
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app_data.db")
 
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
+connect_args: dict = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -350,6 +353,7 @@ def init_db():
     _migrate_user_table()
     _seed_roles()
     _seed_responsibility_areas()
+    _seed_initial_admin()
     _backfill_admin_role()
     _backfill_employee_user_id()
     _seed_request_types_from_yaml()
@@ -393,6 +397,61 @@ def _seed_responsibility_areas():
             existing = db.query(ResponsibilityArea).filter(ResponsibilityArea.slug == slug).first()
             if not existing:
                 db.add(ResponsibilityArea(slug=slug, name=name, description=description))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _seed_initial_admin():
+    """Если в env заданы INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD —
+    гарантируем, что такой пользователь есть и у него есть роль admin.
+
+    Зачем: на ephemeral-инфраструктуре (Render free plan) БД сбрасывается
+    при каждом деплое/cold start. assign_initial_role даёт admin'а первому
+    зарегистрировавшемуся — но это race condition: кто-то снаружи может
+    успеть первым. INITIAL_ADMIN_* env закрывает дыру: при старте сразу
+    есть admin, и assign_initial_role даст следующим только role=user.
+
+    Идемпотентно: при наличии user с таким email и role admin ничего не
+    делает; добавляет роль если её нет; пересоздаёт пароль НЕ трогает
+    (если admin захочет ротировать пароль — через UI).
+    """
+    email = os.getenv("INITIAL_ADMIN_EMAIL")
+    password = os.getenv("INITIAL_ADMIN_PASSWORD")
+    if not email or not password:
+        return
+
+    # local import — passlib тяжёлый, и app/auth.py импортирует app/db.py.
+    from passlib.context import CryptContext
+    pwd_ctx = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+    db = SessionLocal()
+    try:
+        admin_role = db.query(Role).filter(Role.name == ROLE_ADMIN).first()
+        if not admin_role:
+            return
+
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            if not any(r.name == ROLE_ADMIN for r in existing.roles):
+                existing.roles.append(admin_role)
+                db.commit()
+            return
+
+        user = User(
+            email=email,
+            full_name="Initial Admin",
+            first_name="Admin",
+            last_name="Initial",
+            hashed_password=pwd_ctx.hash(password),
+        )
+        user.roles.append(admin_role)
+        # Также добавим базовую роль user, чтобы поведение совпадало с обычной
+        # регистрацией (admin сам по себе подразумевает user).
+        user_role = db.query(Role).filter(Role.name == ROLE_USER).first()
+        if user_role:
+            user.roles.append(user_role)
+        db.add(user)
         db.commit()
     finally:
         db.close()
