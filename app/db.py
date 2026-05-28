@@ -186,6 +186,79 @@ class ResponsibilityArea(Base):
     )
 
 
+REQUEST_STATUS_NEW = "new"
+REQUEST_STATUS_IN_PROGRESS = "in_progress"
+REQUEST_STATUS_DONE = "done"
+REQUEST_STATUS_REJECTED = "rejected"
+
+REQUEST_STATUSES = (
+    REQUEST_STATUS_NEW,
+    REQUEST_STATUS_IN_PROGRESS,
+    REQUEST_STATUS_DONE,
+    REQUEST_STATUS_REJECTED,
+)
+
+
+class Request(Base):
+    """Заявка, оформленная через чат (Этап 5).
+
+    type_slug — ссылка на тип из каталога request_types.yaml (без FK,
+    каталог в файле, не в БД).
+    payload_json — JSON со значениями слотов формы.
+    is_anonymous — для анонимок: автор скрыт от получателя в UI.
+    """
+
+    __tablename__ = "requests"
+    id = Column(Integer, primary_key=True, index=True)
+    type_slug = Column(String, nullable=False, index=True)
+    type_title = Column(String, nullable=False)
+    requester_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    assigned_employee_id = Column(
+        Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    conversation_id = Column(
+        Integer, ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True
+    )
+    is_anonymous = Column(Boolean, nullable=False, default=False)
+    status = Column(String, nullable=False, default=REQUEST_STATUS_NEW, index=True)
+    payload_json = Column(Text, nullable=False, default="{}")
+    summary = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    events = relationship(
+        "RequestEvent",
+        back_populates="request",
+        cascade="all, delete-orphan",
+        order_by="RequestEvent.id",
+    )
+
+
+class RequestEvent(Base):
+    """История событий по заявке: создание, смена статуса, комментарий."""
+
+    __tablename__ = "request_events"
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(
+        Integer, ForeignKey("requests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_type = Column(String, nullable=False)
+    actor_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    request = relationship("Request", back_populates="events")
+
+
 class Responsibility(Base):
     """Связь: сотрудник X отвечает за область Y в области действия Z.
 

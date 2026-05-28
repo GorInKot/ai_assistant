@@ -1,0 +1,152 @@
+# Каталог типов заявок, которые ассистент может оформлять через чат.
+#
+# Поля:
+#   type           — уникальный slug типа заявки (используется в БД)
+#   title          — что показываем пользователю
+#   responsibility_area — slug области ответственности из таблицы
+#                    responsibility_areas. По нему ищем сотрудника-получателя.
+#   trigger_keywords — слова/фразы, которые помогают LLM распознать намерение.
+#                    Подаются LLM в system prompt как примеры.
+#   examples       — примеры формулировок пользователя (для intent classifier).
+#   slots          — список полей, которые нужно собрать у пользователя.
+#                    Каждый слот: name, question, required.
+#   is_anonymous   — если true, заявка создаётся без user_id (анонимка).
+#                    Получатель определяется через responsibility_area.
+
+request_types:
+  - type: training_request
+    title: Заявка на обучение
+    responsibility_area: training
+    is_anonymous: false
+    trigger_keywords:
+      - обучение
+      - курс
+      - повышение квалификации
+      - тренинг
+      - семинар
+    examples:
+      - хочу записаться на обучение
+      - нужен курс по охране труда
+      - подайте заявку на обучение Python
+    slots:
+      - name: course_name
+        question: На какое обучение/курс хотите записаться?
+        required: true
+      - name: preferred_dates
+        question: Какие даты или сроки предпочтительны?
+        required: false
+      - name: comment
+        question: Есть ли дополнительные пожелания или контекст?
+        required: false
+
+  - type: medical_request
+    title: Заявка на медосмотр
+    responsibility_area: medical
+    is_anonymous: false
+    trigger_keywords:
+      - медосмотр
+      - медицинский осмотр
+      - врач
+      - предварительный осмотр
+      - периодический медосмотр
+    examples:
+      - запишите меня на медосмотр
+      - нужен периодический медосмотр
+      - подайте заявку на медкомиссию
+    slots:
+      - name: exam_kind
+        question: Какой тип медосмотра нужен (предварительный / периодический / по направлению)?
+        required: true
+      - name: preferred_dates
+        question: Какие даты удобны?
+        required: false
+
+  - type: transport_request
+    title: Заявка на транспорт
+    responsibility_area: ektp
+    is_anonymous: false
+    trigger_keywords:
+      - транспорт
+      - служебная машина
+      - ектп
+      - водитель
+      - поездка
+    examples:
+      - нужен транспорт на завтра
+      - подайте заявку в ЕКТП
+      - нужна машина для поездки на объект
+    slots:
+      - name: trip_date
+        question: На какую дату и время нужен транспорт?
+        required: true
+      - name: destination
+        question: Куда едем (адрес / объект)?
+        required: true
+      - name: passengers_count
+        question: Сколько пассажиров?
+        required: false
+
+  - type: tsus_access_request
+    title: Заявка на доступ в ЦУС
+    responsibility_area: tsus
+    is_anonymous: false
+    trigger_keywords:
+      - доступ
+      - цус
+      - права доступа
+      - учётная запись
+    examples:
+      - нужен доступ в ЦУС
+      - оформите доступ к стройконтролю
+      - создайте учётку в ЦУС
+    slots:
+      - name: access_level
+        question: Какой уровень доступа нужен (просмотр / редактирование / администратор)?
+        required: true
+      - name: project_or_object
+        question: На какой объект или проект нужен доступ?
+        required: false
+
+  - type: ai_lab_request
+    title: Заявка в лабораторию ИИ
+    responsibility_area: ai_lab
+    is_anonymous: false
+    trigger_keywords:
+      - лаборатория ии
+      - ии-лаб
+      - ai
+      - модель
+      - датасет
+    examples:
+      - есть задача для лаборатории ИИ
+      - нужна помощь с моделью
+      - подайте заявку в ИИ-лабораторию
+    slots:
+      - name: task_description
+        question: Опишите задачу — что нужно сделать.
+        required: true
+      - name: deadline
+        question: Есть ли срок (deadline)?
+        required: false
+
+  - type: anonymous_appeal
+    title: Анонимное обращение
+    responsibility_area: legal
+    is_anonymous: true
+    trigger_keywords:
+      - анонимно
+      - конфиденциально
+      - анонимное обращение
+      - сообщить о нарушении
+      - комплаенс
+    examples:
+      - хочу подать анонимное обращение
+      - конфиденциально сообщить о нарушении
+      - анонимная жалоба
+    slots:
+      - name: appeal_subject
+        question: Кратко опишите суть обращения (без указания личной информации, если хотите остаться анонимом).
+        required: true
+      - name: appeal_details
+        question: Дополнительные подробности, если есть.
+        required: false

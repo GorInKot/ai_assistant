@@ -64,7 +64,13 @@ def ask(
         conversation.updated_at = func.now()
         db.commit()
 
-    response = process_ask(payload.question, payload.session_id, current_user.id)
+    response = process_ask(
+        raw_question=payload.question,
+        session_id_raw=payload.session_id,
+        current_user=current_user,
+        db=db,
+        conversation_id=conversation.id if conversation else None,
+    )
 
     if conversation is not None:
         db.add(Message(

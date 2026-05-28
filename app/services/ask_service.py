@@ -13,8 +13,13 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
+from sqlalchemy.orm import Session
+
+from app.db import User
+from app.dialog_state import PendingRequest
 from app.kb import RetrievalResult
 from app.llm import FALLBACK_EN, FALLBACK_RU
+from app.request_catalog import RequestTypeDef, all_request_types, get_request_type
 from app.roles import (
     ACTION_ROLE_WEIGHTS,
     ROLE_PATTERNS,
@@ -23,6 +28,12 @@ from app.roles import (
     is_responsibility_question,
 )
 from app.schemas import AskResponse
+from app.services.request_service import (
+    finalize_request,
+    next_required_slot,
+    slot_question,
+    summarize_pending,
+)
 from app.state import (
     dialog_state,
     kb_index,
@@ -528,13 +539,192 @@ def select_display_sources(
     return []
 
 
-def process_ask(raw_question: str, session_id_raw: str | None, user_id: int) -> AskResponse:
-    """Главная точка входа для /api/ask: всю логику вызова делает роутер только через неё."""
+def _build_catalog_summary() -> list[dict]:
+    return [
+        {
+            "type": t.type,
+            "title": t.title,
+            "trigger_keywords": list(t.trigger_keywords),
+            "examples": list(t.examples),
+        }
+        for t in all_request_types()
+    ]
+
+
+def _start_request_flow(
+    session_id: str, type_def: RequestTypeDef, raw_question: str
+) -> AskResponse:
+    """Начинаем slot-filling для нового типа заявки."""
+    next_slot = next_required_slot(
+        PendingRequest(request_type=type_def.type), type_def
+    )
+    if next_slot is None:
+        # У типа нет required-слотов — сразу confirmation.
+        pending = PendingRequest(
+            request_type=type_def.type,
+            awaiting_confirmation=True,
+        )
+        dialog_state.set_pending_request(session_id, pending)
+        return AskResponse(
+            answer=summarize_pending(type_def, pending),
+            sources=[],
+            no_exact_match=False,
+        )
+
+    pending = PendingRequest(
+        request_type=type_def.type,
+        awaiting_slot=next_slot,
+    )
+    dialog_state.set_pending_request(session_id, pending)
+    return AskResponse(
+        answer=f"Хорошо, оформим заявку «{type_def.title}». {slot_question(type_def, next_slot)}",
+        sources=[],
+        no_exact_match=False,
+    )
+
+
+def _continue_slot_filling(
+    session_id: str,
+    pending: PendingRequest,
+    type_def: RequestTypeDef,
+    user_answer: str,
+) -> AskResponse:
+    """Обрабатываем ответ пользователя на текущий слот, переходим к следующему."""
+    assert pending.awaiting_slot is not None
+    pending.filled_slots[pending.awaiting_slot] = user_answer.strip()
+    pending.awaiting_slot = None
+
+    next_slot = next_required_slot(pending, type_def)
+    if next_slot is not None:
+        pending.awaiting_slot = next_slot
+        dialog_state.set_pending_request(session_id, pending)
+        return AskResponse(
+            answer=slot_question(type_def, next_slot),
+            sources=[],
+            no_exact_match=False,
+        )
+
+    # Все required заполнены — confirmation.
+    pending.awaiting_confirmation = True
+    dialog_state.set_pending_request(session_id, pending)
+    return AskResponse(
+        answer=summarize_pending(type_def, pending),
+        sources=[],
+        no_exact_match=False,
+    )
+
+
+def _finalize_and_respond(
+    db: Session,
+    session_id: str,
+    pending: PendingRequest,
+    type_def: RequestTypeDef,
+    current_user: User,
+    conversation_id: int | None,
+) -> AskResponse:
+    request, employee = finalize_request(
+        db=db,
+        pending=pending,
+        type_def=type_def,
+        current_user=current_user,
+        conversation_id=conversation_id,
+    )
+    dialog_state.clear_pending_request(session_id)
+
+    if employee:
+        if type_def.is_anonymous:
+            msg = (
+                f"✅ Заявка #{request.id} «{type_def.title}» создана и направлена "
+                f"ответственному ({employee.full_name}). Анонимность сохранена."
+            )
+        else:
+            msg = (
+                f"✅ Заявка #{request.id} «{type_def.title}» создана и направлена "
+                f"ответственному: {employee.full_name} ({employee.email})."
+            )
+    else:
+        msg = (
+            f"⚠️ Заявка #{request.id} «{type_def.title}» создана, но по области "
+            f"«{type_def.responsibility_area}» пока не назначен ответственный. "
+            "Сообщите администратору — он добавит сотрудника."
+        )
+
+    return AskResponse(answer=msg, sources=[], no_exact_match=False)
+
+
+def process_ask(
+    raw_question: str,
+    session_id_raw: str | None,
+    current_user: User,
+    db: Session,
+    conversation_id: int | None = None,
+) -> AskResponse:
+    """Главная точка входа для /api/ask.
+
+    Логика:
+      1. Если есть pending_request (заявка в процессе) — обрабатываем как
+         ответ на слот / подтверждение / отмену.
+      2. Иначе — LLM-классификация интента. Если create_request — стартуем flow.
+      3. Иначе — обычный QA с RAG.
+    """
     raw_question = raw_question.strip()
     if not raw_question:
         raise HTTPException(status_code=400, detail="Question is empty")
 
-    session_id = normalize_session_id(session_id_raw, user_id)
+    session_id = normalize_session_id(session_id_raw, current_user.id)
+
+    # ---- 1. Pending request flow ----
+    pending = dialog_state.get_pending_request(session_id)
+    if pending is not None:
+        type_def = get_request_type(pending.request_type)
+        if type_def is None:
+            # Каталог поменялся — сбрасываем pending.
+            dialog_state.clear_pending_request(session_id)
+        else:
+            catalog_summary = _build_catalog_summary()
+            intent_data = llm_service.classify_intent(raw_question, catalog_summary)
+            intent = intent_data["intent"]
+
+            if intent == "cancel" or intent == "confirm_no":
+                dialog_state.clear_pending_request(session_id)
+                answer = (
+                    "Хорошо, заявка отменена."
+                    if pending.awaiting_confirmation
+                    else "Хорошо, оформление заявки прервано."
+                )
+                request_logger.log(raw_question, [], answer=answer)
+                return AskResponse(answer=answer, sources=[], no_exact_match=False)
+
+            if pending.awaiting_confirmation:
+                if intent == "confirm_yes":
+                    response = _finalize_and_respond(
+                        db, session_id, pending, type_def, current_user, conversation_id
+                    )
+                    request_logger.log(raw_question, [], answer=response.answer)
+                    return response
+                # Неоднозначный ответ — переспросим.
+                answer = "Не понял ответ. Подтвердить заявку? Ответьте «да» или «нет»."
+                request_logger.log(raw_question, [], answer=answer)
+                return AskResponse(answer=answer, sources=[], no_exact_match=False)
+
+            # awaiting_slot — пишем ответ пользователя в слот.
+            if pending.awaiting_slot is not None:
+                response = _continue_slot_filling(session_id, pending, type_def, raw_question)
+                request_logger.log(raw_question, [], answer=response.answer)
+                return response
+
+    # ---- 2. Intent classification (свежий запрос) ----
+    catalog_summary = _build_catalog_summary()
+    intent_data = llm_service.classify_intent(raw_question, catalog_summary)
+    if intent_data["intent"] == "create_request":
+        type_slug = intent_data.get("request_type")
+        type_def = get_request_type(type_slug) if type_slug else None
+        if type_def is not None:
+            response = _start_request_flow(session_id, type_def, raw_question)
+            request_logger.log(raw_question, [], answer=response.answer)
+            return response
+
+    # ---- 3. Обычный QA flow ----
     effective_question, _ = dialog_state.merge_with_pending(session_id, raw_question)
     language = detect_language(effective_question)
 

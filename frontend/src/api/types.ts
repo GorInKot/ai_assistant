@@ -102,3 +102,22 @@ export interface AdminUser {
   created_at: string | null;
   roles: string[];
 }
+
+export type RequestStatus = "new" | "in_progress" | "done" | "rejected";
+
+export interface RequestItem {
+  id: number;
+  type_slug: string;
+  type_title: string;
+  is_anonymous: boolean;
+  status: RequestStatus;
+  summary: string | null;
+  payload: Record<string, string>;
+  requester_name: string | null;
+  requester_email: string | null;
+  assigned_employee_id: number | null;
+  assigned_employee_name: string | null;
+  conversation_id: number | null;
+  created_at: string;
+  updated_at: string;
+}

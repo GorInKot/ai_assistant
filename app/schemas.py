@@ -162,3 +162,25 @@ class UserRolesUpdate(BaseModel):
 
 class AdminPasswordResetRequest(BaseModel):
     new_password: str = Field(..., min_length=6, max_length=200)
+
+
+class RequestOut(BaseModel):
+    id: int
+    type_slug: str
+    type_title: str
+    is_anonymous: bool
+    status: str
+    summary: str | None
+    payload: dict
+    requester_name: str | None
+    requester_email: str | None
+    assigned_employee_id: int | None
+    assigned_employee_name: str | None
+    conversation_id: int | None
+    created_at: str
+    updated_at: str
+
+
+class RequestStatusUpdate(BaseModel):
+    status: str = Field(..., min_length=2, max_length=40)
+    comment: str | None = Field(default=None, max_length=2000)

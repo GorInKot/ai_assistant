@@ -5,6 +5,7 @@ interface Props {
   conversations: ConversationSummary[];
   activeId: number | null;
   isAdmin: boolean;
+  inboxUnreadCount: number;
   onSelect: (id: number) => void;
   onNew: () => void;
   onRename: (id: number, title: string) => void;
@@ -12,6 +13,7 @@ interface Props {
   onOpenProfile: () => void;
   onOpenAdmin: () => void;
   onOpenUsersAdmin: () => void;
+  onOpenRequests: () => void;
   onLogout: () => void;
 }
 
@@ -19,6 +21,7 @@ export function Sidebar({
   conversations,
   activeId,
   isAdmin,
+  inboxUnreadCount,
   onSelect,
   onNew,
   onRename,
@@ -26,6 +29,7 @@ export function Sidebar({
   onOpenProfile,
   onOpenAdmin,
   onOpenUsersAdmin,
+  onOpenRequests,
   onLogout,
 }: Props) {
   return (
@@ -56,6 +60,14 @@ export function Sidebar({
       </div>
 
       <div className="p-3 border-t border-slate-800 space-y-1">
+        <button onClick={onOpenRequests} className={footerBtn + " flex items-center justify-between"}>
+          <span>📋 Заявки</span>
+          {inboxUnreadCount > 0 && (
+            <span className="text-xs rounded-full bg-accent text-white px-2 py-0.5 font-semibold">
+              {inboxUnreadCount}
+            </span>
+          )}
+        </button>
         {isAdmin && (
           <>
             <button onClick={onOpenAdmin} className={footerBtn}>

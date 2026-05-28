@@ -36,6 +36,74 @@ class LLMService:
             self.client = None
 
 
+    def classify_intent(
+        self,
+        message: str,
+        request_types_summary: list[dict],
+    ) -> dict:
+        """LLM-классификация входящего сообщения.
+
+        Возвращает JSON-словарь:
+            {"intent": "qa" | "create_request" | "confirm_yes" | "confirm_no" | "cancel",
+             "request_type": "<slug или null>"}
+
+        Если клиент не настроен или вызов упал — возвращаем "qa" (fallback на обычный QA).
+        Это безопасный дефолт: пользователь не теряет возможность получить ответ.
+        """
+        fallback = {"intent": "qa", "request_type": None}
+
+        if not self.client:
+            return fallback
+
+        catalog_lines = []
+        for rt in request_types_summary:
+            kw = ", ".join(rt.get("trigger_keywords", []))
+            examples = "; ".join(rt.get("examples", [])[:2])
+            catalog_lines.append(
+                f'- "{rt["type"]}" ({rt["title"]}): triggers=[{kw}]; examples: {examples}'
+            )
+        catalog_block = "\n".join(catalog_lines) if catalog_lines else "(каталог пуст)"
+
+        system_prompt = (
+            "Ты классификатор намерений в корпоративном чате. "
+            "На вход — сообщение пользователя. "
+            "Определи intent. Возможные значения:\n"
+            "  qa — обычный вопрос по базе знаний (по умолчанию).\n"
+            "  create_request — пользователь хочет ОФОРМИТЬ заявку. "
+            "Выбери подходящий request_type из каталога.\n"
+            "  confirm_yes — пользователь подтверждает текущее действие "
+            "(коротко: 'да', 'подтверждаю', 'давай', 'ок').\n"
+            "  confirm_no — пользователь отказывается ('нет', 'не надо', 'отмена').\n"
+            "  cancel — пользователь явно хочет отменить процесс ('отмени', 'забудь').\n\n"
+            "Каталог типов заявок:\n"
+            f"{catalog_block}\n\n"
+            'Верни СТРОГО JSON: {"intent": "...", "request_type": "<slug|null>"}. '
+            "Никаких пояснений вне JSON."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message},
+                ],
+            )
+            content = (response.choices[0].message.content or "").strip()
+            data = json.loads(content)
+        except (Exception,):
+            return fallback
+
+        intent = str(data.get("intent", "qa"))
+        if intent not in {"qa", "create_request", "confirm_yes", "confirm_no", "cancel"}:
+            intent = "qa"
+        request_type = data.get("request_type")
+        if request_type is not None:
+            request_type = str(request_type)
+        return {"intent": intent, "request_type": request_type}
+
     def rerank_results(self, question: str, candidates: Sequence[RetrievalResult], top_n: int = 16) -> list[RetrievalResult]:
         shortlist = list(candidates[: self.rerank_candidates])
         if not shortlist:
