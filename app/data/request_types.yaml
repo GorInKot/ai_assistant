@@ -84,7 +84,7 @@ request_types:
         required: true
       - name: passengers_count
         question: Сколько пассажиров?
-        required: false
+        required: true
 
   - type: tsus_access_request
     title: Заявка на доступ в ЦУС
