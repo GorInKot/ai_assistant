@@ -32,10 +32,22 @@ def slot_question(type_def: RequestTypeDef, slot_name: str) -> str:
 
 
 def summarize_pending(type_def: RequestTypeDef, pending: PendingRequest) -> str:
+    """Сводка перед подтверждением — показываем ТОЛЬКО заполненные поля.
+
+    Раньше показывали все слоты включая незаполненные (с прочерком),
+    что выглядело как «я тебя спросил, а ты не ответил» для тех слотов,
+    которые ассистент вообще не задавал (required=false).
+    """
     lines = [f"Тип заявки: {type_def.title}"]
+    has_filled = False
     for slot in type_def.slots:
-        value = pending.filled_slots.get(slot.name, "—")
+        value = pending.filled_slots.get(slot.name, "").strip()
+        if not value:
+            continue
         lines.append(f"• {slot.question.rstrip('?')} — {value}")
+        has_filled = True
+    if not has_filled:
+        lines.append("(полей не указано)")
     lines.append("")
     lines.append("Подтверждаете создание заявки? Ответьте «да» или «нет».")
     return "\n".join(lines)
