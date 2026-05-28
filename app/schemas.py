@@ -184,3 +184,38 @@ class RequestOut(BaseModel):
 class RequestStatusUpdate(BaseModel):
     status: str = Field(..., min_length=2, max_length=40)
     comment: str | None = Field(default=None, max_length=2000)
+
+
+class RequestTypeSlotIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    question: str = Field(..., min_length=2, max_length=400)
+    required: bool = False
+
+
+class RequestTypeSlotOut(RequestTypeSlotIn):
+    id: int
+    sort_order: int
+
+
+class RequestTypeIn(BaseModel):
+    type_slug: str = Field(..., min_length=2, max_length=80, pattern=r"^[a-z0-9_]+$")
+    title: str = Field(..., min_length=2, max_length=200)
+    responsibility_area_slug: str = Field(..., min_length=2, max_length=80)
+    is_anonymous: bool = False
+    is_active: bool = True
+    trigger_keywords: list[str] = Field(default_factory=list)
+    examples: list[str] = Field(default_factory=list)
+    slots: list[RequestTypeSlotIn] = Field(default_factory=list)
+
+
+class RequestTypeOut(BaseModel):
+    id: int
+    type_slug: str
+    title: str
+    responsibility_area_slug: str
+    is_anonymous: bool
+    is_active: bool
+    trigger_keywords: list[str]
+    examples: list[str]
+    sort_order: int
+    slots: list[RequestTypeSlotOut]

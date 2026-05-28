@@ -1,16 +1,26 @@
-"""Загрузчик каталога типов заявок из YAML.
+"""Каталог типов заявок — кэш в памяти, source of truth = БД.
 
-Загружается один раз при импорте модуля. Если потребуется горячая перезагрузка
-без рестарта — можно добавить reload() аналогично KB.reindex().
+До security/admin-фазы каталог жил в app/data/request_types.yaml. Теперь
+YAML — initial seed, а edits идут через /api/admin/request-types и пишутся
+в таблицы request_types/request_type_slots (см. app/db.py).
+
+Используем in-memory snapshot (dict[slug, RequestTypeDef]), который
+перестраивается reload_catalog() после любого CRUD-действия. Чтение
+get_request_type/all_request_types бесплатное и не блокирует БД.
+
+Старт: модуль импортируется до того, как FastAPI создал app — поэтому
+загрузка идёт лениво (при первом обращении), а init_db() из app/main.py
+успевает наполнить таблицу.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import dataclass
+from threading import Lock
 
-import yaml
+from app.db import RequestType, RequestTypeSlot, SessionLocal
 
 
 logger = logging.getLogger(__name__)
@@ -37,50 +47,64 @@ class RequestTypeDef:
         return [s.name for s in self.slots if s.required]
 
 
-_CATALOG_PATH = Path(__file__).resolve().parent / "data" / "request_types.yaml"
+_CACHE: dict[str, RequestTypeDef] | None = None
+_CACHE_LOCK = Lock()
 
 
-def _load_catalog(path: Path) -> dict[str, RequestTypeDef]:
-    if not path.exists():
-        logger.warning("Request types catalog not found: %s", path)
-        return {}
-
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    types_raw = raw.get("request_types", [])
-    catalog: dict[str, RequestTypeDef] = {}
-
-    for item in types_raw:
-        try:
+def _load_from_db() -> dict[str, RequestTypeDef]:
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(RequestType)
+            .filter(RequestType.is_active.is_(True))
+            .order_by(RequestType.sort_order, RequestType.id)
+            .all()
+        )
+        catalog: dict[str, RequestTypeDef] = {}
+        for row in rows:
+            try:
+                triggers = json.loads(row.trigger_keywords_json or "[]")
+                examples = json.loads(row.examples_json or "[]")
+            except json.JSONDecodeError:
+                triggers, examples = [], []
             slots = tuple(
-                SlotDef(
-                    name=str(s["name"]),
-                    question=str(s["question"]),
-                    required=bool(s.get("required", False)),
-                )
-                for s in item.get("slots", [])
+                SlotDef(name=s.name, question=s.question, required=bool(s.required))
+                for s in row.slots
             )
-            type_def = RequestTypeDef(
-                type=str(item["type"]),
-                title=str(item["title"]),
-                responsibility_area=str(item["responsibility_area"]),
-                is_anonymous=bool(item.get("is_anonymous", False)),
-                trigger_keywords=tuple(item.get("trigger_keywords", [])),
-                examples=tuple(item.get("examples", [])),
+            catalog[row.type_slug] = RequestTypeDef(
+                type=row.type_slug,
+                title=row.title,
+                responsibility_area=row.responsibility_area_slug,
+                is_anonymous=bool(row.is_anonymous),
+                trigger_keywords=tuple(str(t) for t in triggers),
+                examples=tuple(str(e) for e in examples),
                 slots=slots,
             )
-            catalog[type_def.type] = type_def
-        except (KeyError, TypeError) as err:
-            logger.warning("Skipped malformed request type: %s (%s)", item, err)
-
-    return catalog
+        return catalog
+    finally:
+        db.close()
 
 
-REQUEST_TYPES: dict[str, RequestTypeDef] = _load_catalog(_CATALOG_PATH)
+def reload_catalog() -> dict[str, RequestTypeDef]:
+    """Принудительно перечитать каталог из БД (вызывается после CRUD)."""
+    global _CACHE
+    with _CACHE_LOCK:
+        _CACHE = _load_from_db()
+        return _CACHE
+
+
+def _ensure_loaded() -> dict[str, RequestTypeDef]:
+    global _CACHE
+    if _CACHE is None:
+        with _CACHE_LOCK:
+            if _CACHE is None:
+                _CACHE = _load_from_db()
+    return _CACHE
 
 
 def get_request_type(type_slug: str) -> RequestTypeDef | None:
-    return REQUEST_TYPES.get(type_slug)
+    return _ensure_loaded().get(type_slug)
 
 
 def all_request_types() -> list[RequestTypeDef]:
-    return list(REQUEST_TYPES.values())
+    return list(_ensure_loaded().values())

@@ -105,6 +105,27 @@ export interface AdminUser {
 
 export type RequestStatus = "new" | "in_progress" | "done" | "rejected";
 
+export interface RequestTypeSlot {
+  id?: number;
+  name: string;
+  question: string;
+  required: boolean;
+  sort_order?: number;
+}
+
+export interface RequestTypeDef {
+  id?: number;
+  type_slug: string;
+  title: string;
+  responsibility_area_slug: string;
+  is_anonymous: boolean;
+  is_active: boolean;
+  trigger_keywords: string[];
+  examples: string[];
+  sort_order?: number;
+  slots: RequestTypeSlot[];
+}
+
 export interface RequestItem {
   id: number;
   type_slug: string;

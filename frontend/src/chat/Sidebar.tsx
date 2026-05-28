@@ -13,6 +13,7 @@ interface Props {
   onOpenProfile: () => void;
   onOpenAdmin: () => void;
   onOpenUsersAdmin: () => void;
+  onOpenRequestTypes: () => void;
   onOpenRequests: () => void;
   onLogout: () => void;
 }
@@ -29,6 +30,7 @@ export function Sidebar({
   onOpenProfile,
   onOpenAdmin,
   onOpenUsersAdmin,
+  onOpenRequestTypes,
   onOpenRequests,
   onLogout,
 }: Props) {
@@ -75,6 +77,9 @@ export function Sidebar({
             </button>
             <button onClick={onOpenUsersAdmin} className={footerBtn}>
               🔑 Пользователи
+            </button>
+            <button onClick={onOpenRequestTypes} className={footerBtn}>
+              📑 Типы заявок
             </button>
           </>
         )}

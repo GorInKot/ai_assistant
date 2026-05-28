@@ -259,6 +259,65 @@ class RequestEvent(Base):
     request = relationship("Request", back_populates="events")
 
 
+class RequestType(Base):
+    """Тип заявки (для admin-UI каталога).
+
+    До этого жил в app/data/request_types.yaml — теперь БД source of truth.
+    YAML остаётся как initial seed: при пустой таблице загружается из него
+    одноразовой миграцией в init_db.
+
+    type_slug — уникальный машинный код (используется в ask_service для
+    идентификации). responsibility_area_slug — slug области из таблицы
+    responsibility_areas (без FK, чтобы оставить совместимость с YAML-логикой).
+    trigger_keywords_json/examples_json — JSON-массивы строк (SQLite не имеет
+    нативного array-типа).
+    """
+
+    __tablename__ = "request_types"
+    id = Column(Integer, primary_key=True, index=True)
+    type_slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    responsibility_area_slug = Column(String, nullable=False, index=True)
+    is_anonymous = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    trigger_keywords_json = Column(Text, nullable=False, default="[]")
+    examples_json = Column(Text, nullable=False, default="[]")
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    slots = relationship(
+        "RequestTypeSlot",
+        back_populates="request_type",
+        cascade="all, delete-orphan",
+        order_by="RequestTypeSlot.sort_order",
+    )
+
+
+class RequestTypeSlot(Base):
+    """Слот формы заявки — поле, которое ассистент собирает у пользователя."""
+
+    __tablename__ = "request_type_slots"
+    id = Column(Integer, primary_key=True, index=True)
+    request_type_id = Column(
+        Integer,
+        ForeignKey("request_types.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String, nullable=False)
+    question = Column(String, nullable=False)
+    required = Column(Boolean, nullable=False, default=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+
+    request_type = relationship("RequestType", back_populates="slots")
+
+
 class Responsibility(Base):
     """Связь: сотрудник X отвечает за область Y в области действия Z.
 
@@ -293,6 +352,7 @@ def init_db():
     _seed_responsibility_areas()
     _backfill_admin_role()
     _backfill_employee_user_id()
+    _seed_request_types_from_yaml()
 
 
 def _migrate_user_table():
@@ -373,6 +433,57 @@ def _backfill_admin_role():
         # Первый по id — становится admin (дополнительно к user).
         first = all_users[0]
         first.roles.append(admin_role)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _seed_request_types_from_yaml():
+    """Одноразовый seed: если таблица request_types пуста — загрузить из YAML.
+
+    После seed YAML остаётся в репо как backup/документация, но edit-ы делаются
+    через admin-UI и пишутся в БД (на проде Render файловая система эфемерна).
+    Идемпотентно: при непустой таблице ничего не делает.
+    """
+    import json
+    from pathlib import Path
+    import yaml
+
+    db = SessionLocal()
+    try:
+        if db.query(RequestType).first():
+            return  # уже заполнено
+
+        yaml_path = Path(__file__).resolve().parent / "data" / "request_types.yaml"
+        if not yaml_path.exists():
+            return
+
+        raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        types_raw = raw.get("request_types", [])
+        for order, item in enumerate(types_raw):
+            try:
+                rt = RequestType(
+                    type_slug=str(item["type"]),
+                    title=str(item["title"]),
+                    responsibility_area_slug=str(item["responsibility_area"]),
+                    is_anonymous=bool(item.get("is_anonymous", False)),
+                    is_active=True,
+                    trigger_keywords_json=json.dumps(item.get("trigger_keywords", []), ensure_ascii=False),
+                    examples_json=json.dumps(item.get("examples", []), ensure_ascii=False),
+                    sort_order=order,
+                )
+                db.add(rt)
+                db.flush()
+                for slot_order, s in enumerate(item.get("slots", [])):
+                    db.add(RequestTypeSlot(
+                        request_type_id=rt.id,
+                        name=str(s["name"]),
+                        question=str(s["question"]),
+                        required=bool(s.get("required", False)),
+                        sort_order=slot_order,
+                    ))
+            except (KeyError, TypeError):
+                continue
         db.commit()
     finally:
         db.close()

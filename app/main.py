@@ -21,6 +21,7 @@ from app.routers import (
     documents,
     employees,
     profile,
+    request_types,
     requests as requests_router,
     system,
     users_admin,
@@ -42,6 +43,7 @@ app.include_router(profile.router)
 app.include_router(employees.router)
 app.include_router(users_admin.router)
 app.include_router(requests_router.router)
+app.include_router(request_types.router)
 
 # Раздача JS/CSS-бандла нового React-фронта (frontend/dist/assets) — если фронт собран.
 system.attach_static_assets(app)

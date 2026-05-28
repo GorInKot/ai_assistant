@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { EmployeesAdmin } from "../admin/EmployeesAdmin";
+import { RequestTypesAdmin } from "../admin/RequestTypesAdmin";
 import { UsersAdmin } from "../admin/UsersAdmin";
 import { RequestsPage } from "./RequestsPage";
 import type { RequestItem } from "../api/types";
@@ -26,7 +27,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [view, setView] = useState<"chat" | "admin-employees" | "admin-users" | "requests">("chat");
+  const [view, setView] = useState<"chat" | "admin-employees" | "admin-users" | "admin-request-types" | "requests">("chat");
   const [error, setError] = useState<string | null>(null);
   const [inboxUnread, setInboxUnread] = useState(0);
   const { isAdmin } = useCurrentUser();
@@ -170,6 +171,7 @@ export function ChatPage() {
         onOpenProfile={() => setProfileOpen(true)}
         onOpenAdmin={() => setView("admin-employees")}
         onOpenUsersAdmin={() => setView("admin-users")}
+        onOpenRequestTypes={() => setView("admin-request-types")}
         onOpenRequests={() => setView("requests")}
         inboxUnreadCount={inboxUnread}
         onLogout={handleLogout}
@@ -181,6 +183,10 @@ export function ChatPage() {
       ) : view === "admin-users" ? (
         <main className="flex-1">
           <UsersAdmin onBackToChat={() => setView("chat")} />
+        </main>
+      ) : view === "admin-request-types" ? (
+        <main className="flex-1">
+          <RequestTypesAdmin onBackToChat={() => setView("chat")} />
         </main>
       ) : view === "requests" ? (
         <main className="flex-1">
