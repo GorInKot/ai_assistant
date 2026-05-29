@@ -324,27 +324,32 @@ PYTHONPATH=. myenv/bin/python scripts/run_eval.py \
    - `JWT_SECRET` Render сгенерирует автоматически (`generateValue: true`).
 3. После первого билда открыть `https://<your-service>.onrender.com` и залогиниться под `INITIAL_ADMIN_*`.
 
+### База данных
+
+`render.yaml` определяет блок `databases:` с free-Postgres `ai-assistant-db` (256 MB, 30-дневный срок жизни инстанса). Render автоматически подставляет connection string в env-переменную `DATABASE_URL`, и при первом деплое схема создаётся через SQLAlchemy `create_all`.
+
+Это решает главную проблему free-плана: БД (пользователи, история чатов, сотрудники, заявки) переживает деплои и cold start. Локально остаётся SQLite (когда `DATABASE_URL` пуст, `app/db.py` использует `sqlite:///./app_data.db`).
+
+Через 30 дней free-Postgres истекает — нужно пересоздать инстанс или апгрейднуться на платный план ($7/мес для Starter с persistent storage).
+
 ### Ограничения free-плана
 
-- ⚠️ Файловая система эфемерная: при каждом деплое и cold start (>15 мин без запросов) пропадают:
-  - SQLite БД (`app_data.db`) — теряются пользователи, история чатов, заявки.
-  - Embeddings cache (`logs/embeddings_cache.npz`) — пересчёт при следующем старте ~3 мин через Yandex API.
-  - Логи запросов и действий.
-- Pre-seeded admin (`INITIAL_ADMIN_*`) пересоздаётся при каждом старте — это безопасно.
-- Чтобы ускорить cold start без платного плана: закоммитить `logs/embeddings_cache.npz` в репо (попадёт в Docker image, готов к старту), убрав его из `.gitignore` и `.dockerignore`.
+- ⚠️ Файловая система эфемерная — теряются между деплоями/cold-стартами:
+  - Embeddings cache (`logs/embeddings_cache.npz`) — пересчёт ~3 мин через Yandex API.
+  - Логи запросов и действий (`logs/*.log`).
+- БД (Postgres) — НЕ эфемерная, переживает деплои.
+- Pre-seeded admin (`INITIAL_ADMIN_*`) создаётся только если в БД нет пользователя с таким email — после первого старта это no-op.
+- Чтобы ускорить cold start: закоммитить `logs/embeddings_cache.npz` в репо (попадёт в Docker image), убрав его из `.gitignore` и `.dockerignore`.
 
-### Прод с persistent state
+### Прод-апгрейд (опционально)
 
-Перейти на платный план Starter ($7/мес) + персистентный диск 1 GB ($1/мес):
+Платный план Starter ($7/мес) + persistent disk 1 GB ($1/мес) добавляет персистентность логам и embeddings-кэшу:
 
 1. В [render.yaml](render.yaml) раскомментировать блок `disk:`.
 2. В Environment добавить:
-   - `DATABASE_URL=sqlite:////data/app_data.db`
    - `LOG_FILE=/data/logs/assistant.log`
    - `EMBEDDINGS_CACHE=/data/logs/embeddings_cache.npz`
-3. Передеплоить — состояние теперь переживает рестарты.
-
-Альтернатива — Postgres вместо SQLite (Render даёт бесплатный Postgres-инстанс): задать `DATABASE_URL=postgresql://...` из дашборда Postgres.
+3. `DATABASE_URL` менять не нужно — Postgres уже отделён.
 
 ## Roadmap
 

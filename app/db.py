@@ -360,6 +360,13 @@ def init_db():
 
 
 def _migrate_user_table():
+    # На Postgres миграция не нужна: первый деплой всегда стартует с чистой
+    # схемы (create_all создал users со всеми колонками из модели). Эта
+    # миграция нужна была только для старых SQLite-баз, в которые колонки
+    # добавлялись по ходу разработки.
+    if not engine.url.drivername.startswith("sqlite"):
+        return
+
     with engine.connect() as connection:
         existing_columns = set()
         result = connection.execute(text("PRAGMA table_info(users)"))

@@ -23,6 +23,16 @@
 #     LOG_FILE=/data/logs/assistant.log
 #     EMBEDDINGS_CACHE=/data/logs/embeddings_cache.npz
 
+databases:
+  # Render free Postgres: 256 MB storage, 30-дневный срок жизни инстанса
+  # (на free плане Render деактивирует БД через 30 дней — её можно
+  # пересоздать). Для прода — апгрейд на платный.
+  - name: ai-assistant-db
+    plan: free
+    region: frankfurt
+    databaseName: ai_assistant
+    user: ai_assistant
+
 services:
   - type: web
     name: ai-assistant
@@ -35,6 +45,14 @@ services:
     #   mountPath: /data
     #   sizeGB: 1
     envVars:
+      # Postgres — Render автоматически подставит connection string из
+      # databases:ai-assistant-db. В коде app/db.py читает DATABASE_URL и
+      # подключается через psycopg2 (postgresql://...).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-assistant-db
+          property: connectionString
+
       # LLM (Groq, OpenAI-compatible API).
       - key: LLM_BASE_URL
         value: https://api.groq.com/openai/v1
@@ -57,7 +75,8 @@ services:
         sync: false
 
       # Pre-seeded admin: создаётся при каждом старте, если не существует.
-      # Закрывает дыру "первый зарегистрировавшийся = admin" на ephemeral БД.
+      # На Postgres БД переживает деплои, поэтому пересоздание admin'а
+      # происходит только когда БД совсем пустая.
       - key: INITIAL_ADMIN_EMAIL
         sync: false
       - key: INITIAL_ADMIN_PASSWORD
