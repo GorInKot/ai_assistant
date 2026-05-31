@@ -189,7 +189,8 @@ def test_anonymous_appeal_hides_requester_in_inbox(client: TestClient):
     requester_headers = register(client, "whistle@test.local", first_name="Аноним")
 
     _ask(client, requester_headers, "хочу подать анонимное обращение")
-    _ask(client, requester_headers, "Нарушение регламента на участке")  # appeal_subject
+    _ask(client, requester_headers, "Нарушение регламента на участке")  # appeal_subject (required)
+    _ask(client, requester_headers, "пропустить")                        # appeal_details (optional)
     confirm_prompt = _ask(client, requester_headers, "да")
     assert "создана" in confirm_prompt["answer"].lower()
 
@@ -213,3 +214,50 @@ def test_cancel_aborts_request_creation(client: TestClient):
     # Ничего не создалось.
     my = client.get("/api/requests/my", headers=requester_headers).json()
     assert my == []
+
+
+# ---------- опциональные слоты ----------
+
+def test_optional_slots_can_be_skipped(client: TestClient):
+    """training_request: course_name (required) + preferred_dates/comment (optional).
+
+    Пользователь заполняет обязательное поле и пропускает оба необязательных —
+    заявка создаётся, пропущенные поля не попадают в payload.
+    """
+    requester_headers = register(client, "ivan@test.local", first_name="Иван")
+
+    # Старт → спрашивает обязательный course_name.
+    _ask(client, requester_headers, "хочу записаться на обучение")
+
+    # Заполняем обязательный слот → дальше идёт необязательный с подсказкой о пропуске.
+    optional_prompt = _ask(client, requester_headers, "Python для анализа данных")
+    assert "пропустить" in optional_prompt["answer"].lower()
+
+    # Пропускаем оба необязательных слота.
+    next_optional = _ask(client, requester_headers, "пропустить")
+    assert "пропустить" in next_optional["answer"].lower()
+    confirm_prompt = _ask(client, requester_headers, "-")
+    assert "подтвер" in confirm_prompt["answer"].lower()
+
+    done = _ask(client, requester_headers, "да")
+    assert "создана" in done["answer"].lower()
+
+    created = client.get("/api/requests/my", headers=requester_headers).json()[0]
+    assert created["type_slug"] == "training_request"
+    assert created["payload"]["course_name"] == "Python для анализа данных"
+    # Пропущенные необязательные слоты не сохраняются.
+    assert "preferred_dates" not in created["payload"]
+    assert "comment" not in created["payload"]
+
+
+def test_required_slot_cannot_be_skipped(client: TestClient):
+    """Попытка пропустить обязательный слот → переспрос, слот не продвигается."""
+    requester_headers = register(client, "ivan@test.local", first_name="Иван")
+
+    _ask(client, requester_headers, "нужен транспорт")  # спросит trip_date (required)
+    retry = _ask(client, requester_headers, "пропустить")
+    assert "обязательно" in retry["answer"].lower()
+
+    # После реального ответа поток продолжается (спрашивает следующий слот).
+    nxt = _ask(client, requester_headers, "2026-06-01 10:00")
+    assert "обязательно" not in nxt["answer"].lower()

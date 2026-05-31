@@ -52,6 +52,8 @@ def fake_classify_intent(question: str, catalog_summary) -> dict:
         return {"intent": "cancel"}
     if "транспорт" in q or "машин" in q:
         return {"intent": "create_request", "request_type": "transport_request"}
+    if "обучение" in q or "курс" in q:
+        return {"intent": "create_request", "request_type": "training_request"}
     if "анонимн" in q:
         return {"intent": "create_request", "request_type": "anonymous_appeal"}
     return {"intent": "qa"}

@@ -16,8 +16,42 @@ from app.services.responsibilities import lookup_responsible
 logger = logging.getLogger(__name__)
 
 
+# Слова, которыми пользователь пропускает необязательный слот. «нет» НЕ входит:
+# на этапе слота оно классифицируется как confirm_no и отменяет всю заявку.
+SKIP_TOKENS = frozenset({
+    "пропустить", "пропусти", "пропуск", "skip", "-", "—", "–",
+    "далее", "дальше", "потом", "later", "n/a", "не знаю",
+})
+
+
+def is_skip_answer(text: str) -> bool:
+    return text.strip().lower().strip(".!") in SKIP_TOKENS
+
+
+def find_slot(type_def: RequestTypeDef, slot_name: str):
+    for slot in type_def.slots:
+        if slot.name == slot_name:
+            return slot
+    return None
+
+
+def next_slot(pending: PendingRequest, type_def: RequestTypeDef) -> str | None:
+    """Имя следующего слота для опроса (в порядке каталога).
+
+    Спрашиваем как обязательные, так и необязательные слоты; пропущенные
+    (skipped_slots) и уже заполненные — не повторяем. Возвращает None, когда
+    каждый слот либо заполнен, либо пропущен. Поскольку обязательный слот
+    пропустить нельзя, None гарантирует, что все required собраны.
+    """
+    for slot in type_def.slots:
+        if slot.name in pending.filled_slots or slot.name in pending.skipped_slots:
+            continue
+        return slot.name
+    return None
+
+
 def next_required_slot(pending: PendingRequest, type_def: RequestTypeDef) -> str | None:
-    """Имя следующего обязательного слота, который ещё не заполнен."""
+    """Имя следующего обязательного незаполненного слота (без учёта optional)."""
     for slot in type_def.slots:
         if slot.required and slot.name not in pending.filled_slots:
             return slot.name
@@ -25,10 +59,18 @@ def next_required_slot(pending: PendingRequest, type_def: RequestTypeDef) -> str
 
 
 def slot_question(type_def: RequestTypeDef, slot_name: str) -> str:
-    for slot in type_def.slots:
-        if slot.name == slot_name:
-            return slot.question
-    return f"Уточните: {slot_name}"
+    slot = find_slot(type_def, slot_name)
+    return slot.question if slot else f"Уточните: {slot_name}"
+
+
+def slot_prompt(type_def: RequestTypeDef, slot_name: str) -> str:
+    """Вопрос по слоту + подсказка про пропуск для необязательных полей."""
+    slot = find_slot(type_def, slot_name)
+    if slot is None:
+        return f"Уточните: {slot_name}"
+    if slot.required:
+        return slot.question
+    return f"{slot.question} (необязательно — можно ответить «пропустить»)"
 
 
 def summarize_pending(type_def: RequestTypeDef, pending: PendingRequest) -> str:

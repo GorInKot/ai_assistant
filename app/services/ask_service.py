@@ -30,7 +30,10 @@ from app.roles import (
 from app.schemas import AskResponse
 from app.services.request_service import (
     finalize_request,
-    next_required_slot,
+    find_slot,
+    is_skip_answer,
+    next_slot,
+    slot_prompt,
     slot_question,
     summarize_pending,
 )
@@ -555,11 +558,9 @@ def _start_request_flow(
     session_id: str, type_def: RequestTypeDef, raw_question: str
 ) -> AskResponse:
     """Начинаем slot-filling для нового типа заявки."""
-    next_slot = next_required_slot(
-        PendingRequest(request_type=type_def.type), type_def
-    )
-    if next_slot is None:
-        # У типа нет required-слотов — сразу confirmation.
+    slot_name = next_slot(PendingRequest(request_type=type_def.type), type_def)
+    if slot_name is None:
+        # У типа нет слотов — сразу confirmation.
         pending = PendingRequest(
             request_type=type_def.type,
             awaiting_confirmation=True,
@@ -573,11 +574,11 @@ def _start_request_flow(
 
     pending = PendingRequest(
         request_type=type_def.type,
-        awaiting_slot=next_slot,
+        awaiting_slot=slot_name,
     )
     dialog_state.set_pending_request(session_id, pending)
     return AskResponse(
-        answer=f"Хорошо, оформим заявку «{type_def.title}». {slot_question(type_def, next_slot)}",
+        answer=f"Хорошо, оформим заявку «{type_def.title}». {slot_prompt(type_def, slot_name)}",
         sources=[],
         no_exact_match=False,
     )
@@ -591,20 +592,35 @@ def _continue_slot_filling(
 ) -> AskResponse:
     """Обрабатываем ответ пользователя на текущий слот, переходим к следующему."""
     assert pending.awaiting_slot is not None
-    pending.filled_slots[pending.awaiting_slot] = user_answer.strip()
+    current = pending.awaiting_slot
+    slot = find_slot(type_def, current)
+
+    if is_skip_answer(user_answer):
+        if slot is not None and slot.required:
+            # Обязательное поле пропустить нельзя — переспрашиваем, слот не меняем.
+            dialog_state.set_pending_request(session_id, pending)
+            return AskResponse(
+                answer=f"Это поле обязательно, его нельзя пропустить. {slot_question(type_def, current)}",
+                sources=[],
+                no_exact_match=False,
+            )
+        pending.skipped_slots.add(current)
+    else:
+        pending.filled_slots[current] = user_answer.strip()
+
     pending.awaiting_slot = None
 
-    next_slot = next_required_slot(pending, type_def)
-    if next_slot is not None:
-        pending.awaiting_slot = next_slot
+    slot_name = next_slot(pending, type_def)
+    if slot_name is not None:
+        pending.awaiting_slot = slot_name
         dialog_state.set_pending_request(session_id, pending)
         return AskResponse(
-            answer=slot_question(type_def, next_slot),
+            answer=slot_prompt(type_def, slot_name),
             sources=[],
             no_exact_match=False,
         )
 
-    # Все required заполнены — confirmation.
+    # Все слоты собраны (required заполнены, optional заполнены/пропущены) — confirmation.
     pending.awaiting_confirmation = True
     dialog_state.set_pending_request(session_id, pending)
     return AskResponse(
@@ -681,6 +697,14 @@ def process_ask(
             # Каталог поменялся — сбрасываем pending.
             dialog_state.clear_pending_request(session_id)
         else:
+            # Пропуск необязательного слота обрабатываем ДО intent-классификации:
+            # реальный LLM нередко принимает «пропустить» за cancel и отменяет
+            # всю заявку. Пока заполняется слот, skip имеет приоритет.
+            if pending.awaiting_slot is not None and is_skip_answer(raw_question):
+                response = _continue_slot_filling(session_id, pending, type_def, raw_question)
+                request_logger.log(raw_question, [], answer=response.answer)
+                return response
+
             catalog_summary = _build_catalog_summary()
             intent_data = llm_service.classify_intent(raw_question, catalog_summary)
             intent = intent_data["intent"]

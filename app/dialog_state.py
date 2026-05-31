@@ -30,6 +30,9 @@ class PendingRequest:
 
     request_type: str
     filled_slots: dict[str, str] = field(default_factory=dict)
+    # Необязательные слоты, которые пользователь явно пропустил («пропустить»):
+    # их больше не спрашиваем и не показываем в сводке.
+    skipped_slots: set[str] = field(default_factory=set)
     awaiting_slot: str | None = None
     awaiting_confirmation: bool = False
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

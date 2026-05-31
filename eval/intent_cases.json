@@ -126,5 +126,18 @@
     "skip_when_stub_llm": true,
     "question": "Хочу записаться на обучение",
     "contains_in_answer_any": ["обучение", "курс"]
+  },
+  {
+    "id": "slot_training_skip_optional",
+    "session_id": "eval-slot-training-skip",
+    "skip_when_stub_llm": true,
+    "pre_steps": [
+      {"question": "Хочу записаться на обучение"},
+      {"question": "Python для анализа данных"},
+      {"question": "пропустить"},
+      {"question": "пропустить"}
+    ],
+    "question": "да",
+    "contains_in_answer_any": ["создана"]
   }
 ]

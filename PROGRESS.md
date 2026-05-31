@@ -113,9 +113,17 @@ Postgres-деплой проверен пользователем: БД созд
 
 ## Что осталось из роадмапа
 
+### Опциональные слоты с «пропустить» (НЕ закоммичено)
+Раньше необязательные слоты (`required: false`) в каталоге вообще не спрашивались (`next_required_slot` брал только required). Теперь:
+- Спрашиваются все слоты по порядку; у необязательных в вопросе подсказка «(необязательно — можно ответить «пропустить»)».
+- Skip-токены (`пропустить`, `-`, `далее`, …) пропускают optional-слот; обязательный пропустить нельзя — переспрос.
+- ⚠️ Ключевой нюанс (поймал только реальный LLM): «пропустить» классификатор принимает за `cancel` → обрабатываем skip **до** intent-классификации в pending-ветке. См. [ask_service.py](app/services/ask_service.py) `process_ask`.
+- `PendingRequest.skipped_slots`, хелперы `next_slot`/`slot_prompt`/`is_skip_answer`/`find_slot` в [request_service.py](app/services/request_service.py).
+- Тесты: pytest `test_optional_slots_can_be_skipped` / `test_required_slot_cannot_be_skipped` (21 passed); eval `slot_training_skip_optional` (intent-suite 19/19).
+
 | Пункт | Сложность | Польза |
 |---|---|---|
-| Опциональные слоты с возможностью «пропустить» | Малая | UX: пользователь скипает необязательное поле текстом |
+| ~~Опциональные слоты с возможностью «пропустить»~~ ✅ сделано | Малая | UX: пользователь скипает необязательное поле текстом |
 | ~~Pytest smoke-тесты~~ ✅ сделано | Средняя | Авто-проверка login → ask → создание заявки → inbox |
 | ~~Eval cases для заявок~~ ✅ сделано | Средняя | Расширить `eval/` тестами intent classifier и slot-filling |
 | Alembic для миграций БД | Средняя | Заменить ручные `ALTER TABLE` в `_migrate_user_table` |

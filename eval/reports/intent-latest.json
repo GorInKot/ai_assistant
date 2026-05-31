@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-05-31T14:38:09.500344+00:00",
+  "generated_at": "2026-05-31T14:50:34.258883+00:00",
   "mode": "local",
   "cases_path": "eval/intent_cases.json",
   "summary": {
-    "total": 18,
-    "executed": 18,
+    "total": 19,
+    "executed": 19,
     "skipped": 0,
-    "passed": 18,
+    "passed": 19,
     "failed": 0,
     "pass_rate": 1.0,
     "fallback_rate": 0.0
@@ -173,6 +173,15 @@
       "no_exact_match": false,
       "source_paths": [],
       "answer_preview": "Хорошо, оформим заявку «Заявка на обучение». На какое обучение/курс хотите записаться?"
+    },
+    {
+      "id": "slot_training_skip_optional",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "⚠️ Заявка #2 «Заявка на обучение» создана, но по области «training» пока не назначен ответственный. Сообщите администратору — он добавит сотрудника."
     }
   ]
 }
