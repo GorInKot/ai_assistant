@@ -11,7 +11,6 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     func,
-    text,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -349,8 +348,7 @@ class Responsibility(Base):
 
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
-    _migrate_user_table()
+    _run_migrations()
     _seed_roles()
     _seed_responsibility_areas()
     _seed_initial_admin()
@@ -359,30 +357,42 @@ def init_db():
     _seed_request_types_from_yaml()
 
 
-def _migrate_user_table():
-    # На Postgres миграция не нужна: первый деплой всегда стартует с чистой
-    # схемы (create_all создал users со всеми колонками из модели). Эта
-    # миграция нужна была только для старых SQLite-баз, в которые колонки
-    # добавлялись по ходу разработки.
-    if not engine.url.drivername.startswith("sqlite"):
-        return
+def _alembic_config():
+    """Config Alembic, привязанный к alembic.ini проекта и текущему DATABASE_URL."""
+    import os
 
-    with engine.connect() as connection:
-        existing_columns = set()
-        result = connection.execute(text("PRAGMA table_info(users)"))
-        for row in result:
-            existing_columns.add(row[1])
+    from alembic.config import Config
 
-        for column_name, column_type in (
-            ("first_name", "TEXT"),
-            ("last_name", "TEXT"),
-            ("middle_name", "TEXT"),
-            ("division", "TEXT"),
-            ("subdivision", "TEXT"),
-            ("job_title", "TEXT"),
-        ):
-            if column_name not in existing_columns:
-                connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg = Config(os.path.join(base_dir, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
+    cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    return cfg
+
+
+def _run_migrations():
+    """Приводит схему БД к head через Alembic (заменяет create_all + ручные ALTER).
+
+    Три сценария:
+    - alembic_version есть → обычный upgrade head (применить новые миграции).
+    - alembic_version нет, но таблицы уже есть (БД создана старым create_all до
+      внедрения Alembic) → принимаем существующую схему за baseline: stamp на
+      базовую ревизию + upgrade head (применит миграции после baseline, если
+      появятся). Делается один раз — дальше alembic_version уже будет.
+    - alembic_version нет и таблиц нет (чистая БД) → upgrade head создаёт всё.
+    """
+    from alembic import command
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import inspect
+
+    tables = set(inspect(engine).get_table_names())
+    cfg = _alembic_config()
+
+    if "alembic_version" not in tables and "users" in tables:
+        base_rev = ScriptDirectory.from_config(cfg).get_bases()[0]
+        command.stamp(cfg, base_rev)
+
+    command.upgrade(cfg, "head")
 
 
 def _seed_roles():

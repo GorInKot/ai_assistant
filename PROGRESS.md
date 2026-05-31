@@ -121,12 +121,21 @@ Postgres-деплой проверен пользователем: БД созд
 - `PendingRequest.skipped_slots`, хелперы `next_slot`/`slot_prompt`/`is_skip_answer`/`find_slot` в [request_service.py](app/services/request_service.py).
 - Тесты: pytest `test_optional_slots_can_be_skipped` / `test_required_slot_cannot_be_skipped` (21 passed); eval `slot_training_skip_optional` (intent-suite 19/19).
 
+### Alembic для миграций БД (НЕ закоммичено)
+Заменили `create_all` + ручные `ALTER TABLE` (`_migrate_user_table`) на Alembic.
+- `alembic.ini` + `alembic/env.py` (привязан к `app.db.Base` и `DATABASE_URL`, `render_as_batch=True` для SQLite, БЕЗ `fileConfig` — чтобы не клобберить логирование приложения).
+- Baseline-миграция `alembic/versions/21414f229b8f_baseline_schema.py` (все 13 таблиц), сгенерирована autogenerate против пустой БД. `alembic check` подтверждает: схема == модели.
+- `init_db` → `_run_migrations()` ([db.py](app/db.py)): adoption-логика для существующих БД (прод Postgres/dev SQLite уже с данными) — если есть таблицы, но нет `alembic_version` → `stamp` baseline (не пересоздаём), иначе `upgrade head`. Проверено на 3 сценариях (чистая/legacy/повторный).
+- `requirements.txt`: +`alembic==1.18.4`. `Dockerfile`: копирует `alembic.ini` + `alembic/` в образ (иначе старт на проде упадёт).
+- `tests/conftest.py`: `clean_db` теперь сносит `alembic_version` перед `init_db` (drop_all оставлял её → upgrade head не пересоздавал таблицы).
+- ⚠️ **На проде Render при деплое**: первый старт застемпит существующий Postgres baseline'ом (данные сохранятся). Проверить в логах, что нет ошибок миграции. Будущие изменения схемы — через `alembic revision --autogenerate -m "..."`.
+
 | Пункт | Сложность | Польза |
 |---|---|---|
 | ~~Опциональные слоты с возможностью «пропустить»~~ ✅ сделано | Малая | UX: пользователь скипает необязательное поле текстом |
 | ~~Pytest smoke-тесты~~ ✅ сделано | Средняя | Авто-проверка login → ask → создание заявки → inbox |
 | ~~Eval cases для заявок~~ ✅ сделано | Средняя | Расширить `eval/` тестами intent classifier и slot-filling |
-| Alembic для миграций БД | Средняя | Заменить ручные `ALTER TABLE` в `_migrate_user_table` |
+| ~~Alembic для миграций БД~~ ✅ сделано | Средняя | Заменить ручные `ALTER TABLE` в `_migrate_user_table` |
 | Email-уведомления о заявках | Средняя | Нужен SMTP-сервер (пока отложено) |
 
 ⚠️ Free-Postgres истекает через 30 дней с момента создания — нужно или пересоздать инстанс, или апгрейднуться на платный план ($7/мес Starter).

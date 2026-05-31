@@ -36,6 +36,11 @@ RUN pip install -r requirements.txt
 COPY app/ ./app/
 COPY knowledge_base/ ./knowledge_base/
 
+# Миграции Alembic: init_db на старте гонит `upgrade head`, поэтому alembic.ini
+# и каталог миграций обязаны быть в образе (иначе старт упадёт на проде).
+COPY alembic.ini ./alembic.ini
+COPY alembic/ ./alembic/
+
 # Готовый фронтенд из stage 1 (минимизированные JS/CSS + index.html).
 COPY --from=frontend-builder /build/dist ./frontend/dist
 

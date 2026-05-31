@@ -27,6 +27,7 @@ os.environ.pop("YC_API_KEY", None)
 os.environ.pop("YC_FOLDER_ID", None)
 
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 import app.state as state  # noqa: E402
 from app.db import Base, engine, init_db  # noqa: E402
@@ -77,7 +78,12 @@ def clean_db():
     теста протекают через переиспользуемые user_id) и кэш каталога заявок.
     """
     Base.metadata.drop_all(bind=engine)
-    init_db()  # пересоздаёт схему + сидит роли/области/типы заявок + INITIAL_ADMIN
+    # init_db теперь гоняет Alembic: после drop_all таблица alembic_version
+    # осталась бы и upgrade head счёл бы схему актуальной (таблиц нет!). Сносим
+    # её, чтобы _run_migrations пошёл по ветке «чистая БД» и пересоздал схему.
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+    init_db()  # миграции до head + сиды ролей/областей/типов заявок + INITIAL_ADMIN
     reload_catalog()
     state.dialog_state._clarifications.clear()
     state.dialog_state._requests.clear()
