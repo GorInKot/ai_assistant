@@ -11,6 +11,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Корень проекта в sys.path, чтобы `import app.*` работал при запуске
+# `python scripts/run_eval.py` (sys.path[0] иначе указывает на scripts/).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 @dataclass
 class EvalCaseResult:
@@ -35,57 +39,146 @@ def parse_args() -> argparse.Namespace:
 
 
 class AskClient:
+    """Клиент к /api/ask + (в local-режиме) прямой доступ к intent-классификатору.
+
+    /api/ask требует авторизации (security-фикс), поэтому клиент всегда добавляет
+    Bearer-токен:
+    - local: поднимает временную изолированную БД (eval не читает и не мутирует
+      dev app_data.db), строит KB in-process и минтит токен eval-пользователю.
+    - http: регистрирует/логинит технического пользователя на запущенном сервере.
+
+    Intent-кейсы (kind="intent") в local-режиме вызывают classify_intent напрямую
+    in-process — это самый точный замер качества классификатора без склейки с
+    slot-filling и HTTP.
+    """
+
     def __init__(self, mode: str, base_url: str, stub_llm: bool) -> None:
         self.mode = mode
         self.base_url = base_url.rstrip("/")
         self.stub_llm = stub_llm
         self._local_client = None
+        self._state = None
+        self._catalog_summary = None
+        self.headers: dict[str, str] = {}
 
         if mode == "local":
             self._init_local_client(stub_llm)
+        else:
+            self._init_http_auth()
 
     def _init_local_client(self, stub_llm: bool) -> None:
+        import os
+        import tempfile
+
+        # Изолированная временная БД: eval не зависит от dev-данных и не создаёт
+        # в них мусорные заявки/пользователей. Должно стоять ДО импорта app.*.
+        if not os.getenv("DATABASE_URL", "").startswith("sqlite:///") or "app_data.db" in os.getenv("DATABASE_URL", ""):
+            fd, path = tempfile.mkstemp(prefix="eval_", suffix=".db")
+            os.close(fd)
+            os.environ["DATABASE_URL"] = f"sqlite:///{path}"
+
         from fastapi.testclient import TestClient
 
-        import app.main as main_app
+        import app.state as state
+        from app.main import app
+        from app.services.ask_service import _build_catalog_summary
+
+        self._state = state
+        self._catalog_summary = _build_catalog_summary
 
         if stub_llm:
-            # Disable network dependence for eval; we validate retrieval/source behavior here.
-            main_app.llm_service.enable_rerank = False
-            main_app.llm_service.client = None
-            main_app.llm_service.generate_answer = lambda question, context_results, intent="procedure": "STUB_ANSWER"
+            # Без сети: валидируем retrieval/источники. classify_intent при
+            # client=None отдаёт qa-fallback, поэтому intent/slot-кейсы скипаем.
+            state.llm_service.enable_rerank = False
+            state.llm_service.client = None
+            state.llm_service.generate_answer = (
+                lambda question, context_results, intent="procedure": "STUB_ANSWER"
+            )
 
-        self._local_client = TestClient(main_app.app)
-        self._local_client.post("/api/reindex")
+        with state.kb_lock:
+            state.kb_index.build()
 
-    def ask(self, question: str, session_id: str) -> dict[str, Any]:
-        payload = {"question": question, "session_id": session_id}
+        self._local_client = TestClient(app)
+        self.headers = {"Authorization": f"Bearer {self._mint_local_token()}"}
 
-        if self.mode == "local":
-            assert self._local_client is not None
-            response = self._local_client.post("/api/ask", json=payload)
-            return {"status": response.status_code, "body": response.json()}
+    def _mint_local_token(self) -> str:
+        """Гарантируем eval-пользователя в БД и выдаём ему JWT in-process."""
+        from app.auth import create_access_token, get_password_hash
+        from app.db import ROLE_USER, Role, SessionLocal, User
 
+        email = "eval-runner@local.test"
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.email == email).first()
+            if not user:
+                user = User(
+                    email=email,
+                    full_name="Eval Runner",
+                    hashed_password=get_password_hash("eval-pass"),
+                )
+                role = db.query(Role).filter(Role.name == ROLE_USER).first()
+                if role:
+                    user.roles.append(role)
+                db.add(user)
+                db.commit()
+        finally:
+            db.close()
+        return create_access_token({"sub": email})
+
+    def _init_http_auth(self) -> None:
+        """Регистрируем/логиним технического пользователя на внешнем сервере."""
+        email = "eval-runner@http.test"
+        password = "eval-pass-123"
+        register_payload = {
+            "email": email,
+            "password": password,
+            "confirm_password": password,
+            "last_name": "Runner",
+            "first_name": "Eval",
+            "division": "ЦА",
+        }
+        # register идемпотентно-ish: при существующем email вернёт 400 — тогда логинимся.
+        self._http_json("POST", "/api/auth/register", register_payload)
+        login = self._http_json("POST", "/api/auth/login", {"email": email, "password": password})
+        token = (login.get("body") or {}).get("access_token")
+        if not token:
+            raise RuntimeError(f"HTTP auth failed: {login}")
+        self.headers = {"Authorization": f"Bearer {token}"}
+
+    def _http_json(self, method: str, path: str, payload: dict) -> dict[str, Any]:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers = {"Content-Type": "application/json", **self.headers}
         request = urllib.request.Request(
-            f"{self.base_url}/api/ask",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
+            f"{self.base_url}{path}", data=data, headers=headers, method=method
         )
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
                 body = response.read().decode("utf-8")
-                return {"status": response.status, "body": json.loads(body)}
+                return {"status": response.status, "body": json.loads(body) if body else {}}
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8") if error.fp else ""
-            parsed = {}
+            parsed: dict | Any = {}
             if body:
                 try:
                     parsed = json.loads(body)
                 except json.JSONDecodeError:
                     parsed = {"detail": body}
             return {"status": error.code, "body": parsed}
+
+    def ask(self, question: str, session_id: str) -> dict[str, Any]:
+        payload = {"question": question, "session_id": session_id}
+
+        if self.mode == "local":
+            assert self._local_client is not None
+            response = self._local_client.post("/api/ask", json=payload, headers=self.headers)
+            return {"status": response.status_code, "body": response.json()}
+
+        return self._http_json("POST", "/api/ask", payload)
+
+    def classify(self, message: str) -> dict[str, Any]:
+        """Прямой вызов intent-классификатора (только local + реальный LLM)."""
+        assert self._state is not None and self._catalog_summary is not None
+        return self._state.llm_service.classify_intent(message, self._catalog_summary())
 
 
 
@@ -94,20 +187,61 @@ def source_process(relative_path: str) -> str:
 
 
 
+def _skipped(case_id: str, reason: str) -> EvalCaseResult:
+    return EvalCaseResult(
+        case_id=case_id,
+        ok=True,
+        skipped=True,
+        reasons=[reason],
+        no_exact_match=False,
+        source_paths=[],
+        answer_preview="",
+    )
+
+
+def run_intent_case(client: AskClient, case: dict[str, Any], case_id: str) -> EvalCaseResult:
+    """Кейс kind='intent': прямой замер LLM-классификатора намерения.
+
+    Доступен только в local-режиме с реальным LLM — в stub/http скипаем
+    (нет in-process клиента или сетевого классификатора).
+    """
+    if client.mode != "local" or client.stub_llm:
+        return _skipped(case_id, "intent case requires local mode with real LLM")
+
+    message = str(case.get("question") or case.get("message") or "")
+    result = client.classify(message)
+    intent = result.get("intent")
+    request_type = result.get("request_type")
+
+    reasons: list[str] = []
+    expected_intent = case.get("expected_intent")
+    if expected_intent and intent != expected_intent:
+        reasons.append(f"expected_intent={expected_intent}, got={intent}")
+
+    expected_request_type = case.get("expected_request_type")
+    if expected_request_type is not None and request_type != expected_request_type:
+        reasons.append(f"expected_request_type={expected_request_type}, got={request_type}")
+
+    return EvalCaseResult(
+        case_id=case_id,
+        ok=not reasons,
+        skipped=False,
+        reasons=reasons,
+        no_exact_match=False,
+        source_paths=[],
+        answer_preview=f"intent={intent} request_type={request_type}",
+    )
+
+
 def run_case(client: AskClient, case: dict[str, Any], idx: int) -> EvalCaseResult:
     case_id = str(case.get("id") or f"case_{idx}")
     session_id = str(case.get("session_id") or f"eval-{case_id}")
 
+    if str(case.get("kind", "qa")) == "intent":
+        return run_intent_case(client, case, case_id)
+
     if client.stub_llm and case.get("skip_when_stub_llm"):
-        return EvalCaseResult(
-            case_id=case_id,
-            ok=True,
-            skipped=True,
-            reasons=["skipped in stub-llm mode"],
-            no_exact_match=True,
-            source_paths=[],
-            answer_preview="",
-        )
+        return _skipped(case_id, "skipped in stub-llm mode")
 
     for pre_step in case.get("pre_steps", []):
         pre_question = str(pre_step["question"])

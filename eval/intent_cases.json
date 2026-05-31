@@ -1,0 +1,130 @@
+[
+  {
+    "id": "intent_transport_create",
+    "kind": "intent",
+    "question": "Оформите заявку на транспорт на завтра",
+    "expected_intent": "create_request",
+    "expected_request_type": "transport_request"
+  },
+  {
+    "id": "intent_transport_create_phrasing2",
+    "kind": "intent",
+    "question": "Нужна служебная машина для поездки на объект",
+    "expected_intent": "create_request",
+    "expected_request_type": "transport_request"
+  },
+  {
+    "id": "intent_training_create",
+    "kind": "intent",
+    "question": "Хочу записаться на обучение по охране труда",
+    "expected_intent": "create_request",
+    "expected_request_type": "training_request"
+  },
+  {
+    "id": "intent_medical_create",
+    "kind": "intent",
+    "question": "Запишите меня на периодический медосмотр",
+    "expected_intent": "create_request",
+    "expected_request_type": "medical_request"
+  },
+  {
+    "id": "intent_tsus_access_create",
+    "kind": "intent",
+    "question": "Нужен доступ в ЦУС для работы со стройконтролем",
+    "expected_intent": "create_request",
+    "expected_request_type": "tsus_access_request"
+  },
+  {
+    "id": "intent_ai_lab_create",
+    "kind": "intent",
+    "question": "Есть задача для лаборатории ИИ — помогите с моделью",
+    "expected_intent": "create_request",
+    "expected_request_type": "ai_lab_request"
+  },
+  {
+    "id": "intent_anonymous_create",
+    "kind": "intent",
+    "question": "Хочу подать анонимное обращение о нарушении",
+    "expected_intent": "create_request",
+    "expected_request_type": "anonymous_appeal"
+  },
+  {
+    "id": "intent_qa_ektp_definition",
+    "kind": "intent",
+    "question": "Что такое ЕКТП?",
+    "expected_intent": "qa"
+  },
+  {
+    "id": "intent_qa_ektp_statuses",
+    "kind": "intent",
+    "question": "Какие статусы бывают у заявок в ЕКТП?",
+    "expected_intent": "qa"
+  },
+  {
+    "id": "intent_qa_medosmotr_howto",
+    "kind": "intent",
+    "question": "Как проходит периодический медосмотр и какие документы нужны?",
+    "expected_intent": "qa"
+  },
+  {
+    "id": "intent_qa_responsible",
+    "kind": "intent",
+    "question": "Кто отвечает за строительный контроль в ЦУС?",
+    "expected_intent": "qa"
+  },
+  {
+    "id": "intent_confirm_yes_short",
+    "kind": "intent",
+    "question": "да",
+    "expected_intent": "confirm_yes"
+  },
+  {
+    "id": "intent_confirm_yes_word",
+    "kind": "intent",
+    "question": "подтверждаю",
+    "expected_intent": "confirm_yes"
+  },
+  {
+    "id": "intent_confirm_no",
+    "kind": "intent",
+    "question": "нет, не надо",
+    "expected_intent": "confirm_no"
+  },
+  {
+    "id": "intent_cancel",
+    "kind": "intent",
+    "question": "отмени оформление",
+    "expected_intent": "cancel"
+  },
+
+  {
+    "id": "slot_transport_happy_path",
+    "session_id": "eval-slot-transport",
+    "skip_when_stub_llm": true,
+    "pre_steps": [
+      {"question": "Оформите заявку на транспорт"},
+      {"question": "Завтра в 10:00"},
+      {"question": "Строительный объект №5"},
+      {"question": "3 пассажира"}
+    ],
+    "question": "да",
+    "contains_in_answer_any": ["создана"]
+  },
+  {
+    "id": "slot_transport_cancel",
+    "session_id": "eval-slot-cancel",
+    "skip_when_stub_llm": true,
+    "pre_steps": [
+      {"question": "Оформите заявку на транспорт"}
+    ],
+    "question": "отмена",
+    "contains_in_answer_any": ["отмен", "прерв"]
+  },
+  {
+    "id": "slot_training_asks_course",
+    "session_id": "eval-slot-training",
+    "skip_when_stub_llm": true,
+    "question": "Хочу записаться на обучение",
+    "contains_in_answer_any": ["обучение", "курс"]
+  }
+]

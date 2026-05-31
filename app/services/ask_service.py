@@ -713,19 +713,26 @@ def process_ask(
                 request_logger.log(raw_question, [], answer=response.answer)
                 return response
 
-    # ---- 2. Intent classification (свежий запрос) ----
-    catalog_summary = _build_catalog_summary()
-    intent_data = llm_service.classify_intent(raw_question, catalog_summary)
-    if intent_data["intent"] == "create_request":
-        type_slug = intent_data.get("request_type")
-        type_def = get_request_type(type_slug) if type_slug else None
-        if type_def is not None:
-            response = _start_request_flow(session_id, type_def, raw_question)
-            request_logger.log(raw_question, [], answer=response.answer)
-            return response
+    # ---- 2. Уточнение к незавершённому QA-вопросу приоритетнее классификации
+    # интента. Иначе короткий уточняющий ответ (например «по ЕКТП» после
+    # «кто участники процесса?») будет распознан intent-классификатором как
+    # намерение создать заявку и перехватит диалог. Поэтому сначала пробуем
+    # смержить с pending-уточнением, и только для действительно нового сообщения
+    # запускаем intent-классификацию.
+    effective_question, is_clarification = dialog_state.merge_with_pending(session_id, raw_question)
+
+    if not is_clarification:
+        catalog_summary = _build_catalog_summary()
+        intent_data = llm_service.classify_intent(raw_question, catalog_summary)
+        if intent_data["intent"] == "create_request":
+            type_slug = intent_data.get("request_type")
+            type_def = get_request_type(type_slug) if type_slug else None
+            if type_def is not None:
+                response = _start_request_flow(session_id, type_def, raw_question)
+                request_logger.log(raw_question, [], answer=response.answer)
+                return response
 
     # ---- 3. Обычный QA flow ----
-    effective_question, _ = dialog_state.merge_with_pending(session_id, raw_question)
     language = detect_language(effective_question)
 
     with kb_lock:
@@ -768,7 +775,18 @@ def process_ask(
     participant_query = is_participant_question(effective_question)
     responsibility_query = is_responsibility_question(effective_question)
     if participant_query or responsibility_query:
-        role_scope_process = process_hint or _dominant_context_process(context_results)
+        # Без явно названного процесса вопрос про участников/ответственных
+        # неоднозначен: роли у ЕКТП, ЦУС, обучения и т.д. разные. Не угадываем
+        # по «самому громкому» процессу из выдачи, а просим уточнить — после
+        # уточнения («по ЕКТП») process_hint определится и мы ответим точно.
+        if process_hint is None:
+            answer = build_fallback_answer(language, final_sources, reason="ambiguous")
+            dialog_state.set_pending(session_id, effective_question)
+            request_logger.log(raw_question, final_sources, answer=answer)
+            return AskResponse(answer=answer, sources=final_sources, no_exact_match=True)
+
+        # process_hint здесь гарантированно задан (иначе вышли бы выше).
+        role_scope_process = process_hint
         action_hints = extract_action_hints(effective_question)
         single_owner_hints = {"доступ", "справоч", "акцепт"}
 

@@ -1,0 +1,178 @@
+{
+  "generated_at": "2026-05-31T14:38:09.500344+00:00",
+  "mode": "local",
+  "cases_path": "eval/intent_cases.json",
+  "summary": {
+    "total": 18,
+    "executed": 18,
+    "skipped": 0,
+    "passed": 18,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "fallback_rate": 0.0
+  },
+  "results": [
+    {
+      "id": "intent_transport_create",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=transport_request"
+    },
+    {
+      "id": "intent_transport_create_phrasing2",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=transport_request"
+    },
+    {
+      "id": "intent_training_create",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=training_request"
+    },
+    {
+      "id": "intent_medical_create",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=medical_request"
+    },
+    {
+      "id": "intent_tsus_access_create",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=tsus_access_request"
+    },
+    {
+      "id": "intent_ai_lab_create",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=ai_lab_request"
+    },
+    {
+      "id": "intent_anonymous_create",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=create_request request_type=anonymous_appeal"
+    },
+    {
+      "id": "intent_qa_ektp_definition",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=qa request_type=None"
+    },
+    {
+      "id": "intent_qa_ektp_statuses",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=qa request_type=None"
+    },
+    {
+      "id": "intent_qa_medosmotr_howto",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=qa request_type=None"
+    },
+    {
+      "id": "intent_qa_responsible",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=qa request_type=None"
+    },
+    {
+      "id": "intent_confirm_yes_short",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=confirm_yes request_type=None"
+    },
+    {
+      "id": "intent_confirm_yes_word",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=confirm_yes request_type=None"
+    },
+    {
+      "id": "intent_confirm_no",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=confirm_no request_type=None"
+    },
+    {
+      "id": "intent_cancel",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "intent=cancel request_type=None"
+    },
+    {
+      "id": "slot_transport_happy_path",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "⚠️ Заявка #1 «Заявка на транспорт» создана, но по области «ektp» пока не назначен ответственный. Сообщите администратору — он добавит сотрудника."
+    },
+    {
+      "id": "slot_transport_cancel",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "Хорошо, оформление заявки прервано."
+    },
+    {
+      "id": "slot_training_asks_course",
+      "ok": true,
+      "skipped": false,
+      "reasons": [],
+      "no_exact_match": false,
+      "source_paths": [],
+      "answer_preview": "Хорошо, оформим заявку «Заявка на обучение». На какое обучение/курс хотите записаться?"
+    }
+  ]
+}

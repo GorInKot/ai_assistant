@@ -1,0 +1,4 @@
+# Зависимости только для разработки/тестов (в прод-образ Docker не попадают).
+# Запуск: pip install -r requirements-dev.txt && pytest
+-r requirements.txt
+pytest==9.0.3
