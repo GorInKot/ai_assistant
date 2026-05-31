@@ -126,9 +126,29 @@ class AskClient:
         return create_access_token({"sub": email})
 
     def _init_http_auth(self) -> None:
-        """Регистрируем/логиним технического пользователя на внешнем сервере."""
-        email = "eval-runner@http.test"
-        password = "eval-pass-123"
+        """Регистрируем технического пользователя на внешнем сервере, берём токен.
+
+        Безопасность: email и пароль генерируются случайно на каждый прогон —
+        раннер не оставляет предсказуемой учётки с известным паролем (на случай,
+        если http-режим по ошибке нацелили на боевой сервер). Дополнительно
+        http-режим против не-loopback хоста требует явного EVAL_ALLOW_REMOTE=1.
+        """
+        import os
+        import secrets
+        from urllib.parse import urlparse
+
+        host = (urlparse(self.base_url).hostname or "").lower()
+        if host not in {"localhost", "127.0.0.1", "::1", ""} and os.getenv("EVAL_ALLOW_REMOTE") != "1":
+            raise RuntimeError(
+                f"http-режим нацелен на не-локальный хост '{host}'. Eval регистрирует "
+                "тестового пользователя — против боевого сервера это нежелательно. "
+                "Если действительно нужно, запустите с EVAL_ALLOW_REMOTE=1."
+            )
+
+        # Случайные креды на прогон: не оставляем предсказуемой учётки с известным
+        # паролем. /api/auth/register сразу возвращает access_token.
+        email = f"eval-runner+{secrets.token_hex(6)}@local.test"
+        password = secrets.token_urlsafe(24)
         register_payload = {
             "email": email,
             "password": password,
@@ -137,12 +157,10 @@ class AskClient:
             "first_name": "Eval",
             "division": "ЦА",
         }
-        # register идемпотентно-ish: при существующем email вернёт 400 — тогда логинимся.
-        self._http_json("POST", "/api/auth/register", register_payload)
-        login = self._http_json("POST", "/api/auth/login", {"email": email, "password": password})
-        token = (login.get("body") or {}).get("access_token")
+        reg = self._http_json("POST", "/api/auth/register", register_payload)
+        token = (reg.get("body") or {}).get("access_token")
         if not token:
-            raise RuntimeError(f"HTTP auth failed: {login}")
+            raise RuntimeError(f"HTTP auth failed: {reg}")
         self.headers = {"Authorization": f"Bearer {token}"}
 
     def _http_json(self, method: str, path: str, payload: dict) -> dict[str, Any]:
