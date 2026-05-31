@@ -26,6 +26,14 @@ class Settings:
     yc_api_key: str | None
     yc_folder_id: str | None
     embeddings_cache_path: Path
+    # Email-уведомления о новых заявках (опционально): если smtp_host и smtp_from
+    # заданы — назначенному ответственному уходит письмо. Без них — тихий no-op.
+    smtp_host: str | None
+    smtp_port: int
+    smtp_user: str | None
+    smtp_password: str | None
+    smtp_from: str | None
+    smtp_use_tls: bool
 
 
 def _as_bool(value: str | None, default: bool) -> bool:
@@ -73,4 +81,10 @@ def load_settings() -> Settings:
         yc_api_key=yc_api_key,
         yc_folder_id=yc_folder_id,
         embeddings_cache_path=embeddings_cache_path,
+        smtp_host=(os.getenv("SMTP_HOST") or "").strip() or None,
+        smtp_port=int(os.getenv("SMTP_PORT", "587")),
+        smtp_user=(os.getenv("SMTP_USER") or "").strip() or None,
+        smtp_password=os.getenv("SMTP_PASSWORD") or None,
+        smtp_from=(os.getenv("SMTP_FROM") or "").strip() or None,
+        smtp_use_tls=_as_bool(os.getenv("SMTP_USE_TLS"), True),
     )

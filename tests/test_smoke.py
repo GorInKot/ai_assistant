@@ -164,6 +164,31 @@ def test_full_request_flow_through_chat(client: TestClient):
     assert my_after[0]["status"] == "in_progress"
 
 
+def test_request_creation_notifies_assigned_employee(client: TestClient, monkeypatch):
+    """finalize_request должен звать email-нотификатор с данными получателя."""
+    import app.state as state
+
+    calls = []
+    monkeypatch.setattr(
+        state.email_notifier, "notify_new_request", lambda **kw: calls.append(kw) or True
+    )
+
+    manager_headers = _setup_responsible_manager(client, ["ektp"])
+    requester_headers = register(client, "ivan@test.local", last_name="Сидоров", first_name="Иван")
+
+    _ask(client, requester_headers, "нужен транспорт")
+    _ask(client, requester_headers, "2026-06-01 10:00")
+    _ask(client, requester_headers, "Объект")
+    _ask(client, requester_headers, "2")
+    _ask(client, requester_headers, "да")
+
+    assert len(calls) == 1
+    kw = calls[0]
+    assert kw["to_email"] == "manager@test.local"
+    assert kw["is_anonymous"] is False
+    assert kw["requester_name"] == "Сидоров Иван"
+
+
 def test_requester_cannot_change_status(client: TestClient):
     _setup_responsible_manager(client, ["ektp"])
     requester_headers = register(client, "ivan@test.local", first_name="Иван")

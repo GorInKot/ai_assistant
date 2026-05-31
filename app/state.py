@@ -19,6 +19,7 @@ from app.embeddings import YandexEmbedder, YandexEmbedderConfig
 from app.kb import KnowledgeBaseIndex
 from app.llm import LLMService
 from app.logging_utils import RequestLogger
+from app.notifications import EmailNotifier, SMTPConfig
 
 
 logger = logging.getLogger(__name__)
@@ -51,3 +52,17 @@ llm_service = LLMService(
 request_logger = RequestLogger(settings.log_file)
 actions_store = ActionsStore(settings.log_file.parent / "actions.log")
 dialog_state = DialogStateStore(ttl_minutes=20)
+email_notifier = EmailNotifier(
+    SMTPConfig(
+        host=settings.smtp_host,
+        port=settings.smtp_port,
+        user=settings.smtp_user,
+        password=settings.smtp_password,
+        sender=settings.smtp_from,
+        use_tls=settings.smtp_use_tls,
+    )
+)
+if email_notifier.enabled:
+    logger.info("Email notifications enabled (smtp_host=%s)", settings.smtp_host)
+else:
+    logger.info("Email notifications disabled (SMTP_HOST/SMTP_FROM not set)")

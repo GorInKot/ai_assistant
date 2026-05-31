@@ -130,13 +130,21 @@ Postgres-деплой проверен пользователем: БД созд
 - `tests/conftest.py`: `clean_db` теперь сносит `alembic_version` перед `init_db` (drop_all оставлял её → upgrade head не пересоздавал таблицы).
 - ⚠️ **На проде Render при деплое**: первый старт застемпит существующий Postgres baseline'ом (данные сохранятся). Проверить в логах, что нет ошибок миграции. Будущие изменения схемы — через `alembic revision --autogenerate -m "..."`.
 
+### Email-уведомления о заявках (НЕ закоммичено)
+Env-driven, по образцу LLM/embedder (no-op, пока не настроен SMTP — на работу заявок не влияет).
+- `app/notifications.py` — `EmailNotifier`/`SMTPConfig`: при создании заявки шлёт письмо назначенному ответственному. Сбой отправки только логируется, не ломает создание заявки. Для анонимных заявок инициатор в письме скрыт.
+- `config.py`: SMTP_HOST/PORT/USER/PASSWORD/FROM/USE_TLS. `state.py`: синглтон `email_notifier`. Вызов в [request_service.py](app/services/request_service.py) `finalize_request` (lazy-import state, без цикла).
+- `.env.example` + `render.yaml`: переменные задокументированы (SMTP_* как `sync: false` секреты).
+- Тесты: `tests/test_notifications.py` (5: disabled/no-op, отправка, анонимность, сбой не падает) + integration `test_request_creation_notifies_assigned_employee`. **pytest 27 passed.**
+- Чтобы включить: задать `SMTP_HOST`+`SMTP_FROM` (и при нужде USER/PASSWORD) в env/Render Dashboard.
+
 | Пункт | Сложность | Польза |
 |---|---|---|
 | ~~Опциональные слоты с возможностью «пропустить»~~ ✅ сделано | Малая | UX: пользователь скипает необязательное поле текстом |
 | ~~Pytest smoke-тесты~~ ✅ сделано | Средняя | Авто-проверка login → ask → создание заявки → inbox |
 | ~~Eval cases для заявок~~ ✅ сделано | Средняя | Расширить `eval/` тестами intent classifier и slot-filling |
 | ~~Alembic для миграций БД~~ ✅ сделано | Средняя | Заменить ручные `ALTER TABLE` в `_migrate_user_table` |
-| Email-уведомления о заявках | Средняя | Нужен SMTP-сервер (пока отложено) |
+| ~~Email-уведомления о заявках~~ ✅ сделано | Средняя | Env-driven, no-op без SMTP-кредов |
 
 ⚠️ Free-Postgres истекает через 30 дней с момента создания — нужно или пересоздать инстанс, или апгрейднуться на платный план ($7/мес Starter).
 

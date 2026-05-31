@@ -139,6 +139,24 @@ def finalize_request(
     ))
     db.commit()
     db.refresh(request)
+
+    # Email-уведомление ответственному (no-op, если SMTP не настроен). Lazy-import
+    # state, чтобы не создавать цикл импортов (state → ask_service → request_service).
+    if assigned_employee is not None and assigned_employee.email:
+        from app.state import email_notifier
+
+        email_notifier.notify_new_request(
+            to_email=assigned_employee.email,
+            employee_name=assigned_employee.full_name,
+            request_id=request.id,
+            type_title=type_def.title,
+            summary=summary,
+            is_anonymous=type_def.is_anonymous,
+            requester_name=(
+                None if type_def.is_anonymous else (current_user.full_name or current_user.email)
+            ),
+        )
+
     return request, assigned_employee
 
 
