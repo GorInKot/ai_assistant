@@ -13,11 +13,19 @@ class AskRequest(BaseModel):
     conversation_id: int | None = None
 
 
+class AskAttachment(BaseModel):
+    filename: str
+    content_base64: str
+    mime: str
+
+
 class AskResponse(BaseModel):
     answer: str
     sources: list[dict]
     no_exact_match: bool
     conversation_id: int | None = None
+    # Файл-результат операции над документом (напр. объединённый xlsx) — для скачивания.
+    attachment: AskAttachment | None = None
 
 
 class DialogClearRequest(BaseModel):

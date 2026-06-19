@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import type { ChatMessage, ChatSource } from "../api/types";
+import type { AskAttachment, ChatMessage, ChatSource } from "../api/types";
 
 interface Props {
   messages: ChatMessage[];
@@ -59,7 +59,23 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           {isUser ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
         </div>
         {msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
+        {msg.attachment && <AttachmentDownload attachment={msg.attachment} />}
       </div>
+    </div>
+  );
+}
+
+function AttachmentDownload({ attachment }: { attachment: AskAttachment }) {
+  const href = `data:${attachment.mime};base64,${attachment.content_base64}`;
+  return (
+    <div className="mt-3">
+      <a
+        href={href}
+        download={attachment.filename}
+        className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/5 px-3 py-2 text-sm font-medium text-accent hover:bg-accent/10"
+      >
+        ⬇️ Скачать {attachment.filename}
+      </a>
     </div>
   );
 }

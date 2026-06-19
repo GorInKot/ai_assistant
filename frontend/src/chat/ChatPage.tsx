@@ -75,7 +75,7 @@ export function ChatPage() {
     setMessages([]);
   };
 
-  const handleSend = async (text: string) => {
+  const handleSend = async (text: string, files: File[] = []) => {
     setError(null);
     setSending(true);
 
@@ -88,20 +88,30 @@ export function ChatPage() {
         setConversations((prev) => [conv, ...prev]);
       }
 
+      const userContent =
+        files.length > 0
+          ? `${text ? text + "\n\n" : ""}📎 ${files.map((f) => f.name).join(", ")}`
+          : text;
       const userMsg: ChatMessage = {
         id: localId(),
         role: "user",
-        content: text,
+        content: userContent,
         sources: [],
         no_exact_match: false,
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      const response = await api.post<AskResponse>("/api/ask", {
-        question: text,
-        conversation_id: conversationId,
-      });
+      const response =
+        files.length > 0
+          ? await api.uploadMany<AskResponse>("/api/ask-files", files, {
+              message: text,
+              conversation_id: conversationId,
+            })
+          : await api.post<AskResponse>("/api/ask", {
+              question: text,
+              conversation_id: conversationId,
+            });
 
       const assistantMsg: ChatMessage = {
         id: localId(),
@@ -110,6 +120,7 @@ export function ChatPage() {
         sources: response.sources,
         no_exact_match: response.no_exact_match,
         created_at: new Date().toISOString(),
+        attachment: response.attachment ?? null,
       };
       setMessages((prev) => [...prev, assistantMsg]);
 

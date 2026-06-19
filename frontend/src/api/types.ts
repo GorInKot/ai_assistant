@@ -20,6 +20,12 @@ export interface ChatSource {
   source_type?: string;
 }
 
+export interface AskAttachment {
+  filename: string;
+  content_base64: string;
+  mime: string;
+}
+
 export interface ChatMessage {
   id: number;
   role: "user" | "assistant";
@@ -27,6 +33,7 @@ export interface ChatMessage {
   sources: ChatSource[];
   no_exact_match: boolean;
   created_at: string;
+  attachment?: AskAttachment | null;
 }
 
 export interface ConversationDetail extends ConversationSummary {
@@ -38,6 +45,7 @@ export interface AskResponse {
   sources: ChatSource[];
   no_exact_match: boolean;
   conversation_id: number | null;
+  attachment?: AskAttachment | null;
 }
 
 export interface ProfileOptions {

@@ -212,6 +212,40 @@ class LLMService:
 
         return (response.choices[0].message.content or "").strip()
 
+    def summarize_text(self, text: str, *, max_sentences: int = 8) -> str:
+        """Краткая выжимка большого текста (6.B.2 роадмапа).
+
+        Переиспользует тот же LLM-клиент, что и QA. Язык резюме — язык исходного
+        текста. Если клиент не настроен — понятная ошибка (RuntimeError),
+        роутер превратит её в 503.
+        """
+        if not self.client:
+            raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
+
+        language_hint = self._detect_language(text)
+        system_prompt = (
+            "Ты делаешь краткое резюме документа. "
+            "Сохрани ключевые факты, решения и сроки; убери воду. "
+            "Не придумывай факты, которых нет в тексте. "
+            f"Уложись примерно в {max_sentences} предложений. "
+            f"Отвечай на языке документа ({language_hint})."
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                temperature=0.2,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"ТЕКСТ ДОКУМЕНТА:\n{text}"},
+                ],
+            )
+        except Exception as exc:  # noqa: BLE001 — сетевые/auth-ошибки LLM-провайдера
+            raise RuntimeError(
+                "Не удалось получить выжимку: модель недоступна "
+                "(проверьте LLM_API_KEY/доступ к провайдеру)."
+            ) from exc
+        return (response.choices[0].message.content or "").strip()
+
     def _parse_selected_ids(self, payload: str, max_id: int, max_count: int) -> list[int]:
         try:
             data = json.loads(payload)

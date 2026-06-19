@@ -10,7 +10,10 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body) {
+  // Только для строкового тела (JSON). Для FormData Content-Type НЕ ставим —
+  // браузер сам выставит multipart/form-data с boundary, иначе сервер не
+  // распарсит загрузку (422).
+  if (!headers.has("Content-Type") && typeof options.body === "string") {
     headers.set("Content-Type", "application/json");
   }
   const token = getToken();
@@ -28,7 +31,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     let detail = response.statusText;
     try {
       const data = await response.json();
-      if (data?.detail) detail = data.detail;
+      const d = data?.detail;
+      if (typeof d === "string") {
+        detail = d;
+      } else if (Array.isArray(d)) {
+        // FastAPI-валидация (422): массив объектов {loc, msg, type}.
+        detail = d.map((e) => e?.msg ?? JSON.stringify(e)).join("; ");
+      } else if (d) {
+        detail = typeof d === "object" ? JSON.stringify(d) : String(d);
+      }
     } catch {
       // ignore
     }
@@ -52,6 +63,14 @@ export const api = {
     form.append("file", file);
     // fetch сам выставит Content-Type с boundary — наш request() trigger-ит JSON-content-type
     // только если body — строка; FormData проходит мимо ветки.
+    return request<T>(path, { method: "POST", body: form });
+  },
+  uploadMany: <T>(path: string, files: File[], fields: Record<string, string | number | null>) => {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== null && value !== undefined) form.append(key, String(value));
+    }
+    for (const file of files) form.append("files", file);
     return request<T>(path, { method: "POST", body: form });
   },
 };
