@@ -1,0 +1,217 @@
+Sub LaboratoryAI_3_1()
+
+    Dim wbData As Workbook, wbTemplate As Workbook
+    Dim wsData As Worksheet, wsTemplate As Worksheet
+    Dim i As Long, lastRow As Long
+    Dim templatePath As String, saveFolder As String
+    Dim fileName As String, podrFolder As String, fullPath As String
+    Dim fio As String, dolzh As String, telefon As String
+    Dim rukFio As String, rukDolzh As String, rukTel As String, podr As String
+    Dim cell As Range
+    Dim fso As Object
+    
+    ' --- НАСТРОЙКИ ---
+    templatePath = "C:\Users\dvgorin2\Documents\! Задачи\Автоматизация создания заявок\ВСЕ\Шаблон_Лаборатория.xlsx"
+    saveFolder = "\\10.90.67.6\рабочие документы\Блок развития\Горин Д.В\3. Лаборатория ИИ\1. Заявки\Заявки от ПУ\Созданные\"
+    ' -----------------
+    
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    If Not fso.FolderExists(saveFolder) Then
+        MsgBox "Не удалось найти сетевую папку:" & vbNewLine & saveFolder
+        Exit Sub
+    End If
+    
+    Set wsData = ThisWorkbook.ActiveSheet
+    lastRow = wsData.Cells(wsData.Rows.count, "A").End(xlUp).Row
+    
+    If lastRow < 6 Then
+        MsgBox "Нет данных в таблице начиная с 6 строки!"
+        Exit Sub
+    End If
+    
+    Application.ScreenUpdating = False
+    
+    Dim fileCount As Integer
+    fileCount = 0
+    
+    ' Цикл по сотрудникам
+    For i = 6 To lastRow
+        
+        If Trim(wsData.Cells(i, "A").Value) <> "" Then
+            
+            ' Подразделение (столбец G)
+            podr = Trim(wsData.Cells(i, "G").Value)
+            
+            If podr = "" Then podr = "Без подразделения"
+            
+            ' Очистка имени папки
+            podr = Replace(podr, "/", "-")
+            podr = Replace(podr, "\", "-")
+            podr = Replace(podr, ":", "-")
+            podr = Replace(podr, "*", "-")
+            podr = Replace(podr, "?", "-")
+            podr = Replace(podr, """", "-")
+            podr = Replace(podr, "<", "-")
+            podr = Replace(podr, ">", "-")
+            podr = Replace(podr, "|", "-")
+            
+            podrFolder = saveFolder & podr & "\"
+            
+            If Not fso.FolderExists(podrFolder) Then
+                fso.CreateFolder (podrFolder)
+            End If
+            
+            ' ФИО для имени файла
+            fio = wsData.Cells(i, "A").Value
+            fio = Replace(fio, "/", "-")
+            fio = Replace(fio, "\", "-")
+            fio = Replace(fio, ":", "-")
+            fio = Replace(fio, "*", "-")
+            fio = Replace(fio, "?", "-")
+            fio = Replace(fio, """", "-")
+            fio = Replace(fio, "<", "-")
+            fio = Replace(fio, ">", "-")
+            fio = Replace(fio, "|", "-")
+            
+            fileName = "Заявка_" & fio & ".xlsx"
+            fullPath = podrFolder & fileName
+            
+            ' Открываем шаблон
+            On Error Resume Next
+            Set wbTemplate = Nothing
+            Set wbTemplate = Workbooks.Open(templatePath)
+            On Error GoTo 0
+            
+            If wbTemplate Is Nothing Then
+                MsgBox "Не удалось открыть файл шаблона по пути: " & templatePath
+                Application.ScreenUpdating = True
+                Exit Sub
+            End If
+            
+            Set wsTemplate = wbTemplate.Sheets(1)
+            
+            ' --- ЗАПОЛНЯЕМ ШАБЛОН ---
+            
+            ' Подразделение (столбец G)
+            wsTemplate.Range("F15").Value = wsData.Cells(i, "G").Value
+            wsTemplate.Range("H47").Value = wsData.Cells(i, "G").Value
+            
+            ' *** F16: ФИО + Должность + Телефон ***
+            fio = wsData.Cells(i, "A").Value
+            dolzh = wsData.Cells(i, "B").Value
+            telefon = wsData.Cells(i, "C").Value
+            
+            Dim fioFull As String
+            fioFull = fio
+            
+            If Trim(dolzh) <> "" Then
+                fioFull = fioFull & ", " & dolzh
+            End If
+            
+            If Trim(telefon) <> "" Then
+                fioFull = fioFull & ", " & telefon
+            End If
+            
+            wsTemplate.Range("F16").Value = fioFull
+            
+            ' Данные руководителя (столбцы H, I, J)
+            rukFio = wsData.Cells(i, "H").Value
+            rukDolzh = wsData.Cells(i, "I").Value
+            rukTel = wsData.Cells(i, "J").Value
+            
+            If Trim(rukFio) <> "" Then
+                Dim rukText As String
+                rukText = rukFio
+                If Trim(rukDolzh) <> "" Then rukText = rukText & ", " & rukDolzh
+                If Trim(rukTel) <> "" Then rukText = rukText & ", тел." & rukTel
+                wsTemplate.Range("F17").Value = rukText
+            End If
+            
+            ' ПКЗИ (столбец E)
+            wsTemplate.Range("F18").Value = wsData.Cells(i, "E").Value
+            
+            ' --- ЗАПИСЬ ТЕКУЩЕЙ ДАТЫ ---
+            
+            Dim currentDate As Date
+            Dim dayNum As String
+            Dim monthName As String
+            Dim yearNum As String
+            Dim nextYearNum As String
+            
+            currentDate = Date  ' Текущая дата
+            
+            ' Получаем число (день)
+            dayNum = Day(currentDate)
+            
+            ' Получаем название месяца в родительном падеже
+            Dim monthNum As Integer
+            monthNum = Month(currentDate)
+            
+            Select Case monthNum
+                Case 1: monthName = "января"
+                Case 2: monthName = "февраля"
+                Case 3: monthName = "марта"
+                Case 4: monthName = "апреля"
+                Case 5: monthName = "мая"
+                Case 6: monthName = "июня"
+                Case 7: monthName = "июля"
+                Case 8: monthName = "августа"
+                Case 9: monthName = "сентября"
+                Case 10: monthName = "октября"
+                Case 11: monthName = "ноября"
+                Case 12: monthName = "декабря"
+            End Select
+            
+                        
+            ' Получаем год
+            yearNum = Year(currentDate)
+            
+            ' Год + 1
+            nextYearNum = yearNum + 1
+            
+            ' Записываем в ячейки
+            wsTemplate.Range("F31").Value = dayNum
+            wsTemplate.Range("H31").Value = monthName
+            wsTemplate.Range("I31").Value = yearNum
+            wsTemplate.Range("K31").Value = dayNum
+            wsTemplate.Range("M31").Value = monthName
+            wsTemplate.Range("N31").Value = nextYearNum
+            
+            
+            ' ФИО сотрудника внизу
+            wsTemplate.Range("B43").Value = wsData.Cells(i, "A").Value
+            
+            ' ФИО руководителя внизу
+            wsTemplate.Range("B50").Value = rukFio
+            
+            ' --- ФОРМАТИРОВАНИЕ ---
+            For Each cell In wsTemplate.Range("F14:F18")
+                cell.HorizontalAlignment = xlLeft
+            Next cell
+            
+            ' --- СОХРАНЯЕМ ---
+            Application.DisplayAlerts = False
+            
+            If fso.fileExists(fullPath) Then
+                Kill fullPath
+            End If
+            
+            wbTemplate.SaveAs fileName:=fullPath, FileFormat:=xlOpenXMLWorkbook
+            wbTemplate.Close SaveChanges:=False
+            Application.DisplayAlerts = True
+            
+            fileCount = fileCount + 1
+            
+        End If
+    Next i
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Готово! Создано файлов: " & fileCount & vbNewLine & _
+           "Файлы распределены по папкам подразделений." & vbNewLine & _
+           "Основная папка: " & saveFolder, vbInformation, "Успешно"
+
+End Sub
+
+

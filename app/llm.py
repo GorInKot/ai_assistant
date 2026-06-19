@@ -246,6 +246,62 @@ class LLMService:
             ) from exc
         return (response.choices[0].message.content or "").strip()
 
+    def extract_fields(self, text: str, fields: list[dict]) -> dict:
+        """Извлечь значения полей из свободного текста пользователя (Этап 7).
+
+        `fields` — список словарей {key, title, description}. Возвращает
+        {key: значение|null}. Если клиент не настроен или вызов упал —
+        понятная ошибка (RuntimeError), роутер превратит её в 503.
+        """
+        if not self.client:
+            raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
+
+        field_lines = "\n".join(
+            f'- "{f["key"]}": {f["title"]}'
+            + (f" — {f['description']}" if f.get("description") else "")
+            for f in fields
+        )
+        keys = ", ".join(f'"{f["key"]}"' for f in fields)
+        system_prompt = (
+            "Ты извлекаешь структурированные данные из свободного текста для "
+            "заполнения заявки. Верни СТРОГО JSON-объект только с ключами: "
+            f"{keys}. "
+            "Если значение поля в тексте не указано — поставь null. "
+            "Не придумывай данные, которых нет в тексте. "
+            "Сохраняй значения как в тексте (ФИО, должности, телефоны, ключи без изменений).\n\n"
+            f"Поля:\n{field_lines}"
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+            )
+            content = (response.choices[0].message.content or "").strip()
+            data = json.loads(content)
+        except Exception as exc:  # noqa: BLE001 — сетевые/auth/JSON-ошибки
+            raise RuntimeError(
+                "Не удалось распознать данные заявки: модель недоступна "
+                "(проверьте LLM_API_KEY/доступ к провайдеру)."
+            ) from exc
+
+        if not isinstance(data, dict):
+            return {f["key"]: None for f in fields}
+
+        result: dict[str, str | None] = {}
+        for f in fields:
+            value = data.get(f["key"])
+            if value is None:
+                result[f["key"]] = None
+            else:
+                text_value = str(value).strip()
+                result[f["key"]] = text_value or None
+        return result
+
     def _parse_selected_ids(self, payload: str, max_id: int, max_count: int) -> list[int]:
         try:
             data = json.loads(payload)

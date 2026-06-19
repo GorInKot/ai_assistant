@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import type { AskAttachment, ChatMessage, ChatSource } from "../api/types";
 
@@ -66,7 +66,20 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
 }
 
 function AttachmentDownload({ attachment }: { attachment: AskAttachment }) {
-  const href = `data:${attachment.mime};base64,${attachment.content_base64}`;
+  // Скачиваем через Blob/object-URL, а не data:-URI: для бинарных файлов
+  // (.xlsx) data-URI ненадёжен — байты могут повреждаться, и файл потом не
+  // открывается. Blob отдаёт точные байты.
+  const href = useMemo(() => {
+    const binary = atob(attachment.content_base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: attachment.mime });
+    return URL.createObjectURL(blob);
+  }, [attachment.content_base64, attachment.mime]);
+
+  // Освобождаем object-URL при размонтировании, чтобы не текла память.
+  useEffect(() => () => URL.revokeObjectURL(href), [href]);
+
   return (
     <div className="mt-3">
       <a

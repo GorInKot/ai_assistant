@@ -1,0 +1,696 @@
+' Макрос создания коллективной заявки на ЦУС
+Sub CreateAndFillTerminal()
+    ' Отключаем обновление экрана для скорости
+    Application.ScreenUpdating = False
+    
+    ' Создаем новый лист
+    Dim newWorkbook As Workbook
+    Dim newSheet As Worksheet
+    
+    Set newWorkbook = Workbooks.Add
+    Set newSheet = newWorkbook.Sheets(1)
+    newSheet.Name = "ЗаявкаЦУС"
+    
+    ' Заполняем ячейки данными
+    
+    ' ======= [НАЧАЛО] =======
+    With newSheet.Range("B2:G2")
+        .Merge
+        .Value = "ЗАЯВКА №_____________________"
+        .HorizontalAlignment = xlCenter         ' Выровнять по центру
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("B3:G3")
+        .Merge
+        .Value = "на добавление сотрудников в состав групп ПКЗИ"
+        .HorizontalAlignment = xlCenter         ' Выровнять по центру
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("B5:G5")
+        .Merge
+        .Value = "Прошу внести следующие изменения в состав групп ПКЗИ:"
+        .HorizontalAlignment = xlLeft         ' Выровнять по левову краю
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("B6:G6")
+        .Merge
+        .WrapText = True
+        .Value = "1. Добавить пользователей в группы ПКЗИ для работы в домене ITB.LOCAL в соответствии с данными, приведенными в таблице ниже."
+        .HorizontalAlignment = xlLeft         ' Выровнять по левову краю
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("G7")
+        .Value = "Таблица 1"
+        .HorizontalAlignment = xlRight         ' Выровнять по правому краю
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("B8:G8")
+        .Merge
+        .Value = "Список пользователей для добавления в группы ПКЗИ"
+        .HorizontalAlignment = xlRight         ' Выровнять по правому краю
+        .VerticalAlignment = xlCenter
+    End With
+    
+    ' ======= Создание таблицы =======
+    ' ======= Заголовок таблицы [НАЧАЛО] =======
+    With newSheet.Range("B9:B10")
+        .Merge
+        .Value = "№"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("C9:C10")
+        .Merge
+        .Value = "НАЗВАНИЕ ГРУППЫ ПКЗИ"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("D9:F9")
+        .Merge
+        .Value = "Пользователи, ДОБАВЛЯЕМЫЕ В СОСТАВ ГРУППЫ"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("G9")
+        .Value = "Описание"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("G10")
+        .Value = "(назначение ГРУППЫ)"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("D10")
+        .Value = "Фамилия Имя Отчество"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("E10")
+        .Value = "e-mail"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    With newSheet.Range("F10")
+        .Value = "Ключ ПКЗИ"
+        .Interior.Color = RGB(255, 210, 0)
+        With .Font
+            .Bold = True
+            .Size = 8
+            .Name = "Times New Roman"
+        End With
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
+    
+    ' ======= Заголовок таблицы [КОНЕЦ] =======
+    
+    
+    ' === Получение данных ===
+    Dim wsБаза As Worksheet
+    Dim lastRowБаза As Long
+    Dim targetRow As Long
+    Dim i As Long
+    Dim count As Long
+    Dim firstDataRow As Long
+    Dim lastDataRow As Long
+    
+    ' Проверка листа на наличие данных
+    On Error Resume Next
+    Set wsБаза = ThisWorkbook.Worksheets("Лист2")
+    On Error GoTo 0
+    
+    firstDataRow = 11
+    
+    If Not wsБаза Is Nothing Then
+        ' Находим последнюю строку в столбце A
+        lastRowБаза = wsБаза.Cells(wsБаза.Rows.count, "A").End(xlUp).Row
+        
+        ' Вставляем данные с 14 строки
+        targetRow = 11
+        count = 0
+        
+        ' Проходим по строкам листа
+        For i = 6 To lastRowБаза
+            If LCase(Trim(wsБаза.Cells(i, "BG").Value)) = "да" Then
+                ' ФИО
+                If Not IsEmpty(wsБаза.Cells(i, "A").Value) Then
+                    newSheet.Cells(targetRow, "D").Value = wsБаза.Cells(i, "A").Value
+                    
+                End If
+                
+                ' ПКЗИ
+                If Not IsEmpty(wsБаза.Cells(i, "AL").Value) Then
+                    newSheet.Cells(targetRow, "F").Value = wsБаза.Cells(i, "AL").Value
+
+                End If
+                
+                ' e-mail
+                If Not IsEmpty(wsБаза.Cells(i, "AN").Value) Then
+                    newSheet.Cells(targetRow, "E").Value = wsБаза.Cells(i, "AN").Value
+
+                End If
+                
+                newSheet.Cells(targetRow, "C").Value = "AD_ECPK_SEID_USERS"
+                
+                ' Добавляем номер в столбец B
+                newSheet.Cells(targetRow, "B").Value = targetRow - 10
+                
+                newSheet.Cells(targetRow, "G").Value = "Для работы в веб-приложении ИР СЭИД"
+                newSheet.Cells(targetRow, "D").WrapText = True
+                newSheet.Cells(targetRow, "E").WrapText = True
+                newSheet.Cells(targetRow, "F").WrapText = True
+                newSheet.Cells(targetRow, "G").WrapText = True
+                
+                ' Добавляем границы для новой строки
+                With newSheet.Range("B" & targetRow & ":G" & targetRow)
+                    .Borders.LineStyle = xlContinuous
+                    .Borders.Weight = xlThin
+                    .HorizontalAlignment = xlLeft
+                    .VerticalAlignment = xlCenter
+                End With
+                
+                targetRow = targetRow + 1
+                count = count + 1
+            End If
+        Next i
+        lastDataRow = targetRow - 1
+        Debug.Print "Последняя строка таблицы" & lastDataRow
+        ' === Объединение ячеек в столбцах B, C и F и вставка текста ===
+        
+    
+    ' ======== Реализация содержимого ниже таблицы на листе ========
+    Dim descriptionRowOne As Long
+    
+    descriptionRowOne = lastDataRow + 3
+    Debug.Print "Описание: наполнение группы ПКЗИ (descriptionRowOne): " & descriptionRowOne
+    
+    With newSheet.Range("B" & descriptionRowOne)
+        .Value = "Время действия (нужное отметить знаком х)"
+        
+        With .Characters(Start:=1, Length:=14).Font
+            .Bold = True
+        End With
+        
+        With .Characters(Start:=15).Font
+            .Bold = False
+        End With
+        
+        ' Форматирование ячеек
+        .Font.Size = 10
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+    End With
+    
+    Dim descriptionRowTwo As Long
+    descriptionRowTwo = descriptionRowOne + 1
+    
+    With newSheet.Range("B" & descriptionRowTwo)
+        .Value = ChrW(&HF0A3)  ' Пустой квадрат в Wingdings 2
+        .Font.Size = 12
+        .Font.Name = "Wingdings 2"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 20
+        .ColumnWidth = 3
+    End With
+    
+    
+    With newSheet.Range("C" & descriptionRowTwo)
+        .Value = "Рабочее"
+        
+        ' Форматирование ячеек
+        .Font.Size = 11
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowThree = descriptionRowTwo + 1
+    
+    ' Первый пункт - отмечен галочкой
+    With newSheet.Range("B" & descriptionRowThree)
+        .Value = ChrW(&HF051)  ' Крест в квадрате
+        .Font.Size = 12
+        .Font.Name = "Wingdings 2"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 20
+        .ColumnWidth = 3
+    End With
+    
+    With newSheet.Range("C" & descriptionRowThree)
+        .Value = "Круглосуточно"
+        ' Форматирование ячеек
+        .Font.Size = 11
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowFour = descriptionRowThree + 1
+    
+    With newSheet.Range("B" & descriptionRowFour)
+        .Value = ChrW(&HF0A3)  ' Пустой квадрат в Wingdings 2
+        .Font.Size = 12
+        .Font.Name = "Wingdings 2"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 20
+        .ColumnWidth = 3
+    End With
+    
+    With newSheet.Range("C" & descriptionRowFour)
+        .Value = "Другое"
+        ' Форматирование ячеек
+        .Font.Size = 11
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowFive = descriptionRowThree + 2
+     
+    With newSheet.Range("B" & descriptionRowFive & ":G" & descriptionRowFive)
+        .Merge
+        .Value = "___________________________________________________________________________________________"
+        .Font.Size = 10
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowSix = descriptionRowFive + 2
+    
+    With newSheet.Range("B" & descriptionRowSix)
+        .Value = "Изменения необходимы (нужное отметить знаком х)"
+        
+        With .Characters(Start:=1, Length:=20).Font
+            .Bold = True
+        End With
+        
+        With .Characters(Start:=21).Font
+            .Bold = False
+        End With
+        
+        ' Форматирование ячеек
+        .Font.Size = 10
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+    End With
+    
+    descriptionRowSeven = descriptionRowSix + 1
+    
+    With newSheet.Range("B" & descriptionRowSeven)
+        .Value = ChrW(&HF0A3)
+        .Font.Size = 12
+        .Font.Name = "Wingdings 2"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 20
+        .ColumnWidth = 3
+    End With
+    
+    With newSheet.Range("B" & descriptionRowThree)
+        .Value = ChrW(&HF051)  ' Крест в квадрате
+        .Font.Size = 12
+        .Font.Name = "Wingdings 2"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 20
+        .ColumnWidth = 3
+    End With
+    
+    With newSheet.Range("C" & descriptionRowSeven)
+        .Value = "Временно, в период с  «___» ___________ 2025 г.  по «___» ____________ 2026 г."
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowEight = descriptionRowSeven + 2
+    
+    With newSheet.Range("B" & descriptionRowEight)
+        .Value = ChrW(&HF051)  ' Крест в квадрате
+        .Font.Size = 12
+        .Font.Name = "Wingdings 2"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .RowHeight = 20
+        .ColumnWidth = 3
+    End With
+    
+    With newSheet.Range("C" & descriptionRowEight)
+        .Value = "Бессрочно"
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowNine = descriptionRowEight + 2
+    
+    With newSheet.Range("B" & descriptionRowNine)
+        .Value = "Описание: Предоставление доступа пользователям к ИР СЭИД."
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRowTen = descriptionRowNine + 1
+    
+    With newSheet.Range("B" & descriptionRowTen)
+        .Value = "Обоснование необходимости: Протокол от 03.10.2025 г. «Создание сервиса Исполнительной документации в Капитальном строительстве»."
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRow11 = descriptionRowTen + 2
+    
+    With newSheet.Range("B" & descriptionRow11 & ":C" & descriptionRow11)
+        .Merge
+        .Value = "Блок развития, ЗГД по развитию"
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = True
+    End With
+    
+    With newSheet.Range("E" & descriptionRow11)
+        .Value = "_______________"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("G" & descriptionRow11 & ":H" & descriptionRow11)
+        .Merge
+        .Value = "Кулешов А.П."
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRow12 = descriptionRow11 + 1
+    
+    With newSheet.Range("B" & descriptionRow12)
+        .Value = "(наименование структурного подразделения ОГ)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("B" & descriptionRow12 & ":C" & descriptionRow12)
+        .Merge
+        .Value = "(Подпись)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("G" & descriptionRow12 & ":H" & descriptionRow12)
+        .Merge
+        .Value = "(Фамилия И.О.)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRow13 = descriptionRow12 + 3
+    
+    With newSheet.Range("F" & descriptionRow13 & ":H" & descriptionRow13)
+        .Merge
+        .Value = "__________________________________________________________"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("F" & descriptionRow13 & ":H" & descriptionRow13)
+        .Merge
+        .Value = "(дата, месяц, год)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    
+    descriptionRow14 = descriptionRow13 + 1
+    
+    With newSheet.Range("B" & descriptionRow14 & ":C" & descriptionRow14)
+        .Merge
+        .Value = "Группа ИБ"
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("E" & descriptionRow14)
+        .Value = "_______________"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    With newSheet.Range("G" & descriptionRow14 & ":H" & descriptionRow14)
+        .Merge
+        .Value = "Литвинов В.А."
+        .Font.Size = 11
+        .Font.FontStyle = "Times New Roman"
+        .Font.Name = "Times New Roman"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRow15 = descriptionRow14 + 1
+    
+    With newSheet.Range("B" & descriptionRow15 & ":C" & descriptionRow15)
+        .Merge
+        .Value = "(подразделение ИБ ОГ)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+
+    End With
+    
+    With newSheet.Range("E" & descriptionRow15)
+        .Value = "(Подпись)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+
+    End With
+    
+    With newSheet.Range("G" & descriptionRow15 & ":H" & descriptionRow15)
+        .Merge
+        .Value = "(Фамилия И.О.)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+
+    End With
+    
+    descriptionRow16 = descriptionRow15 + 3
+    
+    With newSheet.Range("F" & descriptionRow16 & ":H" & descriptionRow16)
+        .Merge
+        .Value = "__________________________________________________________"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    descriptionRow17 = descriptionRow16 + 1
+    
+    With newSheet.Range("F" & descriptionRow17 & ":H" & descriptionRow17)
+        .Merge
+        .Value = "(дата, месяц, год)"
+        .Font.Size = 7
+        .Font.FontStyle = "Italic"
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+    End With
+    
+    ' Автоподбор ширины
+    newSheet.Columns("A:I").AutoFit
+    
+    ' устанавливаем ширину для столбцов
+    newSheet.Columns("A").ColumnWidth = 5    ' Номер строки
+    newSheet.Columns("B").ColumnWidth = 3   ' Название группы
+    newSheet.Columns("C").ColumnWidth = 20   ' группа
+    newSheet.Columns("D").ColumnWidth = 20   ' ФИО
+    newSheet.Columns("E").ColumnWidth = 15   ' ПКЗИ
+    newSheet.Columns("F").ColumnWidth = 15   ' Описание
+    newSheet.Columns("G").ColumnWidth = 20   ' Описание
+    
+    ' === Автоматическое сохранение по указанному пути ===
+    Dim savePath As String
+    Dim fileName As String
+    Dim fullPath As String
+    Dim fileCounter As Long
+    Dim fileExists As Boolean
+    
+    ' Ваш указанный путь
+    savePath = "C:\Users\dvgorin2\Desktop\Сохраняем заявки сюда\"
+    
+    ' Проверяем существование папки
+    If Dir(savePath, vbDirectory) = "" Then
+        ' Если папки нет, пытаемся создать
+        On Error Resume Next
+        MkDir savePath
+        On Error GoTo 0
+        
+        ' Проверяем, создалась ли папка
+        If Dir(savePath, vbDirectory) = "" Then
+            MsgBox "Не удалось создать папку: " & savePath & vbCrLf & _
+                   "Файл будет сохранен в папке Документы.", vbExclamation
+            savePath = Environ("USERPROFILE") & "\Documents\"
+        End If
+    End If
+    
+    ' Формируем базовое имя файла с датой
+    fileName = "Заявка_Терминальный сервер_" & Format(Date, "dd.mm.yyyy")
+    
+    ' Проверяем, существует ли файл с таким именем
+    fullPath = savePath & fileName & ".xlsx"
+    fileExists = Dir(fullPath) <> ""
+    
+    ' Если файл уже существует, добавляем номер
+    fileCounter = 1
+    If fileExists Then
+        Do While Dir(fullPath) <> ""
+            fullPath = savePath & fileName & "_" & fileCounter & ".xlsx"
+            fileCounter = fileCounter + 1
+        Loop
+    End If
+    
+    ' Сохраняем новую книгу
+    On Error Resume Next
+    newWorkbook.SaveAs fullPath, FileFormat:=xlOpenXMLWorkbook
+    If Err.Number <> 0 Then
+        ' Если не удалось сохранить по указанному пути
+        MsgBox "Не удалось сохранить файл по пути: " & fullPath & vbCrLf & _
+               "Ошибка: " & Err.Description & vbCrLf & _
+               "Попробую сохранить в папку Документы.", vbCritical
+        
+        ' Пытаемся сохранить в Документы
+        fullPath = Environ("USERPROFILE") & "\Documents\" & fileName & ".xlsx"
+        newWorkbook.SaveAs fullPath, FileFormat:=xlOpenXMLWorkbook
+    End If
+    On Error GoTo 0
+    
+    ' Формируем сообщение
+    Dim msgText As String
+    msgText = "Новая заявка успешно создана!" & vbCrLf & _
+              "Файл сохранен: " & vbCrLf & fullPath
+              
+    If Not wsБаза Is Nothing And count > 0 Then
+        msgText = msgText & vbCrLf & "Перенесено записей из базы: " & count
+    End If
+    
+    MsgBox msgText, vbInformation
+    newWorkbook.Activate
+    
+End If
+
+
+Application.ScreenUpdating = True
+
+
+End Sub
+
+

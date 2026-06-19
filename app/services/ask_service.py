@@ -28,6 +28,7 @@ from app.roles import (
     is_responsibility_question,
 )
 from app.schemas import AskResponse
+from app.services.request_forms import detect_form_intent, handle_form_request
 from app.services.request_service import (
     finalize_request,
     find_slot,
@@ -688,6 +689,25 @@ def process_ask(
         raise HTTPException(status_code=400, detail="Question is empty")
 
     session_id = normalize_session_id(session_id_raw, current_user.id)
+
+    # ---- 0. Автозаполнение шаблона заявки на доступ (Этап 7) ----
+    # Пропускаем, если идёт slot-filling заявки Этапа 5: тогда сообщение —
+    # это ответ на слот, а не новая просьба оформить документ.
+    if dialog_state.get_pending_request(session_id) is None:
+        form_spec = detect_form_intent(raw_question)
+        if form_spec is not None:
+            try:
+                form_result = handle_form_request(form_spec, raw_question, llm_service)
+            except RuntimeError as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+            dialog_state.clear(session_id)
+            request_logger.log(raw_question, [], answer=form_result.answer)
+            return AskResponse(
+                answer=form_result.answer,
+                sources=[],
+                no_exact_match=False,
+                attachment=form_result.attachment,
+            )
 
     # ---- 1. Pending request flow ----
     pending = dialog_state.get_pending_request(session_id)
