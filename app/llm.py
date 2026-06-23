@@ -325,6 +325,73 @@ class LLMService:
                 result[f["key"]] = text_value or None
         return result
 
+    def extract_people(self, text: str, fields: list[dict]) -> list[dict]:
+        """Извлечь СПИСОК пользователей из свободного текста (Этап 7, групповые заявки).
+
+        В отличие от `extract_fields` (один человек), коллективные заявки (ВКД)
+        перечисляют нескольких сотрудников. Возвращает список словарей
+        {key: значение|null} — по одному на каждого распознанного пользователя.
+        Порядок сохраняется. Если ничего не распознано — пустой список.
+        """
+        if not self.client:
+            raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
+
+        field_lines = "\n".join(
+            f'- "{f["key"]}": {f["title"]}'
+            + (f" — {f['description']}" if f.get("description") else "")
+            for f in fields
+        )
+        keys = ", ".join(f'"{f["key"]}"' for f in fields)
+        system_prompt = (
+            "Ты извлекаешь данные о НЕСКОЛЬКИХ пользователях из свободного текста "
+            "для заполнения групповой заявки. Верни СТРОГО JSON-объект вида "
+            '{"users": [ {объект на пользователя}, ... ]}. '
+            f"Каждый объект пользователя содержит только ключи: {keys}. "
+            "Если значение поля для пользователя не указано — поставь null. "
+            "Не придумывай данные, которых нет в тексте. Если в тексте один "
+            "пользователь — верни список из одного объекта. Сохраняй значения "
+            "как в тексте (ФИО, e-mail, учётные записи, ключи без изменений).\n\n"
+            f"Поля каждого пользователя:\n{field_lines}"
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+            )
+            content = (response.choices[0].message.content or "").strip()
+            data = json.loads(content)
+        except Exception as exc:  # noqa: BLE001 — сетевые/auth/JSON-ошибки
+            raise RuntimeError(
+                "Не удалось распознать данные заявки: модель недоступна "
+                "(проверьте LLM_API_KEY/доступ к провайдеру)."
+            ) from exc
+
+        raw_users = data.get("users") if isinstance(data, dict) else None
+        if not isinstance(raw_users, list):
+            return []
+
+        people: list[dict] = []
+        for item in raw_users:
+            if not isinstance(item, dict):
+                continue
+            person: dict[str, str | None] = {}
+            for f in fields:
+                value = item.get(f["key"])
+                if value is None:
+                    person[f["key"]] = None
+                else:
+                    text_value = str(value).strip()
+                    person[f["key"]] = text_value or None
+            # Пропускаем полностью пустые объекты.
+            if any(person.values()):
+                people.append(person)
+        return people
+
     def _parse_selected_ids(self, payload: str, max_id: int, max_count: int) -> list[int]:
         try:
             data = json.loads(payload)
