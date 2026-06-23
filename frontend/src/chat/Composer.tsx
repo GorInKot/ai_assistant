@@ -5,7 +5,7 @@ interface Props {
   disabled: boolean;
 }
 
-const ACCEPT = ".xlsx,.docx";
+const ACCEPT = ".xlsx,.docx,.doc";
 const MAX_FILES = 20;
 
 export function Composer({ onSend, disabled }: Props) {
@@ -83,7 +83,7 @@ export function Composer({ onSend, disabled }: Props) {
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
             className="rounded-lg px-2 py-1.5 text-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40"
-            title="Прикрепить файл (.xlsx, .docx)"
+            title="Прикрепить файл (.xlsx, .docx, .doc)"
           >
             📎
           </button>
@@ -112,7 +112,7 @@ export function Composer({ onSend, disabled }: Props) {
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-400 text-center">
-          Enter — отправить. Прикрепите .xlsx/.docx: «сделай выжимку», «сравни», «объедини».
+          Enter — отправить. Прикрепите .xlsx/.docx/.doc: «сделай выжимку», «сравни», «объедини».
         </p>
       </div>
     </div>

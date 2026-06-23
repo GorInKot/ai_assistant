@@ -19,14 +19,18 @@ from app.services.document_processing import (
     DiffResult,
     DocumentError,
     DocxData,
+    FormDiffResult,
     MergeResult,
     WorkbookData,
     build_xlsx,
     diff_docx,
+    diff_forms,
     diff_workbooks,
+    is_form_like,
     merge_workbooks,
     parse_docx,
     parse_xlsx,
+    parse_xlsx_grid,
 )
 
 
@@ -62,12 +66,14 @@ def _xlsx(name: str) -> bool:
     return name.lower().endswith(".xlsx")
 
 
-def _docx(name: str) -> bool:
-    return name.lower().endswith(".docx")
+def _word(name: str) -> bool:
+    """Word-файл: новый .docx или старый бинарный .doc."""
+    lower = name.lower()
+    return lower.endswith(".docx") or lower.endswith(".doc")
 
 
 def _is_supported(name: str) -> bool:
-    return _xlsx(name) or _docx(name)
+    return _xlsx(name) or _word(name)
 
 
 def handle_chat_files(
@@ -82,16 +88,16 @@ def handle_chat_files(
     unsupported = [name for name, _ in files if not _is_supported(name)]
     if unsupported:
         raise DocumentError(
-            "Поддерживаются только файлы .xlsx и .docx. "
+            "Поддерживаются только файлы .xlsx, .docx и .doc. "
             f"Не поддерживается: {', '.join(unsupported)}"
         )
 
     msg = message.strip().lower()
     xlsx_files = [(n, b) for n, b in files if _xlsx(n)]
-    docx_files = [(n, b) for n, b in files if _docx(n)]
+    docx_files = [(n, b) for n, b in files if _word(n)]
 
     if xlsx_files and docx_files:
-        raise DocumentError("Приложите файлы одного типа: либо .xlsx, либо .docx")
+        raise DocumentError("Приложите файлы одного типа: либо Excel, либо Word")
 
     if xlsx_files:
         return _handle_xlsx(msg, xlsx_files)
@@ -107,13 +113,65 @@ def _handle_xlsx(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
     if len(workbooks) == 1:
         return _answer_extract_xlsx(workbooks[0])
 
-    # Несколько файлов: сравнить или объединить.
-    if _has(msg, _COMPARE_KW) and len(workbooks) == 2:
-        return _answer_diff_xlsx(workbooks[0], workbooks[1])
-    if len(workbooks) == 2 and not _has(msg, _MERGE_KW):
-        # Два файла без явного «объедини» — по умолчанию сравниваем (частый сценарий).
-        return _answer_diff_xlsx(workbooks[0], workbooks[1])
+    # Два файла без явного «объедини» — по умолчанию сравниваем (частый сценарий).
+    if len(workbooks) == 2 and (_has(msg, _COMPARE_KW) or not _has(msg, _MERGE_KW)):
+        return _diff_two_xlsx(files, workbooks)
     return _answer_merge_xlsx(workbooks)
+
+
+def _diff_two_xlsx(
+    files: list[tuple[str, bytes]], workbooks: list[WorkbookData]
+) -> ChatFileResult:
+    """Сравнить два .xlsx, выбрав режим: бланк-форма или таблица-реестр."""
+    grid_a = parse_xlsx_grid(files[0][1], files[0][0])
+    grid_b = parse_xlsx_grid(files[1][1], files[1][0])
+    a = grid_a[0] if grid_a else None
+    b = grid_b[0] if grid_b else None
+    if a and b and is_form_like(a) and is_form_like(b):
+        return _answer_diff_form(files[0][0], files[1][0], a, b)
+    return _answer_diff_xlsx(workbooks[0], workbooks[1])
+
+
+def _answer_diff_form(name_old: str, name_new: str, old, new) -> ChatFileResult:
+    """Человекочитаемый отчёт о различиях двух бланков (формы, не таблицы)."""
+    result: FormDiffResult = diff_forms(old, new)
+    lines = [f"**Различия между бланками:** «{name_old}» и «{name_new}»", ""]
+
+    if not result.items:
+        lines.append("Файлы идентичны по содержимому. ✅")
+        return ChatFileResult(answer="\n".join(lines).strip())
+
+    s = result.summary
+    lines.append(
+        f"**Итог:** изменено полей — {s['changed']}, "
+        f"только в «{name_new}» — {s['added']}, только в «{name_old}» — {s['removed']}."
+    )
+
+    shown = result.items[:CHAT_DIFF_ITEMS]
+
+    def _title(it) -> str:
+        return f"{it.label} ({it.coord})" if it.label else it.coord
+
+    changed = [it for it in shown if it.op == "changed"]
+    only_new = [it for it in shown if it.op == "added"]
+    only_old = [it for it in shown if it.op == "removed"]
+
+    if changed:
+        lines.append("")
+        lines.append("**Изменённые поля:**")
+        lines += [f"- **{_title(it)}**: «{it.old}» → «{it.new}»" for it in changed]
+    if only_new:
+        lines.append("")
+        lines.append(f"**Только в документе «{name_new}»:**")
+        lines += [f"- **{_title(it)}**: «{it.new}»" for it in only_new]
+    if only_old:
+        lines.append("")
+        lines.append(f"**Только в документе «{name_old}»:**")
+        lines += [f"- **{_title(it)}**: «{it.old}»" for it in only_old]
+
+    if result.truncated or len(result.items) > CHAT_DIFF_ITEMS:
+        lines.append("\n_Показаны не все различия._")
+    return ChatFileResult(answer="\n".join(lines).strip())
 
 
 def _answer_extract_xlsx(wb: WorkbookData) -> ChatFileResult:
@@ -133,47 +191,48 @@ def _answer_extract_xlsx(wb: WorkbookData) -> ChatFileResult:
 
 def _answer_diff_xlsx(old: WorkbookData, new: WorkbookData) -> ChatFileResult:
     result: DiffResult = diff_workbooks(old, new)
-    lines = [f"**Сравнение:** {old.filename} → {new.filename}", ""]
+    lines = [f"**Различия между файлами:** «{old.filename}» и «{new.filename}»", ""]
 
-    if result.structure_changed:
-        lines.append("**Изменения структуры:**")
-        if result.added_columns:
-            lines.append(f"- добавлены колонки: {', '.join(result.added_columns)}")
-        if result.removed_columns:
-            lines.append(f"- удалены колонки: {', '.join(result.removed_columns)}")
-        if result.reordered:
-            lines.append("- изменён порядок колонок")
-        lines.append("")
+    if not (result.added_rows or result.removed_rows or result.changed_cells or result.structure_changed):
+        lines.append("Файлы идентичны по содержимому. ✅")
+        return ChatFileResult(answer="\n".join(lines).strip())
 
-    s = result.summary if hasattr(result, "summary") else None
     lines.append(
-        f"**Итог:** добавлено строк — {len(result.added_rows)}, "
-        f"удалено — {len(result.removed_rows)}, изменено ячеек — {len(result.changed_cells)}."
+        f"**Итог:** только в «{new.filename}» — {len(result.added_rows)}, "
+        f"только в «{old.filename}» — {len(result.removed_rows)}, "
+        f"изменено ячеек — {len(result.changed_cells)}."
     )
     if result.key_column:
         lines.append(f"_Строки сопоставлены по колонке «{result.key_column}»._")
     else:
         lines.append("_Строки сопоставлены по позиции (уникальный ключ не найден)._")
-    lines.append("")
+
+    if result.structure_changed:
+        lines.append("")
+        lines.append("**Изменения структуры:**")
+        if result.added_columns:
+            lines.append(f"- колонки только в «{new.filename}»: {', '.join(result.added_columns)}")
+        if result.removed_columns:
+            lines.append(f"- колонки только в «{old.filename}»: {', '.join(result.removed_columns)}")
+        if result.reordered:
+            lines.append("- изменён порядок колонок")
 
     if result.added_rows:
-        lines.append(f"**Добавленные строки** (до {CHAT_DIFF_ITEMS}):")
+        lines.append("")
+        lines.append(f"**Только в документе «{new.filename}»** (до {CHAT_DIFF_ITEMS} строк):")
         for row in result.added_rows[:CHAT_DIFF_ITEMS]:
-            lines.append(f"- {' | '.join(row)}")
-        lines.append("")
+            lines.append(f"- строка «{' | '.join(row)}»")
     if result.removed_rows:
-        lines.append(f"**Удалённые строки** (до {CHAT_DIFF_ITEMS}):")
-        for row in result.removed_rows[:CHAT_DIFF_ITEMS]:
-            lines.append(f"- {' | '.join(row)}")
         lines.append("")
+        lines.append(f"**Только в документе «{old.filename}»** (до {CHAT_DIFF_ITEMS} строк):")
+        for row in result.removed_rows[:CHAT_DIFF_ITEMS]:
+            lines.append(f"- строка «{' | '.join(row)}»")
     if result.changed_cells:
+        lines.append("")
         lines.append(f"**Изменённые ячейки** (до {CHAT_DIFF_ITEMS}):")
         for c in result.changed_cells[:CHAT_DIFF_ITEMS]:
             lines.append(f"- [{c['key']}] {c['column']}: «{c['old']}» → «{c['new']}»")
-        lines.append("")
 
-    if not (result.added_rows or result.removed_rows or result.changed_cells or result.structure_changed):
-        lines.append("Файлы идентичны по содержимому. ✅")
     if result.truncated:
         lines.append("\n_Отчёт обрезан: слишком много различий._")
 
@@ -258,22 +317,36 @@ def _answer_summary_docx(doc: DocxData, llm: LLMService) -> ChatFileResult:
 def _answer_diff_docx(old: DocxData, new: DocxData) -> ChatFileResult:
     result = diff_docx(old, new)
     summary = result.summary
-    lines = [
-        f"**Сравнение:** {old.filename} → {new.filename}",
-        "",
-        f"**Итог:** изменено абзацев — {summary['changed']}, "
-        f"добавлено — {summary['added']}, удалено — {summary['removed']}.",
-        "",
-    ]
+    lines = [f"**Различия между файлами:** «{old.filename}» и «{new.filename}»", ""]
+
     if not result.items:
         lines.append("Документы идентичны по тексту. ✅")
-    for it in result.items[:CHAT_DIFF_ITEMS]:
-        if it.op == "changed":
-            lines.append(f"- ✏️ «{it.old}» → «{it.new}»")
-        elif it.op == "added":
-            lines.append(f"- ➕ {it.new}")
-        elif it.op == "removed":
-            lines.append(f"- ➖ {it.old}")
+        return ChatFileResult(answer="\n".join(lines).strip())
+
+    lines.append(
+        f"**Итог:** только в «{new.filename}» — {summary['added']}, "
+        f"только в «{old.filename}» — {summary['removed']}, изменено — {summary['changed']}."
+    )
+
+    shown = result.items[:CHAT_DIFF_ITEMS]
+    only_new = [it.new for it in shown if it.op == "added"]
+    only_old = [it.old for it in shown if it.op == "removed"]
+    changed = [(it.old, it.new) for it in shown if it.op == "changed"]
+
+    # Каждое отличие привязано к документу, в котором оно есть.
+    if only_new:
+        lines.append("")
+        lines.append(f"**Только в документе «{new.filename}»:**")
+        lines += [f"- строка «{t}»" for t in only_new]
+    if only_old:
+        lines.append("")
+        lines.append(f"**Только в документе «{old.filename}»:**")
+        lines += [f"- строка «{t}»" for t in only_old]
+    if changed:
+        lines.append("")
+        lines.append("**Изменённые строки:**")
+        lines += [f"- «{o}» → «{n}»" for o, n in changed]
+
     if result.truncated or len(result.items) > CHAT_DIFF_ITEMS:
         lines.append("\n_Показаны не все различия._")
     return ChatFileResult(answer="\n".join(lines).strip())

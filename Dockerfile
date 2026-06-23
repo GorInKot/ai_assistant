@@ -29,6 +29,13 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# antiword — конвертер старого бинарного .doc (Word 97-2003) в текст.
+# Нужен для обработки .doc в чате (Этап 6); python-docx читает только .docx.
+# ~1 МБ, лёгкий; на macOS-dev вместо него используется встроенный textutil.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends antiword \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
