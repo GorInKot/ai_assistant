@@ -68,9 +68,3 @@ def test_every_class_present_in_every_split(splits):
     for name in ("train", "test"):
         types = {r["request_type"] for r in splits[name] if r["intent"] == "create_request"}
         assert types == set(ds.REQUEST_TYPES), name
-
-
-def test_request_types_match_seeded_catalog():
-    yaml_text = (ROOT / "app" / "data" / "request_types.yaml").read_text(encoding="utf-8")
-    for slug in ds.REQUEST_TYPES:
-        assert slug in yaml_text, f"{slug} отсутствует в каталоге заявок"

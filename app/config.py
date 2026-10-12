@@ -33,14 +33,6 @@ class Settings:
     embeddings_api_key: str | None
     embeddings_query_prefix: str
     embeddings_doc_prefix: str
-    # Email-уведомления о новых заявках (опционально): если smtp_host и smtp_from
-    # заданы — назначенному ответственному уходит письмо. Без них — тихий no-op.
-    smtp_host: str | None
-    smtp_port: int
-    smtp_user: str | None
-    smtp_password: str | None
-    smtp_from: str | None
-    smtp_use_tls: bool
 
 
 def _as_bool(value: str | None, default: bool) -> bool:
@@ -93,10 +85,4 @@ def load_settings() -> Settings:
         embeddings_api_key=os.getenv("EMBEDDINGS_API_KEY") or None,
         embeddings_query_prefix=os.getenv("EMBEDDINGS_QUERY_PREFIX", "").replace("\\n", "\n"),
         embeddings_doc_prefix=os.getenv("EMBEDDINGS_DOC_PREFIX", "").replace("\\n", "\n"),
-        smtp_host=(os.getenv("SMTP_HOST") or "").strip() or None,
-        smtp_port=int(os.getenv("SMTP_PORT", "587")),
-        smtp_user=(os.getenv("SMTP_USER") or "").strip() or None,
-        smtp_password=os.getenv("SMTP_PASSWORD") or None,
-        smtp_from=(os.getenv("SMTP_FROM") or "").strip() or None,
-        smtp_use_tls=_as_bool(os.getenv("SMTP_USE_TLS"), True),
     )

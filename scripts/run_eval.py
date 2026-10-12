@@ -39,17 +39,13 @@ def parse_args() -> argparse.Namespace:
 
 
 class AskClient:
-    """Клиент к /api/ask + (в local-режиме) прямой доступ к intent-классификатору.
+    """Клиент к /api/ask.
 
     /api/ask требует авторизации (security-фикс), поэтому клиент всегда добавляет
     Bearer-токен:
     - local: поднимает временную изолированную БД (eval не читает и не мутирует
       dev app_data.db), строит KB in-process и минтит токен eval-пользователю.
     - http: регистрирует/логинит технического пользователя на запущенном сервере.
-
-    Intent-кейсы (kind="intent") в local-режиме вызывают classify_intent напрямую
-    in-process — это самый точный замер качества классификатора без склейки с
-    slot-filling и HTTP.
     """
 
     def __init__(self, mode: str, base_url: str, stub_llm: bool) -> None:
@@ -58,7 +54,6 @@ class AskClient:
         self.stub_llm = stub_llm
         self._local_client = None
         self._state = None
-        self._catalog_summary = None
         self.headers: dict[str, str] = {}
 
         if mode == "local":
@@ -81,14 +76,10 @@ class AskClient:
 
         import app.state as state
         from app.main import app
-        from app.services.ask_service import _build_catalog_summary
-
         self._state = state
-        self._catalog_summary = _build_catalog_summary
 
         if stub_llm:
-            # Без сети: валидируем retrieval/источники. classify_intent при
-            # client=None отдаёт qa-fallback, поэтому intent/slot-кейсы скипаем.
+            # Без сети: валидируем retrieval/источники.
             state.llm_service.enable_rerank = False
             state.llm_service.client = None
             state.llm_service.generate_answer = (
@@ -193,10 +184,6 @@ class AskClient:
 
         return self._http_json("POST", "/api/ask", payload)
 
-    def classify(self, message: str) -> dict[str, Any]:
-        """Прямой вызов intent-классификатора (только local + реальный LLM)."""
-        assert self._state is not None and self._catalog_summary is not None
-        return self._state.llm_service.classify_intent(message, self._catalog_summary())
 
 
 
@@ -217,46 +204,13 @@ def _skipped(case_id: str, reason: str) -> EvalCaseResult:
     )
 
 
-def run_intent_case(client: AskClient, case: dict[str, Any], case_id: str) -> EvalCaseResult:
-    """Кейс kind='intent': прямой замер LLM-классификатора намерения.
-
-    Доступен только в local-режиме с реальным LLM — в stub/http скипаем
-    (нет in-process клиента или сетевого классификатора).
-    """
-    if client.mode != "local" or client.stub_llm:
-        return _skipped(case_id, "intent case requires local mode with real LLM")
-
-    message = str(case.get("question") or case.get("message") or "")
-    result = client.classify(message)
-    intent = result.get("intent")
-    request_type = result.get("request_type")
-
-    reasons: list[str] = []
-    expected_intent = case.get("expected_intent")
-    if expected_intent and intent != expected_intent:
-        reasons.append(f"expected_intent={expected_intent}, got={intent}")
-
-    expected_request_type = case.get("expected_request_type")
-    if expected_request_type is not None and request_type != expected_request_type:
-        reasons.append(f"expected_request_type={expected_request_type}, got={request_type}")
-
-    return EvalCaseResult(
-        case_id=case_id,
-        ok=not reasons,
-        skipped=False,
-        reasons=reasons,
-        no_exact_match=False,
-        source_paths=[],
-        answer_preview=f"intent={intent} request_type={request_type}",
-    )
-
-
 def run_case(client: AskClient, case: dict[str, Any], idx: int) -> EvalCaseResult:
     case_id = str(case.get("id") or f"case_{idx}")
     session_id = str(case.get("session_id") or f"eval-{case_id}")
 
     if str(case.get("kind", "qa")) == "intent":
-        return run_intent_case(client, case, case_id)
+        # Классификатор интентов удалён вместе с оформлением заявок (они в Портале).
+        return _skipped(case_id, "intent classifier removed (requests moved to Portal)")
 
     if client.stub_llm and case.get("skip_when_stub_llm"):
         return _skipped(case_id, "skipped in stub-llm mode")

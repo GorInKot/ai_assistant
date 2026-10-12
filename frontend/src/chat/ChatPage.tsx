@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { EmployeesAdmin } from "../admin/EmployeesAdmin";
-import { RequestTypesAdmin } from "../admin/RequestTypesAdmin";
 import { UsersAdmin } from "../admin/UsersAdmin";
-import { RequestsPage } from "./RequestsPage";
-import type { RequestItem } from "../api/types";
 import { api, ApiError } from "../api/client";
 import { clearToken } from "../auth/store";
 import { useCurrentUser } from "../auth/useCurrentUser";
@@ -27,31 +23,9 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [view, setView] = useState<"chat" | "admin-employees" | "admin-users" | "admin-request-types" | "requests">("chat");
+  const [view, setView] = useState<"chat" | "admin-users">("chat");
   const [error, setError] = useState<string | null>(null);
-  const [inboxUnread, setInboxUnread] = useState(0);
   const { isAdmin } = useCurrentUser();
-
-  // Лёгкий пуллинг счётчика новых входящих. Раз в 30 секунд.
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const items = await api.get<RequestItem[]>("/api/requests/inbox");
-        if (!cancelled) {
-          setInboxUnread(items.filter((r) => r.status === "new").length);
-        }
-      } catch {
-        // молча — для счётчика 401 уже разлогинит через клиент
-      }
-    };
-    refresh();
-    const handle = setInterval(refresh, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(handle);
-    };
-  }, [view]);
 
   const loadConversations = useCallback(async () => {
     const data = await api.get<{ conversations: ConversationSummary[] }>("/api/conversations");
@@ -180,28 +154,12 @@ export function ChatPage() {
         onRename={handleRename}
         onDelete={handleDelete}
         onOpenProfile={() => setProfileOpen(true)}
-        onOpenAdmin={() => setView("admin-employees")}
         onOpenUsersAdmin={() => setView("admin-users")}
-        onOpenRequestTypes={() => setView("admin-request-types")}
-        onOpenRequests={() => setView("requests")}
-        inboxUnreadCount={inboxUnread}
         onLogout={handleLogout}
       />
-      {view === "admin-employees" ? (
-        <main className="flex-1">
-          <EmployeesAdmin onBackToChat={() => setView("chat")} />
-        </main>
-      ) : view === "admin-users" ? (
+      {view === "admin-users" ? (
         <main className="flex-1">
           <UsersAdmin onBackToChat={() => setView("chat")} />
-        </main>
-      ) : view === "admin-request-types" ? (
-        <main className="flex-1">
-          <RequestTypesAdmin onBackToChat={() => setView("chat")} />
-        </main>
-      ) : view === "requests" ? (
-        <main className="flex-1">
-          <RequestsPage onBackToChat={() => setView("chat")} />
         </main>
       ) : (
         <main className="flex-1 flex flex-col bg-slate-50">

@@ -109,8 +109,7 @@ Postgres-деплой подтверждён ранее (БД создана, л
 | `JWT_SECRET` | auto generateValue |
 | `YC_API_KEY`, `YC_FOLDER_ID` | Yandex Cloud, вручную (опционально) |
 | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | `admin@mail.ru` / `p@ssw0rd!23`, вручную |
-| `SMTP_HOST`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD` | вручную, опционально (email-уведомления) |
-| `LLM_BASE_URL`, `LLM_MODEL`, `ENABLE_LLM_RERANK`, `SMTP_PORT`, `SMTP_USE_TLS` | auto из render.yaml |
+| `LLM_BASE_URL`, `LLM_MODEL`, `ENABLE_LLM_RERANK` | auto из render.yaml |
 
 ## Локальное окружение
 
@@ -118,11 +117,30 @@ Postgres-деплой подтверждён ранее (БД создана, л
 - Vite-dev: `http://127.0.0.1:5173` (proxy `/api → :8000`). Фронт: `cd frontend && npm run build` → `frontend/dist/`
 - Тесты: `python -m pytest`
 - Eval офлайн (без токенов): `python scripts/run_eval.py --mode local --stub-llm --cases eval/cases.json --output eval/reports/latest.json --fail-on-errors`
-- Eval с реальным LLM (нужен `LLM_API_KEY`): `python scripts/run_eval.py --mode local --cases eval/intent_cases.json --output eval/reports/intent-latest.json`
+
+## Заявки вынесены в Портал (2026-10-12)
+
+Оформление заявок реализовано в корпоративном Портале, поэтому из ассистента удалено,
+чтобы не дублировать бизнес-логику при интеграции:
+- чат-флоу заявок (LLM-классификатор интентов, slot-filling, подтверждение/отмена);
+- автозаполнение бланков ВКД и Лаборатории ИИ (`request_forms`, шаблон `lab_ai.xlsx`);
+- inbox/«мои» заявки, каталог типов заявок и его админка, email-уведомления (SMTP);
+- справочник сотрудников, области ответственности, импорт из Excel (нужны были только для маршрутизации).
+
+Просьба «оформи заявку» теперь идёт обычным вопросом в QA по базе знаний.
+
+**Миграция `a7c3d9e15b42` необратимо удаляет данные таблиц** `requests`, `request_events`,
+`request_types`, `request_type_slots`, `employees`, `responsibility_areas`, `responsibilities`
+(downgrade воссоздаёт только пустую схему). Применится при первом старте на новой версии,
+в том числе на Render/Postgres — если там есть заявки, которые нужны, выгрузить до деплоя.
+
+Оставлено намеренно (вне запроса): роль `manager` (управляет документами KB),
+журнал действий `/api/actions` и таблица `user_actions` (на нём держится старый `static/index.html`),
+`eval/intent_cases.json` и `training/intent/` (датасет для классификатора интентов, который теперь не используется).
 
 ## Точка возобновления
 
-Роадмап Этапа 5 закрыт. При следующем входе:
+При следующем входе:
 1. Прочитать этот файл.
-2. Проверить логи деплоя Render на Alembic-миграцию (см. «Состояние Render»).
-3. Дождаться новой задачи от пользователя — явного следующего пункта роадмапа нет.
+2. Перед деплоем проверить, нужны ли данные заявок на проде (см. выше), затем смотреть логи Alembic на Render.
+3. Дождаться новой задачи от пользователя.

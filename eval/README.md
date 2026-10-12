@@ -12,7 +12,7 @@
 
 ## Структура
 - `eval/cases.json` — retrieval/QA-кейсы (источники, fallback, уточнения)
-- `eval/intent_cases.json` — кейсы intent-классификатора и slot-filling (см. ниже)
+- `eval/intent_cases.json` — устаревшие кейсы intent-классификатора (раннер их пропускает, см. ниже)
 - `scripts/run_eval.py` — скрипт прогона
 - `eval/reports/` — отчеты прогонов (`latest.json`, `intent-latest.json`, baseline и т.д.)
 
@@ -24,27 +24,11 @@
   пользователю. KB больше НЕ переиндексируется через `/api/reindex` (он под admin).
 - **http** — регистрирует/логинит технического пользователя на запущенном сервере.
 
-## Кейсы intent-классификатора (`kind: "intent"`)
+## Кейсы intent-классификатора (устарели)
 
-Поля кейса:
-- `kind: "intent"`
-- `question` — сообщение пользователя
-- `expected_intent` — `qa` | `create_request` | `confirm_yes` | `confirm_no` | `cancel`
-- `expected_request_type` — (опц.) ожидаемый slug типа заявки для `create_request`
-
-Intent-кейсы вызывают `classify_intent` напрямую in-process — это самый точный
-замер качества классификатора. Доступны ТОЛЬКО в `--mode local` с реальным LLM
-(в `--stub-llm` и `--mode http` автоматически скипаются — нет in-process клиента
-или сетевого классификатора).
-
-Slot-filling проверяется обычными многоходовыми кейсами (`pre_steps` + финальный
-`question` + `contains_in_answer_any`), помеченными `skip_when_stub_llm: true`
-(оформление заявки требует реального LLM на каждом шаге).
-
-Запуск intent/slot-набора (нужен `LLM_API_KEY` в `.env`):
-```bash
-python scripts/run_eval.py --mode local --cases eval/intent_cases.json --output eval/reports/intent-latest.json
-```
+Классификатор интентов удалён вместе с оформлением заявок (они в Портале). Кейсы
+`kind: "intent"` в `eval/intent_cases.json` раннер пропускает со статусом skipped.
+Файл оставлен только как held-out для генератора датасета `scripts/build_intent_dataset.py`.
 
 ## Запуск
 

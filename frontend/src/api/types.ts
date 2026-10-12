@@ -74,33 +74,6 @@ export interface CurrentUser {
   roles: string[];
 }
 
-export interface ResponsibilityArea {
-  id: number;
-  slug: string;
-  name: string;
-  description: string | null;
-}
-
-export interface Employee {
-  id: number;
-  user_id: number | null;
-  email: string;
-  full_name: string;
-  position: string | null;
-  division: string | null;
-  subdivision: string | null;
-  phone: string | null;
-  is_active: boolean;
-  responsibility_area_slugs: string[];
-}
-
-export interface EmployeeImportResult {
-  created: number;
-  updated: number;
-  skipped: number;
-  errors: string[];
-}
-
 export interface AdminUser {
   id: number;
   email: string;
@@ -111,42 +84,3 @@ export interface AdminUser {
   roles: string[];
 }
 
-export type RequestStatus = "new" | "in_progress" | "done" | "rejected";
-
-export interface RequestTypeSlot {
-  id?: number;
-  name: string;
-  question: string;
-  required: boolean;
-  sort_order?: number;
-}
-
-export interface RequestTypeDef {
-  id?: number;
-  type_slug: string;
-  title: string;
-  responsibility_area_slug: string;
-  is_anonymous: boolean;
-  is_active: boolean;
-  trigger_keywords: string[];
-  examples: string[];
-  sort_order?: number;
-  slots: RequestTypeSlot[];
-}
-
-export interface RequestItem {
-  id: number;
-  type_slug: string;
-  type_title: string;
-  is_anonymous: boolean;
-  status: RequestStatus;
-  summary: string | null;
-  payload: Record<string, string>;
-  requester_name: string | null;
-  requester_email: string | null;
-  assigned_employee_id: number | null;
-  assigned_employee_name: string | null;
-  conversation_id: number | null;
-  created_at: string;
-  updated_at: string;
-}
