@@ -774,3 +774,284 @@ def diff_docx(old: DocxData, new: DocxData) -> DocxDiffResult:
                 items.append(DocxDiffItem(op="added", old=None, new=text))
 
     return DocxDiffResult(items=items[:MAX_DIFF_ITEMS], truncated=truncated)
+
+
+# ============================== PDF → Word/Excel =========================
+
+MAX_FILE_SIZE_PDF = 20 * 1024 * 1024  # 20 МБ на PDF (между Excel и Word)
+MAX_PDF_PAGES = 200  # страниц на документ; больше — отказ, а не молчаливая обрезка
+OCR_LANG = "rus+eng"  # документы на русском, с латиницей в реквизитах/номерах
+OCR_DPI = 200  # компромисс скорость/качество распознавания
+MIN_TEXT_LAYER_CHARS = 20  # короче (и есть картинка) — считаем страницу сканом → OCR
+OCR_TIMEOUT = 60  # сек на OCR одной страницы
+
+
+@dataclass
+class PdfTable:
+    page: int
+    rows: list[list[str]]
+    bbox: tuple[float, float, float, float] | None = None  # область на странице
+
+
+@dataclass
+class PdfBlock:
+    """Кусок страницы в порядке чтения: абзац текста или таблица."""
+
+    text: str = ""  # для текстового блока
+    table: PdfTable | None = None  # для таблицы
+
+
+@dataclass
+class PdfPageText:
+    page: int  # номер страницы, с 1
+    text: str  # весь текст страницы вне таблиц (для выжимки/проверок)
+    is_scanned: bool  # текст получен OCR (или страница без текста вовсе)
+    blocks: list[PdfBlock] = field(default_factory=list)  # текст и таблицы сверху вниз
+
+
+@dataclass
+class PdfData:
+    filename: str
+    pages: list[PdfPageText]
+    tables: list[PdfTable]
+    ocr_available: bool = True  # False → сканы остались без текста, т.к. нет Tesseract
+
+    @property
+    def full_text(self) -> str:
+        return "\n\n".join(p.text for p in self.pages if p.text.strip())
+
+    @property
+    def scanned_pages(self) -> list[int]:
+        return [p.page for p in self.pages if p.is_scanned]
+
+
+def _ocr_page(page) -> str | None:
+    """Распознать страницу-скан через Tesseract.
+
+    Возвращает текст, либо `None`, если OCR недоступен (нет бинарника Tesseract
+    или Python-обвязки) — чтобы вызывающий мог честно сказать об этом
+    пользователю, а не молча отдать пустую страницу. Любая ошибка распознавания
+    одной страницы не роняет разбор всего файла.
+    """
+    if not shutil.which("tesseract"):
+        return None
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        return None
+
+    try:
+        pix = page.get_pixmap(dpi=OCR_DPI)
+        image = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+        return pytesseract.image_to_string(image, lang=OCR_LANG, timeout=OCR_TIMEOUT).strip()
+    except Exception:  # noqa: BLE001 — OCR best-effort: страница останется без текста
+        return ""
+
+
+def _extract_tables(page, page_no: int) -> list[PdfTable]:
+    """Таблицы текстового слоя страницы; пустые ложные срабатывания отбрасываем."""
+    try:
+        found = page.find_tables()
+    except Exception:  # noqa: BLE001 — детектор таблиц не должен ронять разбор
+        return []
+
+    tables: list[PdfTable] = []
+    for table in found.tables:
+        rows = [
+            [_cell_to_str(cell).replace("\n", " ") for cell in row]
+            for row in table.extract()
+        ]
+        rows = [r for r in rows if any(c for c in r)]
+        # Таблица из одной строки/колонки — почти всегда ложное срабатывание на рамке.
+        if len(rows) >= 2 and max(len(r) for r in rows) >= 2:
+            tables.append(PdfTable(page=page_no, rows=rows, bbox=tuple(table.bbox)))
+    return tables
+
+
+def _overlap_ratio(box: tuple[float, float, float, float], area: tuple[float, float, float, float]) -> float:
+    """Какая доля прямоугольника `box` лежит внутри `area` (0..1)."""
+    w = min(box[2], area[2]) - max(box[0], area[0])
+    h = min(box[3], area[3]) - max(box[1], area[1])
+    full = (box[2] - box[0]) * (box[3] - box[1])
+    if w <= 0 or h <= 0 or full <= 0:
+        return 0.0
+    return (w * h) / full
+
+
+# Текстовый блок считаем «внутри таблицы», только если он почти целиком в её рамке.
+# Центра блока недостаточно: ложно широкая рамка таблицы иначе съела бы подписи и
+# поля, лежащие рядом/под ней, — а они не должны пропадать из результата.
+TABLE_OVERLAP_THRESHOLD = 0.8
+
+
+def _page_blocks(page, tables: list[PdfTable]) -> list[PdfBlock]:
+    """Блоки страницы сверху вниз: текст вне таблиц + сами таблицы на своих местах.
+
+    Содержимое таблиц отдаётся только таблицей (не дублируется текстом). Значения
+    заполняемых полей формы (AcroForm), если их нет в текстовом слое, дописываются
+    блоками на своих местах — иначе такие поля потерялись бы.
+    """
+    items: list[tuple[float, float, PdfBlock]] = []  # (y0, x0, блок)
+
+    for x0, y0, x1, y1, text, _no, block_type in page.get_text("blocks", sort=True):
+        if block_type != 0 or not text.strip():
+            continue
+        box = (x0, y0, x1, y1)
+        if any(t.bbox and _overlap_ratio(box, t.bbox) >= TABLE_OVERLAP_THRESHOLD for t in tables):
+            continue
+        items.append((y0, x0, PdfBlock(text=text.strip())))
+
+    for table in tables:
+        if table.bbox:
+            items.append((table.bbox[1], table.bbox[0], PdfBlock(table=table)))
+
+    page_text = page.get_text() or ""
+    try:
+        widgets = list(page.widgets() or [])
+    except Exception:  # noqa: BLE001 — формы best-effort
+        widgets = []
+    for widget in widgets:
+        value = _cell_to_str(widget.field_value)
+        if not value or value.lower() in {"off", "false"} or value in page_text:
+            continue
+        label = _cell_to_str(widget.field_label or widget.field_name)
+        text = f"{label}: {value}" if label else value
+        items.append((widget.rect.y0, widget.rect.x0, PdfBlock(text=text)))
+
+    items.sort(key=lambda it: (round(it[0]), it[1]))
+    return [block for _y, _x, block in items]
+
+
+def parse_pdf(content: bytes, filename: str) -> PdfData:
+    """Разобрать PDF: текст постранично (OCR для сканов) и таблицы."""
+    if not (filename or "").lower().endswith(".pdf"):
+        raise DocumentError("Ожидается файл в формате .pdf")
+    _check_size(content, MAX_FILE_SIZE_PDF)
+
+    try:
+        import pymupdf as fitz  # PyMuPDF
+    except ImportError as exc:  # pragma: no cover
+        raise DocumentError("PyMuPDF не установлен на сервере") from exc
+
+    try:
+        doc = fitz.open(stream=content, filetype="pdf")
+    except Exception as exc:  # noqa: BLE001 — fitz кидает разнородные ошибки
+        raise DocumentError(f"Не удалось прочитать файл как PDF: {exc}") from exc
+
+    try:
+        if doc.needs_pass:
+            raise DocumentError("PDF защищён паролем — снимите защиту и загрузите снова")
+        if doc.page_count == 0:
+            raise DocumentError("В PDF нет страниц")
+        if doc.page_count > MAX_PDF_PAGES:
+            raise DocumentError(
+                f"В PDF слишком много страниц ({doc.page_count}). Лимит — {MAX_PDF_PAGES}."
+            )
+
+        pages: list[PdfPageText] = []
+        tables: list[PdfTable] = []
+        ocr_available = True
+        for index in range(doc.page_count):
+            page = doc[index]
+            page_no = index + 1
+            text = (page.get_text() or "").strip()
+            # Скан = почти нет текстового слоя И есть растровая картинка. Короткая
+            # страница без картинок (штамп, пустой лист) — не повод гонять OCR.
+            if len(text) >= MIN_TEXT_LAYER_CHARS or not page.get_images():
+                page_tables = _extract_tables(page, page_no)
+                tables.extend(page_tables)
+                blocks = _page_blocks(page, page_tables)
+                pages.append(
+                    PdfPageText(
+                        page=page_no,
+                        text="\n\n".join(b.text for b in blocks if b.text),
+                        is_scanned=False,
+                        blocks=blocks,
+                    )
+                )
+                continue
+
+            recognized = _ocr_page(page)
+            if recognized is None:
+                ocr_available = False
+                recognized = text
+            blocks = [PdfBlock(text=t.strip()) for t in recognized.split("\n\n") if t.strip()]
+            pages.append(
+                PdfPageText(page=page_no, text=recognized, is_scanned=True, blocks=blocks)
+            )
+    finally:
+        doc.close()
+
+    return PdfData(filename=filename, pages=pages, tables=tables, ocr_available=ocr_available)
+
+
+def _paragraph_line(text: str) -> str:
+    """Строки внутри блока — переносы вёрстки PDF, а не абзацы."""
+    return " ".join(part.strip() for part in text.splitlines() if part.strip())
+
+
+def build_docx_from_pdf(data: PdfData) -> bytes:
+    """Собрать .docx: текст и таблицы в том порядке, в каком они стоят на странице."""
+    from docx import Document
+
+    document = Document()
+    for idx, page in enumerate(data.pages):
+        if idx:
+            document.add_page_break()
+        for block in page.blocks:
+            if block.table is not None:
+                rows = block.table.rows
+                word_table = document.add_table(rows=0, cols=max(len(r) for r in rows))
+                word_table.style = "Table Grid"
+                for row in rows:
+                    cells = word_table.add_row().cells
+                    for i, value in enumerate(row):
+                        cells[i].text = value
+            elif (line := _paragraph_line(block.text)):
+                document.add_paragraph(line)
+
+    buf = io.BytesIO()
+    document.save(buf)
+    return buf.getvalue()
+
+
+def build_xlsx_from_pdf(data: PdfData) -> bytes:
+    """Собрать .xlsx: лист на страницу; текст и таблицы идут сверху вниз, как в PDF.
+
+    Текст вне таблиц (заголовки, подписи, поля под таблицей) пишется в колонку A
+    отдельными строками — иначе он терялся бы, ведь Excel «про таблицы». Если в
+    документе нет ни одной таблицы — ошибка, а не Excel из одного текста.
+    """
+    if not data.tables:
+        raise DocumentError(
+            "В файле не найдено таблиц. Если нужен просто текст, "
+            "попросите «переведи в Word»."
+        )
+
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    for page in data.pages:
+        if not page.blocks:
+            continue
+        ws = wb.create_sheet(f"Стр{page.page}")
+        last_kind: str | None = None
+        for block in page.blocks:
+            if block.table is not None:
+                kind, lines = "table", block.table.rows
+            else:
+                line = _paragraph_line(block.text)
+                kind, lines = "text", ([[line]] if line else [])
+            if not lines:
+                continue
+            if last_kind is not None and last_kind != kind:
+                ws.append([])  # пустая строка на границе «текст ↔ таблица»
+            for row in lines:
+                ws.append(row)
+            last_kind = kind
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

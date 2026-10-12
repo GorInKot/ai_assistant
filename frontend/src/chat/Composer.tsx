@@ -5,7 +5,7 @@ interface Props {
   disabled: boolean;
 }
 
-const ACCEPT = ".xlsx,.docx,.doc";
+const ACCEPT = ".xlsx,.docx,.doc,.pdf";
 const MAX_FILES = 20;
 
 export function Composer({ onSend, disabled }: Props) {

@@ -21,14 +21,18 @@ from app.services.document_processing import (
     DocxData,
     FormDiffResult,
     MergeResult,
+    PdfData,
     WorkbookData,
+    build_docx_from_pdf,
     build_xlsx,
+    build_xlsx_from_pdf,
     diff_docx,
     diff_forms,
     diff_workbooks,
     is_form_like,
     merge_workbooks,
     parse_docx,
+    parse_pdf,
     parse_xlsx,
     parse_xlsx_grid,
 )
@@ -55,6 +59,7 @@ class ChatFileResult:
 _COMPARE_KW = ("сравн", "различ", "отлич", "разниц", "diff", "что измен")
 _MERGE_KW = ("объедин", "слей", "слить", "соедини", "склей", "merge")
 _SUMMARY_KW = ("выжимк", "резюме", "кратк", "саммари", "summary", "о ч[её]м", "суть", "перескаж")
+_EXCEL_KW = ("excel", "эксель", "xlsx", "таблиц")
 _EXTRACT_KW = ("извлеки", "что в файл", "таблиц", "содерж", "распарс", "покажи данные", "разбери")
 
 
@@ -72,8 +77,12 @@ def _word(name: str) -> bool:
     return lower.endswith(".docx") or lower.endswith(".doc")
 
 
+def _pdf(name: str) -> bool:
+    return name.lower().endswith(".pdf")
+
+
 def _is_supported(name: str) -> bool:
-    return _xlsx(name) or _word(name)
+    return _xlsx(name) or _word(name) or _pdf(name)
 
 
 def handle_chat_files(
@@ -88,16 +97,20 @@ def handle_chat_files(
     unsupported = [name for name, _ in files if not _is_supported(name)]
     if unsupported:
         raise DocumentError(
-            "Поддерживаются только файлы .xlsx, .docx и .doc. "
+            "Поддерживаются только файлы .xlsx, .docx, .doc и .pdf. "
             f"Не поддерживается: {', '.join(unsupported)}"
         )
 
     msg = message.strip().lower()
     xlsx_files = [(n, b) for n, b in files if _xlsx(n)]
     docx_files = [(n, b) for n, b in files if _word(n)]
+    pdf_files = [(n, b) for n, b in files if _pdf(n)]
 
-    if xlsx_files and docx_files:
-        raise DocumentError("Приложите файлы одного типа: либо Excel, либо Word")
+    if sum(bool(group) for group in (xlsx_files, docx_files, pdf_files)) > 1:
+        raise DocumentError("Приложите файлы одного типа: Excel, Word или PDF")
+
+    if pdf_files:
+        return _handle_pdf(msg, pdf_files)
 
     if xlsx_files:
         return _handle_xlsx(msg, xlsx_files)
@@ -350,6 +363,66 @@ def _answer_diff_docx(old: DocxData, new: DocxData) -> ChatFileResult:
     if result.truncated or len(result.items) > CHAT_DIFF_ITEMS:
         lines.append("\n_Показаны не все различия._")
     return ChatFileResult(answer="\n".join(lines).strip())
+
+
+# --------------------------------- PDF -----------------------------------
+
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _handle_pdf(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
+    """Конвертация PDF → Word (по умолчанию) или Excel (если просят таблицы)."""
+    if len(files) != 1:
+        raise DocumentError("Конвертация поддерживает один PDF-файл за раз")
+    name, content = files[0]
+    data = parse_pdf(content, name)
+
+    if not data.full_text.strip() and not data.tables:
+        if data.scanned_pages and not data.ocr_available:
+            raise DocumentError(
+                "Файл — скан, а распознавание текста (OCR) на сервере недоступно. "
+                "Приложите PDF с текстовым слоем."
+            )
+        raise DocumentError("В PDF не удалось найти текст (страницы пусты или не распознаны)")
+
+    stem = name.rsplit(".", 1)[0]
+    if _has(msg, _EXCEL_KW):
+        file_bytes, ext, mime = build_xlsx_from_pdf(data), "xlsx", _XLSX_MIME
+    else:
+        file_bytes, ext, mime = build_docx_from_pdf(data), "docx", _DOCX_MIME
+
+    attachment = Attachment(
+        filename=f"{stem}.{ext}",
+        content_base64=base64.b64encode(file_bytes).decode("ascii"),
+        mime=mime,
+    )
+    return ChatFileResult(answer=_pdf_summary(data, attachment.filename), attachment=attachment)
+
+
+def _pdf_summary(data: PdfData, out_name: str) -> str:
+    lines = [
+        f"**Конвертировано:** «{data.filename}» → `{out_name}`",
+        f"Страниц: {len(data.pages)}, найдено таблиц: {len(data.tables)}.",
+    ]
+    scanned = data.scanned_pages
+    if scanned and data.ocr_available:
+        lines.append(
+            f"\n⚠️ Страницы {_page_list(scanned)} — сканы: текст распознан автоматически (OCR), "
+            "возможны ошибки. Проверьте результат перед использованием."
+        )
+    elif scanned:
+        lines.append(
+            f"\n⚠️ Страницы {_page_list(scanned)} — сканы, а распознавание (OCR) на сервере "
+            "недоступно: эти страницы в файле пустые."
+        )
+    lines.append("\nГотовый файл ниже — можно скачать. 👇")
+    return "\n".join(lines)
+
+
+def _page_list(pages: list[int], limit: int = 15) -> str:
+    shown = ", ".join(str(p) for p in pages[:limit])
+    return shown + (f" и ещё {len(pages) - limit}" if len(pages) > limit else "")
 
 
 # ----------------------------- markdown helpers --------------------------
