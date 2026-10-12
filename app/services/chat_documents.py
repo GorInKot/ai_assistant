@@ -15,6 +15,7 @@ import base64
 from dataclasses import dataclass
 
 from app.llm import LLMService
+from app.services import registry
 from app.services.document_processing import (
     DiffResult,
     DocumentError,
@@ -60,6 +61,8 @@ _COMPARE_KW = ("сравн", "различ", "отлич", "разниц", "diff
 _MERGE_KW = ("объедин", "слей", "слить", "соедини", "склей", "merge")
 _SUMMARY_KW = ("выжимк", "резюме", "кратк", "саммари", "summary", "о ч[её]м", "суть", "перескаж")
 _EXCEL_KW = ("excel", "эксель", "xlsx", "таблиц")
+_REGISTRY_KW = ("реестр", "извлек", "извлеч", "выпиши", "вытащи", "достань", "собери данные", "реквизит", "поля")
+_CONVERT_KW = ("word", "ворд", "docx", "конверт", "переведи", "перевести") + _EXCEL_KW
 _EXTRACT_KW = ("извлеки", "что в файл", "таблиц", "содерж", "распарс", "покажи данные", "разбери")
 
 
@@ -110,7 +113,7 @@ def handle_chat_files(
         raise DocumentError("Приложите файлы одного типа: Excel, Word или PDF")
 
     if pdf_files:
-        return _handle_pdf(msg, pdf_files)
+        return _handle_pdf(msg, pdf_files, llm)
 
     if xlsx_files:
         return _handle_xlsx(msg, xlsx_files)
@@ -371,10 +374,23 @@ _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def _handle_pdf(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
-    """Конвертация PDF → Word (по умолчанию) или Excel (если просят таблицы)."""
-    if len(files) != 1:
-        raise DocumentError("Конвертация поддерживает один PDF-файл за раз")
+def _handle_pdf(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> ChatFileResult:
+    """PDF: реестр полей из нескольких документов либо конвертация одного в Word/Excel.
+
+    Реестр — если просят «реестр/извлеки поля» или приложено несколько PDF без просьбы
+    о конвертации. Один PDF без таких слов — конвертация (Word по умолчанию, Excel для таблиц).
+    """
+    wants_registry = _has(msg, _REGISTRY_KW)
+    if len(files) > 1 and not wants_registry:
+        if _has(msg, _CONVERT_KW):
+            raise DocumentError(
+                "Конвертация в Word/Excel — по одному PDF за раз. Чтобы собрать данные из нескольких "
+                "документов в один Excel, напишите, например: «составь реестр: номер, дата, сумма»."
+            )
+        wants_registry = True
+    if wants_registry:
+        return _handle_pdf_registry(msg, files, llm)
+
     name, content = files[0]
     data = parse_pdf(content, name)
 
@@ -423,6 +439,64 @@ def _pdf_summary(data: PdfData, out_name: str) -> str:
 def _page_list(pages: list[int], limit: int = 15) -> str:
     shown = ", ".join(str(p) for p in pages[:limit])
     return shown + (f" и ещё {len(pages) - limit}" if len(pages) > limit else "")
+
+
+def _handle_pdf_registry(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> ChatFileResult:
+    """Реестр: извлечь заданные поля из каждого PDF в одну таблицу Excel."""
+    if len(files) > registry.MAX_REGISTRY_DOCS:
+        raise DocumentError(
+            f"Слишком много документов для одного реестра ({len(files)}). "
+            f"Лимит — {registry.MAX_REGISTRY_DOCS}: модель работает локально и разбирает документ "
+            "за десятки секунд. Разбейте на несколько запросов."
+        )
+    fields = registry.parse_fields_from_message(msg)
+    docs = [parse_pdf(content, name) for name, content in files]
+    result = registry.build_registry(docs, fields, llm)
+
+    attachment = Attachment(
+        filename="registry.xlsx",
+        content_base64=base64.b64encode(registry.build_registry_xlsx(result)).decode("ascii"),
+        mime=_XLSX_MIME,
+    )
+    return ChatFileResult(answer=_registry_summary(result), attachment=attachment)
+
+
+def _registry_summary(result: "registry.RegistryResult") -> str:
+    ok_rows = [r for r in result.rows if not r.error]
+    lines = [
+        f"**Реестр по {len(result.rows)} документам** → `registry.xlsx` "
+        f"(разобрано за {int(result.seconds)} с).",
+        f"Поля: {', '.join(result.fields)}.",
+    ]
+    if result.default_fields_used:
+        lines.append(
+            "_Поля вы не указали — взят стандартный набор. Чтобы задать свои, напишите, например: "
+            "«составь реестр: номер, дата, подрядчик, сумма»._"
+        )
+    lines.append(f"Заполнено ячеек: {result.filled_cells}.")
+
+    if result.unverified_cells:
+        lines.append(
+            f"\n⚠️ **Проверьте:** {result.unverified_cells} значений выделены жёлтым — модель выдала их, "
+            "но дословно в тексте документа они не найдены (возможна ошибка или пересказ)."
+        )
+    scanned = [r.filename for r in ok_rows if r.scanned]
+    if scanned:
+        lines.append(
+            f"\n⚠️ Сканы, распознанные автоматически (OCR), возможны ошибки в тексте: {', '.join(scanned)}."
+        )
+    failed = [r for r in result.rows if r.error]
+    if failed:
+        lines.append("\n❌ **Не разобраны:**")
+        lines += [f"- {r.filename}: {r.error}" for r in failed]
+
+    if ok_rows:
+        lines.append("")
+        lines.append(_md_table(["Файл", *result.fields], [[r.filename, *[r.values[f] for f in result.fields]] for r in ok_rows[:5]]))
+        if len(ok_rows) > 5:
+            lines.append(f"\n_…ещё {len(ok_rows) - 5} строк в файле_")
+    lines.append("\nГотовый файл ниже — можно скачать. 👇")
+    return "\n".join(lines)
 
 
 # ----------------------------- markdown helpers --------------------------

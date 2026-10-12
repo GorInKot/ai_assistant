@@ -313,10 +313,10 @@ def test_chat_scan_warns_about_ocr():
     assert "Проверьте результат" in res.answer
 
 
-def test_chat_pdf_requires_single_file():
+def test_chat_pdf_conversion_of_several_files_is_rejected():
     pdf = _text_pdf("Документ")
-    with pytest.raises(dp.DocumentError, match="один PDF"):
-        cd.handle_chat_files("", [("a.pdf", pdf), ("b.pdf", pdf)], _StubLLM())
+    with pytest.raises(dp.DocumentError, match="по одному PDF"):
+        cd.handle_chat_files("переведи в word", [("a.pdf", pdf), ("b.pdf", pdf)], _StubLLM())
 
 
 def test_chat_pdf_cannot_mix_with_other_types():
