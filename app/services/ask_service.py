@@ -26,6 +26,7 @@ from app.roles import (
     is_responsibility_question,
 )
 from app.schemas import AskResponse
+from app.services import smalltalk
 from app.state import (
     dialog_state,
     kb_index,
@@ -549,6 +550,23 @@ def process_ask(
         raise HTTPException(status_code=400, detail="Question is empty")
 
     session_id = normalize_session_id(session_id_raw, current_user.id)
+
+    # ---- Вопросы к самому ассистенту («что ты умеешь?», привет, спасибо) ----
+    # Отвечаем готовым текстом до поиска и до LLM: в базе знаний такого нет, а модель
+    # тратила бы десятки секунд на случайный ответ. Незавершённое уточнение не трогаем.
+    meta_kind = smalltalk.detect_meta_kind(raw_question)
+    if meta_kind is not None:
+        with kb_lock:
+            documents = len(kb_index.documents)
+            topics = smalltalk.topics_from_processes(d.process for d in kb_index.documents.values())
+        answer = smalltalk.build_reply(
+            meta_kind,
+            documents=documents,
+            topics=topics,
+            local=smalltalk.is_local_llm(settings.llm_base_url),
+        )
+        request_logger.log(raw_question, [], answer=answer)
+        return AskResponse(answer=answer, sources=[], no_exact_match=False)
 
     effective_question, is_clarification = dialog_state.merge_with_pending(session_id, raw_question)
 
