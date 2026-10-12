@@ -81,6 +81,7 @@ def ask(
             role="assistant",
             content=response.answer,
             sources_json=json.dumps(response.sources, ensure_ascii=False),
+            grounding_json=json.dumps(response.grounding, ensure_ascii=False) if response.grounding else None,
             no_exact_match=1 if response.no_exact_match else 0,
         ))
         conversation.updated_at = func.now()

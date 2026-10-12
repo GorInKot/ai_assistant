@@ -26,7 +26,7 @@ from app.roles import (
     is_responsibility_question,
 )
 from app.schemas import AskResponse
-from app.services import smalltalk
+from app.services import grounding, smalltalk
 from app.state import (
     dialog_state,
     kb_index,
@@ -674,7 +674,16 @@ def process_ask(
     no_exact_match = FALLBACK_RU.lower() in answer.lower() or FALLBACK_EN.lower() in answer.lower()
     dialog_state.clear(session_id)
     request_logger.log(raw_question, final_sources, answer=answer)
-    return AskResponse(answer=answer, sources=final_sources, no_exact_match=no_exact_match)
+    # Отказ («нет информации») проверять не нужно; остальное сверяем с контекстом, из которого
+    # отвечала модель, и прикладываем цитаты и неподтверждённые утверждения.
+    grounding_info = (
+        None
+        if no_exact_match
+        else grounding.check_grounding(answer, [r.chunk for r in context_results]).summary()
+    )
+    return AskResponse(
+        answer=answer, sources=final_sources, no_exact_match=no_exact_match, grounding=grounding_info
+    )
 
 
 def clear_dialog(session_id_raw: str | None, user_id: int) -> None:

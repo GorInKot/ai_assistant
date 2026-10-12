@@ -81,7 +81,7 @@ def test_local_llm_detection():
 
 def test_reply_content_matches_real_features():
     text = st.build_reply(st.KIND_CAPABILITIES, documents=37, topics=["ЕКТП Транспорт", "ЦУС Строительный контроль"], local=True)
-    for must in ("37 документов", "ЕКТП Транспорт", "Excel", "Word", "PDF", "реестр", "Портал", "локально"):
+    for must in ("37 документов", "ЕКТП Транспорт", "цитаты", "Excel", "Word", "PDF", "реестр", "Портал", "локально"):
         assert must in text
     # не обещаем удалённый функционал
     assert "оформлю заявк" not in text.lower()

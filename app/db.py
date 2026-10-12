@@ -118,6 +118,8 @@ class Message(Base):
     role = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     sources_json = Column(Text, nullable=True)
+    # Проверка обоснованности ответа (цитаты, неподтверждённые утверждения) — JSON или NULL.
+    grounding_json = Column(Text, nullable=True)
     no_exact_match = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

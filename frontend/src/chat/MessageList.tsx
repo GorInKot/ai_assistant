@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import type { AskAttachment, ChatMessage, ChatSource } from "../api/types";
+import type { AskAttachment, ChatMessage, ChatSource, Grounding } from "../api/types";
 
 interface Props {
   messages: ChatMessage[];
@@ -58,6 +58,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         <div className="prose-msg text-sm text-slate-800 whitespace-pre-wrap break-words">
           {isUser ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
         </div>
+        {msg.grounding && msg.grounding.total > 0 && <GroundingBlock grounding={msg.grounding} />}
         {msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
         {msg.attachment && <AttachmentDownload attachment={msg.attachment} />}
       </div>
@@ -102,6 +103,57 @@ function Avatar({ role }: { role: "user" | "assistant" }) {
       }`}
     >
       {isUser ? "Я" : "ИИ"}
+    </div>
+  );
+}
+
+// Проверка ответа по документам: сколько утверждений подтверждено, цитаты, спорные места.
+function GroundingBlock({ grounding }: { grounding: Grounding }) {
+  const alarms = grounding.unsupported.length;
+  const confirmed = grounding.total - alarms;
+  return (
+    <div className="mt-3 space-y-2">
+      <div
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+          alarms === 0 ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
+        }`}
+        title="Сверяются слова и числа ответа с найденными фрагментами документов. Выдуманные числа и детали проверка ловит; перепутанный смысл теми же словами — нет, поэтому важные факты сверяйте по цитатам."
+      >
+        {alarms === 0 ? "✔" : "⚠"} Найдено в документах: {confirmed} из {grounding.total} утверждений
+      </div>
+
+      {alarms > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="font-semibold mb-1">Не найдено в документах — проверьте:</div>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {grounding.unsupported.map((text, i) => (
+              <li key={i}>{text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {grounding.citations.length > 0 && (
+        <details className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
+          <summary className="cursor-pointer font-semibold text-slate-600">
+            На что опирается ответ: цитаты ({grounding.citations.length})
+          </summary>
+          <ul className="mt-2 space-y-2.5">
+            {grounding.citations.map((c, i) => (
+              <li key={i}>
+                <blockquote className="border-l-2 border-accent/50 pl-2.5 text-slate-700 italic">
+                  «{c.quote}»
+                </blockquote>
+                <div className="mt-0.5 pl-2.5 text-slate-500">
+                  {c.file_name}
+                  {c.page != null ? `, стр. ${c.page}` : ""}
+                  {c.section ? ` · ${c.section}` : ""}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

@@ -34,11 +34,18 @@ def _serialize_message(msg: Message) -> dict:
                 sources = parsed
         except json.JSONDecodeError:
             sources = []
+    grounding = None
+    if msg.grounding_json:
+        try:
+            grounding = json.loads(msg.grounding_json)
+        except json.JSONDecodeError:
+            grounding = None
     return {
         "id": msg.id,
         "role": msg.role,
         "content": msg.content,
         "sources": sources,
+        "grounding": grounding,
         "no_exact_match": bool(msg.no_exact_match),
         "created_at": msg.created_at.isoformat() if msg.created_at else None,
     }

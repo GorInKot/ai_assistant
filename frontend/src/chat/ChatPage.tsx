@@ -92,6 +92,7 @@ export function ChatPage() {
         role: "assistant",
         content: response.answer,
         sources: response.sources,
+        grounding: response.grounding ?? null,
         no_exact_match: response.no_exact_match,
         created_at: new Date().toISOString(),
         attachment: response.attachment ?? null,

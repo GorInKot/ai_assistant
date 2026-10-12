@@ -26,6 +26,9 @@ class AskResponse(BaseModel):
     conversation_id: int | None = None
     # Файл-результат операции над документом (напр. объединённый xlsx) — для скачивания.
     attachment: AskAttachment | None = None
+    # Проверка обоснованности ответа по найденным фрагментам: цитаты и неподтверждённые
+    # утверждения (только для ответов, сгенерированных моделью). См. services/grounding.py.
+    grounding: dict | None = None
 
 
 class DialogClearRequest(BaseModel):

@@ -20,6 +20,25 @@ export interface ChatSource {
   source_type?: string;
 }
 
+export interface GroundingCitation {
+  source: string;
+  file_name: string;
+  page: number | null;
+  section: string | null;
+  quote: string;
+  claims: number[];
+}
+
+// Проверка обоснованности ответа по найденным фрагментам базы знаний.
+export interface Grounding {
+  supported: number;
+  partial: number;
+  total: number;
+  ratio: number;
+  unsupported: string[];
+  citations: GroundingCitation[];
+}
+
 export interface AskAttachment {
   filename: string;
   content_base64: string;
@@ -31,6 +50,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources: ChatSource[];
+  grounding?: Grounding | null;
   no_exact_match: boolean;
   created_at: string;
   attachment?: AskAttachment | null;
@@ -43,6 +63,7 @@ export interface ConversationDetail extends ConversationSummary {
 export interface AskResponse {
   answer: string;
   sources: ChatSource[];
+  grounding?: Grounding | null;
   no_exact_match: boolean;
   conversation_id: number | null;
   attachment?: AskAttachment | null;
