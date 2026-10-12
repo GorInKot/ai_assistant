@@ -310,6 +310,36 @@ def merge_workbooks(workbooks: list[WorkbookData]) -> MergeResult:
     )
 
 
+# Строки, начинающиеся с этих символов, Excel при вводе вручную воспринимает как формулу.
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def neutralize_cell(cell) -> None:
+    """Сделать значение ячейки обычным текстом, а не формулой (защита от formula injection).
+
+    Текст, попадающий в Excel из внешних документов (PDF, чужие таблицы, имена файлов),
+    недоверенный: openpyxl превращает строку, начинающуюся с «=», в живую формулу
+    (`=HYPERLINK(...)`, `=WEBSERVICE(...)`, DDE), которая сработает у того, кто откроет файл.
+    Фиксируем тип «строка»; для значений с опасным первым символом включаем quotePrefix
+    (то же, что апостроф при ручном вводе: Excel не станет вычислять их и после правки).
+    """
+    value = cell.value
+    if not isinstance(value, str):
+        return
+    cell.data_type = "s"
+    if value.startswith(_FORMULA_PREFIXES):
+        cell.quotePrefix = True
+
+
+def append_row(ws, values) -> None:
+    """`ws.append` для недоверенных данных: ни одно значение не станет формулой."""
+    values = list(values)
+    ws.append(values)
+    if values:
+        for cell in ws[ws.max_row]:
+            neutralize_cell(cell)
+
+
 def build_xlsx(headers: list[str], rows: list[list[str]], *, sheet_name: str = "Merged") -> bytes:
     """Собрать .xlsx из заголовков и строк (для скачивания результата)."""
     from openpyxl import Workbook
@@ -318,9 +348,9 @@ def build_xlsx(headers: list[str], rows: list[list[str]], *, sheet_name: str = "
     ws = wb.active
     ws.title = sheet_name[:31] or "Sheet1"
     if headers:
-        ws.append(headers)
+        append_row(ws, headers)
     for row in rows:
-        ws.append(row)
+        append_row(ws, row)
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
@@ -1049,7 +1079,7 @@ def build_xlsx_from_pdf(data: PdfData) -> bytes:
             if last_kind is not None and last_kind != kind:
                 ws.append([])  # пустая строка на границе «текст ↔ таблица»
             for row in lines:
-                ws.append(row)
+                append_row(ws, row)
             last_kind = kind
 
     buf = io.BytesIO()

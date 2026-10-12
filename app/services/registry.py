@@ -16,7 +16,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from app.services.document_processing import DocumentError, PdfData
+from app.services.document_processing import DocumentError, PdfData, append_row
 
 DEFAULT_FIELDS = ["Тип документа", "Номер", "Дата", "Контрагент", "Сумма", "Краткое содержание"]
 # Подсказки модели для стандартных полей (для пользовательских полей их нет).
@@ -304,7 +304,7 @@ def build_registry_xlsx(result: RegistryResult) -> bytes:
     ws.title = "Реестр"
 
     headers = ["Файл", *result.fields, "Проверить", "Стр.", "OCR"]
-    ws.append(headers)
+    append_row(ws, headers)
     for cell in ws[1]:
         cell.font = Font(bold=True)
         cell.alignment = Alignment(vertical="top", wrap_text=True)
@@ -315,18 +315,19 @@ def build_registry_xlsx(result: RegistryResult) -> bytes:
 
     for row in result.rows:
         if row.error:
-            ws.append([row.filename, *([""] * len(result.fields)), f"НЕ РАЗОБРАН: {row.error}", row.pages, ""])
+            append_row(ws, [row.filename, *([""] * len(result.fields)), f"НЕ РАЗОБРАН: {row.error}", row.pages, ""])
             ws.cell(ws.max_row, 1).font = bad
             ws.cell(ws.max_row, len(result.fields) + 2).font = bad
             continue
-        ws.append(
+        append_row(
+            ws,
             [
                 row.filename,
                 *[row.values[f] for f in result.fields],
                 ", ".join(row.unverified),
                 row.pages,
                 "да" if row.scanned else "",
-            ]
+            ],
         )
         r = ws.max_row
         for i, name in enumerate(result.fields, start=2):
