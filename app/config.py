@@ -26,6 +26,13 @@ class Settings:
     yc_api_key: str | None
     yc_folder_id: str | None
     embeddings_cache_path: Path
+    # Локальные эмбеддинги (OpenAI-совместимый сервер: Ollama / LM Studio / vLLM).
+    # Если заданы base_url и model — имеют приоритет над Yandex.
+    embeddings_base_url: str | None
+    embeddings_model: str | None
+    embeddings_api_key: str | None
+    embeddings_query_prefix: str
+    embeddings_doc_prefix: str
     # Email-уведомления о новых заявках (опционально): если smtp_host и smtp_from
     # заданы — назначенному ответственному уходит письмо. Без них — тихий no-op.
     smtp_host: str | None
@@ -81,6 +88,11 @@ def load_settings() -> Settings:
         yc_api_key=yc_api_key,
         yc_folder_id=yc_folder_id,
         embeddings_cache_path=embeddings_cache_path,
+        embeddings_base_url=(os.getenv("EMBEDDINGS_BASE_URL") or "").strip() or None,
+        embeddings_model=(os.getenv("EMBEDDINGS_MODEL") or "").strip() or None,
+        embeddings_api_key=os.getenv("EMBEDDINGS_API_KEY") or None,
+        embeddings_query_prefix=os.getenv("EMBEDDINGS_QUERY_PREFIX", "").replace("\\n", "\n"),
+        embeddings_doc_prefix=os.getenv("EMBEDDINGS_DOC_PREFIX", "").replace("\\n", "\n"),
         smtp_host=(os.getenv("SMTP_HOST") or "").strip() or None,
         smtp_port=int(os.getenv("SMTP_PORT", "587")),
         smtp_user=(os.getenv("SMTP_USER") or "").strip() or None,

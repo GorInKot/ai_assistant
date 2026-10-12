@@ -542,7 +542,8 @@ class KnowledgeBaseIndex:
             return
 
         cache = self._load_embeddings_cache()
-        chunk_keys = [self._chunk_hash(chunk.text) for chunk in self.chunks]
+        model_id = getattr(self.embedder, "model_id", "")
+        chunk_keys = [self._chunk_hash(chunk.text, model_id) for chunk in self.chunks]
         missing_indices = [i for i, key in enumerate(chunk_keys) if key not in cache]
 
         if missing_indices:
@@ -565,12 +566,18 @@ class KnowledgeBaseIndex:
         self.embedding_matrix = matrix.astype(np.float32, copy=False)
         self.chunk_id_to_row = {chunk.chunk_id: row for row, chunk in enumerate(self.chunks)}
 
-        if missing_indices:
-            self._save_embeddings_cache(cache)
+        # В кэше остаются только векторы текущей модели и текущих чанков: иначе
+        # после смены модели старые векторы (другой размерности) копились бы и
+        # ломали сохранение (np.stack по разным размерностям).
+        current = set(chunk_keys)
+        stale = [key for key in cache if key not in current]
+        if missing_indices or stale:
+            self._save_embeddings_cache({key: cache[key] for key in chunk_keys})
 
     @staticmethod
-    def _chunk_hash(text: str) -> str:
-        return hashlib.sha1(text.encode("utf-8")).hexdigest()
+    def _chunk_hash(text: str, model_id: str = "") -> str:
+        """Ключ кэша: текст + идентификатор модели (у разных моделей разные векторы)."""
+        return hashlib.sha1(f"{model_id}\0{text}".encode("utf-8")).hexdigest()
 
     def _load_embeddings_cache(self) -> dict[str, np.ndarray]:
         cache: dict[str, np.ndarray] = {}

@@ -1,6 +1,10 @@
-"""Клиент Yandex Foundation Models для векторных эмбеддингов.
+"""Клиенты для векторных эмбеддингов: локальный (OpenAI-совместимый) и Yandex.
 
-API: https://yandex.cloud/ru/docs/foundation-models/embeddings/api-ref/Embeddings/textEmbedding
+Локальный: `OpenAICompatEmbedder` — любой сервер с эндпоинтом `/v1/embeddings`
+(Ollama, LM Studio, vLLM). Данные не покидают периметр.
+Yandex: `YandexEmbedder` — облачный вариант, оставлен как опция.
+
+Yandex API: https://yandex.cloud/ru/docs/foundation-models/embeddings/api-ref/Embeddings/textEmbedding
 Модели:
   - text-search-doc — для индексации документов
   - text-search-query — для запросов пользователя
@@ -54,6 +58,10 @@ class YandexEmbedder:
                 "Content-Type": "application/json",
             },
         )
+
+    @property
+    def model_id(self) -> str:
+        return f"yandex:{self.config.doc_model}/{self.config.query_model}/{self.config.model_version}"
 
     def close(self) -> None:
         self._client.close()
@@ -128,6 +136,93 @@ class YandexEmbedder:
         results.sort(key=lambda item: item[0])
         matrix = np.stack([vec for _, vec in results], axis=0)
         return matrix
+
+
+@dataclass
+class OpenAICompatEmbedderConfig:
+    base_url: str  # например http://127.0.0.1:11434/v1 (Ollama)
+    model: str  # например qwen3-embedding:0.6b или bge-m3
+    api_key: str | None = None  # локальным серверам обычно не нужен
+    # Модели с инструкциями (Qwen3-Embedding, E5) ждут префикс у запроса/документа.
+    query_prefix: str = ""
+    doc_prefix: str = ""
+    timeout_sec: float = 120.0  # первый запрос грузит модель в память — может быть долгим
+    batch_size: int = 16
+    max_retries: int = 3
+    initial_backoff_sec: float = 0.5
+    max_text_chars: int = 2000
+
+
+class OpenAICompatEmbedder:
+    """Эмбеддинги через OpenAI-совместимый `/embeddings` (батчами).
+
+    Совместим по интерфейсу с `YandexEmbedder` (embed_query / embed_documents),
+    поэтому индекс KB от выбора провайдера не зависит. `model_id` попадает в ключ
+    дискового кэша: при смене модели старые векторы не подмешиваются к новым.
+    """
+
+    def __init__(self, config: OpenAICompatEmbedderConfig, *, transport: httpx.BaseTransport | None = None) -> None:
+        self.config = config
+        headers = {"Content-Type": "application/json"}
+        if config.api_key:
+            headers["Authorization"] = f"Bearer {config.api_key}"
+        self._client = httpx.Client(timeout=config.timeout_sec, headers=headers, transport=transport)
+        self._url = config.base_url.rstrip("/") + "/embeddings"
+
+    @property
+    def model_id(self) -> str:
+        return f"openai-compat:{self.config.model}|q={self.config.query_prefix}|d={self.config.doc_prefix}"
+
+    def close(self) -> None:
+        self._client.close()
+
+    def _prepare(self, text: str, prefix: str) -> str:
+        cleaned = text.strip()[: self.config.max_text_chars]
+        # Пустую строку сервер может отвергнуть — заменяем пробелом, вектор отбросим ниже.
+        return (prefix + cleaned) if cleaned else " "
+
+    def _embed_batch(self, inputs: list[str]) -> list[np.ndarray]:
+        body = {"model": self.config.model, "input": inputs}
+        backoff = self.config.initial_backoff_sec
+        last_err: Exception | None = None
+        for attempt in range(self.config.max_retries):
+            try:
+                response = self._client.post(self._url, json=body)
+                if response.status_code == 429 or 500 <= response.status_code < 600:
+                    last_err = RuntimeError(f"HTTP {response.status_code}")
+                    time.sleep(backoff)
+                    backoff *= 2
+                    continue
+                response.raise_for_status()
+                items = sorted(response.json()["data"], key=lambda it: it["index"])
+                vectors = [np.asarray(it["embedding"], dtype=np.float32) for it in items]
+                if len(vectors) != len(inputs):
+                    raise ValueError(f"Ожидали {len(inputs)} векторов, получили {len(vectors)}")
+                return vectors
+            except (httpx.HTTPError, KeyError, ValueError) as err:
+                last_err = err
+                logger.warning("Embeddings error on attempt %d: %s", attempt + 1, err)
+                time.sleep(backoff)
+                backoff *= 2
+        raise RuntimeError(f"Embeddings failed after {self.config.max_retries} retries: {last_err!r}")
+
+    def embed_query(self, text: str) -> np.ndarray:
+        return self._embed_batch([self._prepare(text, self.config.query_prefix)])[0]
+
+    def embed_documents(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.zeros((0, 1), dtype=np.float32)
+        vectors: list[np.ndarray] = []
+        size = self.config.batch_size
+        for start in range(0, len(texts), size):
+            chunk = texts[start : start + size]
+            vectors.extend(self._embed_batch([self._prepare(t, self.config.doc_prefix) for t in chunk]))
+        # Пустые тексты — нулевой вектор (в кэш/поиск такие строки не должны попадать).
+        dim = vectors[0].shape[0]
+        for i, text in enumerate(texts):
+            if not text.strip():
+                vectors[i] = np.zeros(dim, dtype=np.float32)
+        return np.stack(vectors, axis=0)
 
 
 def cosine_similarity_topk(query_vec: np.ndarray, doc_matrix: np.ndarray, top_k: int) -> list[tuple[int, float]]:

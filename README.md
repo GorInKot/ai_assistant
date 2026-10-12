@@ -103,8 +103,12 @@ ENABLE_LLM_RERANK=0
 # JWT (для прода — обязательно случайный секрет!)
 JWT_SECRET=...
 
-# Yandex Foundation Models для векторного поиска (опционально)
-# Если оба пустые — работает только BM25.
+# Векторный поиск (опционально). Если ничего не задано — работает только BM25.
+# Вариант 1 (приоритетный): локальные эмбеддинги через Ollama / LM Studio / vLLM.
+EMBEDDINGS_BASE_URL=http://127.0.0.1:11434/v1
+EMBEDDINGS_MODEL=qwen3-embedding:0.6b
+EMBEDDINGS_QUERY_PREFIX=Instruct: Given a user question about corporate processes, retrieve passages that answer it\nQuery: 
+# Вариант 2: Yandex Foundation Models (облако)
 YC_API_KEY=...
 YC_FOLDER_ID=...
 EMBEDDINGS_CACHE=logs/embeddings_cache.npz
@@ -115,6 +119,15 @@ LOG_FILE=logs/assistant.log
 ```
 
 См. полный шаблон в [.env.example](.env.example).
+
+### Локальные модели (без внешних API)
+Установить [Ollama](https://ollama.com) (`brew install ollama`), запустить `ollama serve` и скачать модель эмбеддингов:
+```bash
+ollama pull qwen3-embedding:0.6b   # 639 МБ, размерность 1024
+```
+В `.env` задать `EMBEDDINGS_BASE_URL` и `EMBEDDINGS_MODEL` (см. выше) и перезапустить бэкенд. Первый запуск считает векторы всей KB (на M1 ≈ 12 минут для ~2400 фрагментов) и кэширует их на диск; кэш привязан к модели, при смене модели пересчитывается. Данные не покидают машину.
+
+Для генерации ответов тот же Ollama подходит как LLM (OpenAI-совместимый API): `LLM_BASE_URL=http://127.0.0.1:11434/v1`, `LLM_MODEL=<имя модели>`, `ENABLE_LLM_RERANK=0` (на небольших локальных моделях LLM-rerank слишком медленный).
 
 ### Получение Yandex-ключей (для векторного поиска)
 1. Зарегистрироваться на https://aistudio.yandex.cloud/platform/
