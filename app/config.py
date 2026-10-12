@@ -19,6 +19,7 @@ class Settings:
     llm_model: str
     llm_base_url: str | None
     enable_llm_rerank: bool
+    llm_reasoning_effort: str | None
     rerank_candidates: int
     rerank_top_n: int
     # Векторный поиск через Yandex Foundation Models (опционально):
@@ -75,6 +76,7 @@ def load_settings() -> Settings:
         llm_model=llm_model,
         llm_base_url=llm_base_url,
         enable_llm_rerank=_as_bool(os.getenv("ENABLE_LLM_RERANK"), True),
+        llm_reasoning_effort=(os.getenv("LLM_REASONING_EFFORT") or "").strip() or None,
         rerank_candidates=int(os.getenv("RERANK_CANDIDATES", "28")),
         rerank_top_n=int(os.getenv("RERANK_TOP_N", "16")),
         yc_api_key=yc_api_key,

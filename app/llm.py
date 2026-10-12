@@ -21,8 +21,13 @@ class LLMService:
         base_url: str | None = None,
         enable_rerank: bool = True,
         rerank_candidates: int = 28,
+        reasoning_effort: str | None = None,
     ) -> None:
         self.model = model
+        # Для моделей с режимом «размышлений» (Qwen3.5 и т.п.) на локальном сервере:
+        # "none" отключает его, иначе весь лимит токенов уходит на рассуждения и
+        # ответ приходит пустым. Внешним API параметр не отправляем (None).
+        self.reasoning_effort = reasoning_effort
         self.enable_rerank = enable_rerank
         self.rerank_candidates = max(8, rerank_candidates)
 
@@ -35,6 +40,12 @@ class LLMService:
         else:
             self.client = None
 
+
+    def _create(self, **kwargs):
+        """Вызов chat.completions с опциональным reasoning_effort (см. __init__)."""
+        if self.reasoning_effort:
+            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), "reasoning_effort": self.reasoning_effort}
+        return self.client.chat.completions.create(**kwargs)
 
     def rerank_results(self, question: str, candidates: Sequence[RetrievalResult], top_n: int = 16) -> list[RetrievalResult]:
         shortlist = list(candidates[: self.rerank_candidates])
@@ -72,7 +83,7 @@ class LLMService:
         )
 
         try:
-            response = self.client.chat.completions.create(
+            response = self._create(
                 model=self.model,
                 temperature=0,
                 response_format={"type": "json_object"},
@@ -133,7 +144,7 @@ class LLMService:
             "Если есть неоднозначность, явно отметь это."
         )
 
-        response = self.client.chat.completions.create(
+        response = self._create(
             model=self.model,
             temperature=0.1,
             messages=[
@@ -186,7 +197,7 @@ class LLMService:
             f"Отвечай на языке документа ({language_hint})."
         )
         try:
-            response = self.client.chat.completions.create(
+            response = self._create(
                 model=self.model,
                 temperature=0.2,
                 messages=[
@@ -202,11 +213,11 @@ class LLMService:
         return (response.choices[0].message.content or "").strip()
 
     def extract_fields(self, text: str, fields: list[dict]) -> dict:
-        """Извлечь значения полей из свободного текста пользователя (Этап 7).
+        """Извлечь значения полей из текста документа или сообщения.
 
-        `fields` — список словарей {key, title, description}. Возвращает
-        {key: значение|null}. Если клиент не настроен или вызов упал —
-        понятная ошибка (RuntimeError), роутер превратит её в 503.
+        `fields` — список словарей {key, title, description?}. Возвращает
+        {key: значение|None}. Если клиент не настроен или вызов упал —
+        RuntimeError с понятным текстом (роутер превратит его в 503).
         """
         if not self.client:
             raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
@@ -218,16 +229,18 @@ class LLMService:
         )
         keys = ", ".join(f'"{f["key"]}"' for f in fields)
         system_prompt = (
-            "Ты извлекаешь структурированные данные из свободного текста для "
-            "заполнения заявки. Верни СТРОГО JSON-объект только с ключами: "
+            "Ты извлекаешь структурированные данные из текста документа. "
+            "Верни СТРОГО JSON-объект только с ключами: "
             f"{keys}. "
             "Если значение поля в тексте не указано — поставь null. "
             "Не придумывай данные, которых нет в тексте. "
-            "Сохраняй значения как в тексте (ФИО, должности, телефоны, ключи без изменений).\n\n"
+            "Копируй значения так, как они написаны в тексте (номера, даты, суммы, ФИО, "
+            "названия организаций), без пересказа, перевода и пересчёта; не меняй запятые и "
+            "пробелы в числах. Значение каждого поля — одна строка, не объект и не список.\n\n"
             f"Поля:\n{field_lines}"
         )
         try:
-            response = self.client.chat.completions.create(
+            response = self._create(
                 model=self.model,
                 temperature=0,
                 response_format={"type": "json_object"},
@@ -240,8 +253,8 @@ class LLMService:
             data = json.loads(content)
         except Exception as exc:  # noqa: BLE001 — сетевые/auth/JSON-ошибки
             raise RuntimeError(
-                "Не удалось распознать данные заявки: модель недоступна "
-                "(проверьте LLM_API_KEY/доступ к провайдеру)."
+                "Не удалось извлечь данные: модель недоступна или вернула некорректный ответ "
+                "(проверьте LLM_BASE_URL/LLM_MODEL и что сервер модели запущен)."
             ) from exc
 
         if not isinstance(data, dict):
@@ -250,79 +263,21 @@ class LLMService:
         result: dict[str, str | None] = {}
         for f in fields:
             value = data.get(f["key"])
-            if value is None:
-                result[f["key"]] = None
-            else:
-                text_value = str(value).strip()
-                result[f["key"]] = text_value or None
+            text_value = self._flatten_value(value)
+            result[f["key"]] = text_value or None
         return result
 
-    def extract_people(self, text: str, fields: list[dict]) -> list[dict]:
-        """Извлечь СПИСОК пользователей из свободного текста (Этап 7, групповые заявки).
-
-        В отличие от `extract_fields` (один человек), коллективные заявки (ВКД)
-        перечисляют нескольких сотрудников. Возвращает список словарей
-        {key: значение|null} — по одному на каждого распознанного пользователя.
-        Порядок сохраняется. Если ничего не распознано — пустой список.
-        """
-        if not self.client:
-            raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
-
-        field_lines = "\n".join(
-            f'- "{f["key"]}": {f["title"]}'
-            + (f" — {f['description']}" if f.get("description") else "")
-            for f in fields
-        )
-        keys = ", ".join(f'"{f["key"]}"' for f in fields)
-        system_prompt = (
-            "Ты извлекаешь данные о НЕСКОЛЬКИХ пользователях из свободного текста "
-            "для заполнения групповой заявки. Верни СТРОГО JSON-объект вида "
-            '{"users": [ {объект на пользователя}, ... ]}. '
-            f"Каждый объект пользователя содержит только ключи: {keys}. "
-            "Если значение поля для пользователя не указано — поставь null. "
-            "Не придумывай данные, которых нет в тексте. Если в тексте один "
-            "пользователь — верни список из одного объекта. Сохраняй значения "
-            "как в тексте (ФИО, e-mail, учётные записи, ключи без изменений).\n\n"
-            f"Поля каждого пользователя:\n{field_lines}"
-        )
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                temperature=0,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": text},
-                ],
-            )
-            content = (response.choices[0].message.content or "").strip()
-            data = json.loads(content)
-        except Exception as exc:  # noqa: BLE001 — сетевые/auth/JSON-ошибки
-            raise RuntimeError(
-                "Не удалось распознать данные заявки: модель недоступна "
-                "(проверьте LLM_API_KEY/доступ к провайдеру)."
-            ) from exc
-
-        raw_users = data.get("users") if isinstance(data, dict) else None
-        if not isinstance(raw_users, list):
-            return []
-
-        people: list[dict] = []
-        for item in raw_users:
-            if not isinstance(item, dict):
-                continue
-            person: dict[str, str | None] = {}
-            for f in fields:
-                value = item.get(f["key"])
-                if value is None:
-                    person[f["key"]] = None
-                else:
-                    text_value = str(value).strip()
-                    person[f["key"]] = text_value or None
-            # Пропускаем полностью пустые объекты.
-            if any(person.values()):
-                people.append(person)
-        return people
+    @classmethod
+    def _flatten_value(cls, value) -> str:
+        """Значение поля как читаемая строка: небольшие модели иногда отдают объект или список."""
+        if value is None:
+            return ""
+        if isinstance(value, dict):
+            parts = [f"{k}: {cls._flatten_value(v)}" for k, v in value.items() if cls._flatten_value(v)]
+            return "; ".join(parts)
+        if isinstance(value, (list, tuple)):
+            return "; ".join(p for p in (cls._flatten_value(v) for v in value) if p)
+        return str(value).strip()
 
     def _parse_selected_ids(self, payload: str, max_id: int, max_count: int) -> list[int]:
         try:

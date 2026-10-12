@@ -19,9 +19,16 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB_PATH}"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["INITIAL_ADMIN_EMAIL"] = "admin@test.local"
 os.environ["INITIAL_ADMIN_PASSWORD"] = "admin-pass-123"
-# Без YC-ключей KB работает на BM25, без сети (эмбеддер отключён).
-os.environ.pop("YC_API_KEY", None)
-os.environ.pop("YC_FOLDER_ID", None)
+# Тесты не должны зависеть от личного .env разработчика (локальная модель, ключи):
+# пустое значение в окружении приоритетнее файла .env. Без эмбеддера KB работает на
+# BM25, без LLM — любые попытки генерации дают 503, сеть и модели не вызываются.
+for _name in (
+    "YC_API_KEY", "YC_FOLDER_ID",
+    "EMBEDDINGS_BASE_URL", "EMBEDDINGS_MODEL", "EMBEDDINGS_API_KEY",
+    "LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL", "LLM_REASONING_EFFORT",
+    "OPENAI_API_KEY", "OPENAI_MODEL",
+):
+    os.environ[_name] = ""
 
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402

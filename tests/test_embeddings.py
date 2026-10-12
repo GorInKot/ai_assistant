@@ -120,3 +120,36 @@ def test_switching_model_drops_old_vectors_and_keeps_cache_savable(tmp_path: Pat
 
     saved = np.load(cache, allow_pickle=False)
     assert saved["vectors"].shape == (2, 1024)  # старые 256-мерные векторы вычищены
+
+
+# ---------------- reasoning_effort для локальных LLM ----------------
+
+
+class _CapturingCompletions:
+    def __init__(self) -> None:
+        self.kwargs: dict | None = None
+
+    def create(self, **kwargs):
+        self.kwargs = kwargs
+        message = type("M", (), {"content": "ответ"})()
+        choice = type("C", (), {"message": message})()
+        return type("R", (), {"choices": [choice]})()
+
+
+def _llm_with_fake_client(reasoning_effort):
+    from app.llm import LLMService
+
+    llm = LLMService("k", "m", base_url="http://x/v1", reasoning_effort=reasoning_effort)
+    completions = _CapturingCompletions()
+    llm.client = type("Cl", (), {"chat": type("Ch", (), {"completions": completions})()})()
+    return llm, completions
+
+
+def test_reasoning_effort_sent_only_when_configured():
+    llm, completions = _llm_with_fake_client("none")
+    llm._create(model="m", messages=[])
+    assert completions.kwargs["extra_body"] == {"reasoning_effort": "none"}
+
+    llm, completions = _llm_with_fake_client(None)
+    llm._create(model="m", messages=[])
+    assert "extra_body" not in completions.kwargs

@@ -64,6 +64,7 @@ llm_service = LLMService(
     base_url=settings.llm_base_url,
     enable_rerank=settings.enable_llm_rerank,
     rerank_candidates=settings.rerank_candidates,
+    reasoning_effort=settings.llm_reasoning_effort,
 )
 request_logger = RequestLogger(settings.log_file)
 actions_store = ActionsStore(settings.log_file.parent / "actions.log")
