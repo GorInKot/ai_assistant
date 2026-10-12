@@ -1,0 +1,264 @@
+{"id": "ds_0149", "text": "Нужны права в ЦУС на 15 число, оформите заявку", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужны права в ЦУС {when_on}, оформите заявку", "split": "train"}
+{"id": "ds_0004", "text": "Нужна служебная машина для поездки на Ванкорское месторождение", "intent": "create_request", "request_type": "transport_request", "template": "Нужна служебная машина для поездки на {site}", "split": "train"}
+{"id": "ds_0294", "text": "Какой регламент действует для обучения по охране труда?", "intent": "qa", "request_type": "none", "template": "Какой регламент действует для {proc}?", "split": "train"}
+{"id": "ds_0110", "text": "Прошу записать меня на медицинский осмотр на понедельник", "intent": "create_request", "request_type": "medical_request", "template": "Прошу записать меня на медицинский осмотр {when_on}", "split": "train"}
+{"id": "ds_0083", "text": "Нужна запись на обучение по пожарной безопасности на пятницу", "intent": "create_request", "request_type": "training_request", "template": "Нужна запись на обучение по {topic} {when_on}", "split": "train"}
+{"id": "ds_0193", "text": "Хочу конфиденциально сообщить о нарушении", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Хочу конфиденциально сообщить о нарушении", "split": "train"}
+{"id": "ds_0095", "text": "Запишите меня на периодический медосмотр срочно", "intent": "create_request", "request_type": "medical_request", "template": "Запишите меня на периодический медосмотр", "split": "train"}
+{"id": "ds_0052", "text": "Хочу записаться на обучение по электробезопасности", "intent": "create_request", "request_type": "training_request", "template": "Хочу записаться на обучение по {topic}", "split": "train"}
+{"id": "ds_0196", "text": "Передайте в комплаенс анонимно: речь о конфликте интересов", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Передайте в комплаенс анонимно: речь о {violation}", "split": "train"}
+{"id": "ds_0013", "text": "Закажите мне машину послезавтра, поеду на Ванкорское месторождение", "intent": "create_request", "request_type": "transport_request", "template": "Закажите мне машину {when_at}, поеду на {site}", "split": "train"}
+{"id": "ds_0307", "text": "3 пассажира", "intent": "qa", "request_type": "none", "template": "{n} пассажира", "split": "train"}
+{"id": "ds_0177", "text": "будьте добры, нужен датасет и модель, чтобы прогнозировать сроки поставки материалов. Создайте заявку в ИИ-лабораторию", "intent": "create_request", "request_type": "ai_lab_request", "template": "Нужен датасет и модель, чтобы {ai_inf}. Создайте заявку в ИИ-лабораторию", "split": "train"}
+{"id": "ds_0301", "text": "послезавтра в 17:00", "intent": "qa", "request_type": "none", "template": "{when_at} в {time}", "split": "train"}
+{"id": "ds_0389", "text": "не хочу больше оформлять, отмена", "intent": "cancel", "request_type": "none", "template": "не хочу больше оформлять, отмена", "split": "train"}
+{"id": "ds_0118", "text": "Организуйте мне прохождение медкомиссии в пятницу утром", "intent": "create_request", "request_type": "medical_request", "template": "Организуйте мне прохождение медкомиссии {when_at}", "split": "train"}
+{"id": "ds_0332", "text": "согласен", "intent": "confirm_yes", "request_type": "none", "template": "согласен", "split": "train"}
+{"id": "ds_0241", "text": "Какие сроки установлены для медосмотра?", "intent": "qa", "request_type": "none", "template": "Какие сроки установлены для {proc}?", "split": "train"}
+{"id": "ds_0390", "text": "слушайте, не хочу больше оформлять, отмена", "intent": "cancel", "request_type": "none", "template": "не хочу больше оформлять, отмена", "split": "train"}
+{"id": "ds_0380", "text": "отменяй всё", "intent": "cancel", "request_type": "none", "template": "отменяй всё", "split": "train"}
+{"id": "ds_0124", "text": "Нужен доступ в ЦУС для контроля замечаний", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужен доступ в ЦУС для {reason}", "split": "train"}
+{"id": "ds_0386", "text": "пожалуйста, отмените оформление срочно", "intent": "cancel", "request_type": "none", "template": "пожалуйста, отмените оформление", "split": "train"}
+{"id": "ds_0059", "text": "Нужно пройти обучение по исполнительной документации", "intent": "create_request", "request_type": "training_request", "template": "Нужно пройти обучение по {topic}", "split": "train"}
+{"id": "ds_0077", "text": "Отправьте меня на курс по охране труда на 15 число", "intent": "create_request", "request_type": "training_request", "template": "Отправьте меня на курс по {topic} {when_on}", "split": "train"}
+{"id": "ds_0053", "text": "Хочу записаться на обучение по оказанию первой помощи", "intent": "create_request", "request_type": "training_request", "template": "Хочу записаться на обучение по {topic}", "split": "train"}
+{"id": "ds_0123", "text": "Нужен доступ в ЦУС для согласования актов", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужен доступ в ЦУС для {reason}", "split": "train"}
+{"id": "ds_0040", "text": "Забронируйте мне автомобиль на завтра", "intent": "create_request", "request_type": "transport_request", "template": "Забронируйте мне автомобиль {when_on}", "split": "train"}
+{"id": "ds_0384", "text": "забудь про заявку, спасибо", "intent": "cancel", "request_type": "none", "template": "забудь про заявку", "split": "train"}
+{"id": "ds_0298", "text": "Есть ли в базе знаний информация про строительный контроль?", "intent": "qa", "request_type": "none", "template": "Есть ли в базе знаний информация про {term}?", "split": "train"}
+{"id": "ds_0034", "text": "Прошу выделить служебный транспорт на 15 число", "intent": "create_request", "request_type": "transport_request", "template": "Прошу выделить служебный транспорт {when_on}", "split": "train"}
+{"id": "ds_0274", "text": "Почему акта скрытых работ могут отклонить?", "intent": "qa", "request_type": "none", "template": "Почему {obj} могут отклонить?", "split": "train"}
+{"id": "ds_0176", "text": "Нужен датасет и модель, чтобы классифицировать замечания стройконтроля. Создайте заявку в ИИ-лабораторию", "intent": "create_request", "request_type": "ai_lab_request", "template": "Нужен датасет и модель, чтобы {ai_inf}. Создайте заявку в ИИ-лабораторию", "split": "train"}
+{"id": "ds_0299", "text": "Есть ли в базе знаний информация про ЦУС?", "intent": "qa", "request_type": "none", "template": "Есть ли в базе знаний информация про {term}?", "split": "train"}
+{"id": "ds_0350", "text": "да, всё правильно, создавайте срочно", "intent": "confirm_yes", "request_type": "none", "template": "да, всё правильно, создавайте", "split": "train"}
+{"id": "ds_0134", "text": "Создайте учётную запись в ЦУС для подрядчика", "intent": "create_request", "request_type": "tsus_access_request", "template": "Создайте учётную запись в ЦУС для {role}", "split": "train"}
+{"id": "ds_0187", "text": "Нужно анонимно сообщить о завышении объёмов работ", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Нужно анонимно сообщить о {violation}", "split": "train"}
+{"id": "ds_0251", "text": "Что сказано в законодательстве о увольнении по соглашению сторон срочно", "intent": "qa", "request_type": "none", "template": "Что сказано в законодательстве о {law}?", "split": "train"}
+{"id": "ds_0300", "text": "послезавтра в 14:30", "intent": "qa", "request_type": "none", "template": "{when_at} в {time}", "split": "train"}
+{"id": "ds_0158", "text": "Хочу обратиться в ИИ-лабораторию: нужно классифицировать замечания стройконтроля", "intent": "create_request", "request_type": "ai_lab_request", "template": "Хочу обратиться в ИИ-лабораторию: нужно {ai_inf}", "split": "train"}
+{"id": "ds_0080", "text": "привет, отправьте меня на курс по охране труда на 15 число", "intent": "create_request", "request_type": "training_request", "template": "Отправьте меня на курс по {topic} {when_on}", "split": "train"}
+{"id": "ds_0069", "text": "Хочу на семинар по охране труда", "intent": "create_request", "request_type": "training_request", "template": "Хочу на семинар по {topic}", "split": "train"}
+{"id": "ds_0146", "text": "Откройте доступ в ЦУС для стажёра", "intent": "create_request", "request_type": "tsus_access_request", "template": "Откройте доступ в ЦУС для {role}", "split": "train"}
+{"id": "ds_0065", "text": "Прошу направить меня на тренинг по промышленной безопасности", "intent": "create_request", "request_type": "training_request", "template": "Прошу направить меня на тренинг по {topic}", "split": "train"}
+{"id": "ds_0289", "text": "Что входит в обязанности специалиста по строительному контролю?", "intent": "qa", "request_type": "none", "template": "Что входит в обязанности специалиста по строительному контролю?", "split": "train"}
+{"id": "ds_0361", "text": "нет, здесь ошибка", "intent": "confirm_no", "request_type": "none", "template": "нет, здесь ошибка", "split": "train"}
+{"id": "ds_0212", "text": "Расскажи про периодический медосмотр", "intent": "qa", "request_type": "none", "template": "Расскажи про {term}", "split": "train"}
+{"id": "ds_0322", "text": "С 14:30 до 18:00", "intent": "qa", "request_type": "none", "template": "С {time} до 18:00", "split": "train"}
+{"id": "ds_0112", "text": "Прошу записать меня на медицинский осмотр на пятницу", "intent": "create_request", "request_type": "medical_request", "template": "Прошу записать меня на медицинский осмотр {when_on}", "split": "train"}
+{"id": "ds_0385", "text": "пожалуйста, отмените оформление", "intent": "cancel", "request_type": "none", "template": "пожалуйста, отмените оформление", "split": "train"}
+{"id": "ds_0032", "text": "Прошу выделить служебный транспорт на понедельник", "intent": "create_request", "request_type": "transport_request", "template": "Прошу выделить служебный транспорт {when_on}", "split": "train"}
+{"id": "ds_0061", "text": "слушайте, нужно пройти обучение по управлению проектами", "intent": "create_request", "request_type": "training_request", "template": "Нужно пройти обучение по {topic}", "split": "train"}
+{"id": "ds_0086", "text": "Нужна запись на обучение по пожарной безопасности на пятницу, спасибо", "intent": "create_request", "request_type": "training_request", "template": "Нужна запись на обучение по {topic} {when_on}", "split": "train"}
+{"id": "ds_0349", "text": "да, всё правильно, создавайте", "intent": "confirm_yes", "request_type": "none", "template": "да, всё правильно, создавайте", "split": "train"}
+{"id": "ds_0217", "text": "Объясни, что значит строительный контроль", "intent": "qa", "request_type": "none", "template": "Объясни, что значит {term}", "split": "train"}
+{"id": "ds_0272", "text": "Через сколько дней рассматривают предписания?", "intent": "qa", "request_type": "none", "template": "Через сколько дней рассматривают {obj}?", "split": "train"}
+{"id": "ds_0240", "text": "Какие сроки установлены для согласования заявки в ЕКТП?", "intent": "qa", "request_type": "none", "template": "Какие сроки установлены для {proc}?", "split": "train"}
+{"id": "ds_0178", "text": "Предлагаю задачу для ИИ-лаборатории — прогнозировать сроки поставки материалов", "intent": "create_request", "request_type": "ai_lab_request", "template": "Предлагаю задачу для ИИ-лаборатории — {ai_inf}", "split": "train"}
+{"id": "ds_0027", "text": "добрый день, нужно такси на объект в понедельник, оформите заявку", "intent": "create_request", "request_type": "transport_request", "template": "Нужно такси на объект {when_at}, оформите заявку", "split": "train"}
+{"id": "ds_0016", "text": "Закажите мне машину послезавтра, поеду на Ванкорское месторождение пожалуйста", "intent": "create_request", "request_type": "transport_request", "template": "Закажите мне машину {when_at}, поеду на {site}", "split": "train"}
+{"id": "ds_0186", "text": "Нужно анонимно сообщить о хищении материалов", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Нужно анонимно сообщить о {violation}", "split": "train"}
+{"id": "ds_0221", "text": "Кто отвечает за медосмотры?", "intent": "qa", "request_type": "none", "template": "Кто отвечает за {area}?", "split": "train"}
+{"id": "ds_0281", "text": "Какой срок действия медосмотра?", "intent": "qa", "request_type": "none", "template": "Какой срок действия медосмотра?", "split": "train"}
+{"id": "ds_0180", "text": "Предлагаю задачу для ИИ-лаборатории — автоматизировать проверку исполнительной документации", "intent": "create_request", "request_type": "ai_lab_request", "template": "Предлагаю задачу для ИИ-лаборатории — {ai_inf}", "split": "train"}
+{"id": "ds_0156", "text": "Оформите заявку в лабораторию ИИ, хотим анализировать договоры", "intent": "create_request", "request_type": "ai_lab_request", "template": "Оформите заявку в лабораторию ИИ, хотим {ai_inf}", "split": "train"}
+{"id": "ds_0216", "text": "Объясни, что значит ЦУС", "intent": "qa", "request_type": "none", "template": "Объясни, что значит {term}", "split": "train"}
+{"id": "ds_0203", "text": "будьте добры, надо сообщить о нарушении, но без указания моей фамилии — оформите обращение", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Надо сообщить о нарушении, но без указания моей фамилии — оформите обращение", "split": "train"}
+{"id": "ds_0058", "text": "Нужно пройти обучение по управлению проектами", "intent": "create_request", "request_type": "training_request", "template": "Нужно пройти обучение по {topic}", "split": "train"}
+{"id": "ds_0025", "text": "Нужно такси на объект завтра, оформите заявку", "intent": "create_request", "request_type": "transport_request", "template": "Нужно такси на объект {when_at}, оформите заявку", "split": "train"}
+{"id": "ds_0023", "text": "Организуйте служебную поездку на площадку в Тюмени в понедельник пожалуйста", "intent": "create_request", "request_type": "transport_request", "template": "Организуйте служебную поездку на {site} {when_at}", "split": "train"}
+{"id": "ds_0252", "text": "Сколько дней отпуска положено по закону?", "intent": "qa", "request_type": "none", "template": "Сколько дней отпуска положено по закону?", "split": "train"}
+{"id": "ds_0066", "text": "Прошу направить меня на тренинг по охране труда", "intent": "create_request", "request_type": "training_request", "template": "Прошу направить меня на тренинг по {topic}", "split": "train"}
+{"id": "ds_0017", "text": "Мне нужен водитель и машина завтра", "intent": "create_request", "request_type": "transport_request", "template": "Мне нужен водитель и машина {when_at}", "split": "train"}
+{"id": "ds_0328", "text": "будьте добры, давай", "intent": "confirm_yes", "request_type": "none", "template": "давай", "split": "train"}
+{"id": "ds_0174", "text": "Нужен датасет и модель, чтобы прогнозировать сроки поставки материалов. Создайте заявку в ИИ-лабораторию", "intent": "create_request", "request_type": "ai_lab_request", "template": "Нужен датасет и модель, чтобы {ai_inf}. Создайте заявку в ИИ-лабораторию", "split": "train"}
+{"id": "ds_0220", "text": "Кто отвечает за обучение сотрудников?", "intent": "qa", "request_type": "none", "template": "Кто отвечает за {area}?", "split": "train"}
+{"id": "ds_0371", "text": "слушайте, отмени оформление", "intent": "cancel", "request_type": "none", "template": "отмени оформление", "split": "train"}
+{"id": "ds_0021", "text": "Организуйте служебную поездку на Ванкорское месторождение в пятницу утром", "intent": "create_request", "request_type": "transport_request", "template": "Организуйте служебную поездку на {site} {when_at}", "split": "train"}
+{"id": "ds_0315", "text": "p.sidorov@rn.local", "intent": "qa", "request_type": "none", "template": "{email}", "split": "train"}
+{"id": "ds_0314", "text": "stroy.kontrol@company.ru", "intent": "qa", "request_type": "none", "template": "{email}", "split": "train"}
+{"id": "ds_0078", "text": "Отправьте меня на курс по пожарной безопасности на следующую неделю", "intent": "create_request", "request_type": "training_request", "template": "Отправьте меня на курс по {topic} {when_on}", "split": "train"}
+{"id": "ds_0260", "text": "Какие роли есть в процессе получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Какие роли есть в процессе {proc}?", "split": "train"}
+{"id": "ds_0324", "text": "Москва, улица Ленина, дом 5", "intent": "qa", "request_type": "none", "template": "Москва, улица Ленина, дом {n}", "split": "train"}
+{"id": "ds_0014", "text": "Закажите мне машину в понедельник, поеду на Ванкорское месторождение", "intent": "create_request", "request_type": "transport_request", "template": "Закажите мне машину {when_at}, поеду на {site}", "split": "train"}
+{"id": "ds_0068", "text": "Хочу на семинар по работе в Excel", "intent": "create_request", "request_type": "training_request", "template": "Хочу на семинар по {topic}", "split": "train"}
+{"id": "ds_0076", "text": "Мне нужно повысить квалификацию — курс по строительному контролю", "intent": "create_request", "request_type": "training_request", "template": "Мне нужно повысить квалификацию — курс по {topic}", "split": "train"}
+{"id": "ds_0181", "text": "Хочу поставить задачу команде ИИ", "intent": "create_request", "request_type": "ai_lab_request", "template": "Хочу поставить задачу команде ИИ", "split": "train"}
+{"id": "ds_0262", "text": "Какие роли есть в процессе обучения по охране труда?", "intent": "qa", "request_type": "none", "template": "Какие роли есть в процессе {proc}?", "split": "train"}
+{"id": "ds_0159", "text": "Хочу обратиться в ИИ-лабораторию: нужно находить дефекты на фотографиях с объекта", "intent": "create_request", "request_type": "ai_lab_request", "template": "Хочу обратиться в ИИ-лабораторию: нужно {ai_inf}", "split": "train"}
+{"id": "ds_0152", "text": "пожалуйста, нужны права в ЦУС на 15 число, оформите заявку", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужны права в ЦУС {when_on}, оформите заявку", "split": "train"}
+{"id": "ds_0362", "text": "нет, здесь ошибка, спасибо", "intent": "confirm_no", "request_type": "none", "template": "нет, здесь ошибка", "split": "train"}
+{"id": "ds_0105", "text": "Заявка на медосмотр для меня, пожалуйста", "intent": "create_request", "request_type": "medical_request", "template": "Заявка на медосмотр для меня, пожалуйста", "split": "train"}
+{"id": "ds_0188", "text": "Нужно анонимно сообщить о конфликте интересов", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Нужно анонимно сообщить о {violation}", "split": "train"}
+{"id": "ds_0104", "text": "привет, мне надо пройти медкомиссию, запишите", "intent": "create_request", "request_type": "medical_request", "template": "Мне надо пройти медкомиссию, запишите", "split": "train"}
+{"id": "ds_0339", "text": "да, всё так", "intent": "confirm_yes", "request_type": "none", "template": "да, всё так", "split": "train"}
+{"id": "ds_0248", "text": "Что сказано в законодательстве о увольнении по соглашению сторон?", "intent": "qa", "request_type": "none", "template": "Что сказано в законодательстве о {law}?", "split": "train"}
+{"id": "ds_0295", "text": "Какой регламент действует для согласования заявки в ЕКТП?", "intent": "qa", "request_type": "none", "template": "Какой регламент действует для {proc}?", "split": "train"}
+{"id": "ds_0106", "text": "добрый день, заявка на медосмотр для меня, пожалуйста", "intent": "create_request", "request_type": "medical_request", "template": "Заявка на медосмотр для меня, пожалуйста", "split": "train"}
+{"id": "ds_0290", "text": "добрый день, что входит в обязанности специалиста по строительному контролю", "intent": "qa", "request_type": "none", "template": "Что входит в обязанности специалиста по строительному контролю?", "split": "train"}
+{"id": "ds_0154", "text": "Оформите заявку в лабораторию ИИ, хотим прогнозировать сроки поставки материалов", "intent": "create_request", "request_type": "ai_lab_request", "template": "Оформите заявку в лабораторию ИИ, хотим {ai_inf}", "split": "train"}
+{"id": "ds_0160", "text": "привет, хочу обратиться в ИИ-лабораторию: нужно автоматизировать проверку исполнительной документации", "intent": "create_request", "request_type": "ai_lab_request", "template": "Хочу обратиться в ИИ-лабораторию: нужно {ai_inf}", "split": "train"}
+{"id": "ds_0292", "text": "Какие задачи решает Лаборатория ИИ?", "intent": "qa", "request_type": "none", "template": "Какие задачи решает Лаборатория ИИ?", "split": "train"}
+{"id": "ds_0075", "text": "Мне нужно повысить квалификацию — курс по электробезопасности", "intent": "create_request", "request_type": "training_request", "template": "Мне нужно повысить квалификацию — курс по {topic}", "split": "train"}
+{"id": "ds_0223", "text": "Какие статусы бывают у заявки на обучение?", "intent": "qa", "request_type": "none", "template": "Какие статусы бывают у {obj}?", "split": "train"}
+{"id": "ds_0037", "text": "Нужна машина для командировки на участок строительства дороги", "intent": "create_request", "request_type": "transport_request", "template": "Нужна машина для командировки на {site}", "split": "train"}
+{"id": "ds_0243", "text": "добрый день, какие сроки установлены для согласования заявки в ЕКТП?", "intent": "qa", "request_type": "none", "template": "Какие сроки установлены для {proc}?", "split": "train"}
+{"id": "ds_0107", "text": "Пора проходить периодический осмотр, оформите заявку", "intent": "create_request", "request_type": "medical_request", "template": "Пора проходить периодический осмотр, оформите заявку", "split": "train"}
+{"id": "ds_0234", "text": "Сколько длится процесс получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Сколько длится процесс {proc}?", "split": "train"}
+{"id": "ds_0082", "text": "пожалуйста, оформить заявку на обучение", "intent": "create_request", "request_type": "training_request", "template": "Оформить заявку на обучение", "split": "train"}
+{"id": "ds_0010", "text": "Требуется транспорт для выезда на площадку в Тюмени", "intent": "create_request", "request_type": "transport_request", "template": "Требуется транспорт для выезда на {site}", "split": "train"}
+{"id": "ds_0218", "text": "Объясни, что значит входной контроль", "intent": "qa", "request_type": "none", "template": "Объясни, что значит {term}", "split": "train"}
+{"id": "ds_0079", "text": "Отправьте меня на курс по исполнительной документации на следующую неделю", "intent": "create_request", "request_type": "training_request", "template": "Отправьте меня на курс по {topic} {when_on}", "split": "train"}
+{"id": "ds_0009", "text": "Хочу заказать автомобиль с водителем в пятницу утром", "intent": "create_request", "request_type": "transport_request", "template": "Хочу заказать автомобиль с водителем {when_at}", "split": "train"}
+{"id": "ds_0372", "text": "будьте добры, отмени оформление", "intent": "cancel", "request_type": "none", "template": "отмени оформление", "split": "train"}
+{"id": "ds_0232", "text": "Как проходит процесс медосмотра?", "intent": "qa", "request_type": "none", "template": "Как проходит процесс {proc}?", "split": "train"}
+{"id": "ds_0042", "text": "Заказать транспорт", "intent": "create_request", "request_type": "transport_request", "template": "Заказать транспорт", "split": "train"}
+{"id": "ds_0209", "text": "Заметил нарушение на объекте, хочу сообщить анонимно пожалуйста", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Заметил нарушение на объекте, хочу сообщить анонимно", "split": "train"}
+{"id": "ds_0103", "text": "Мне надо пройти медкомиссию, запишите", "intent": "create_request", "request_type": "medical_request", "template": "Мне надо пройти медкомиссию, запишите", "split": "train"}
+{"id": "ds_0261", "text": "Какие роли есть в процессе выдачи предписания?", "intent": "qa", "request_type": "none", "template": "Какие роли есть в процессе {proc}?", "split": "train"}
+{"id": "ds_0015", "text": "Закажите мне машину в пятницу утром, поеду на участок строительства дороги", "intent": "create_request", "request_type": "transport_request", "template": "Закажите мне машину {when_at}, поеду на {site}", "split": "train"}
+{"id": "ds_0189", "text": "пожалуйста, нужно анонимно сообщить о хищении материалов", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Нужно анонимно сообщить о {violation}", "split": "train"}
+{"id": "ds_0368", "text": "no пожалуйста", "intent": "confirm_no", "request_type": "none", "template": "no", "split": "train"}
+{"id": "ds_0273", "text": "Почему заявки на обучение могут отклонить?", "intent": "qa", "request_type": "none", "template": "Почему {obj} могут отклонить?", "split": "train"}
+{"id": "ds_0140", "text": "Прошу предоставить доступ к ЦУС для нового сотрудника", "intent": "create_request", "request_type": "tsus_access_request", "template": "Прошу предоставить доступ к ЦУС для {role}", "split": "train"}
+{"id": "ds_0125", "text": "слушайте, нужен доступ в ЦУС для согласования актов", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужен доступ в ЦУС для {reason}", "split": "train"}
+{"id": "ds_0073", "text": "Подайте заявку на обучение по охране труда для меня", "intent": "create_request", "request_type": "training_request", "template": "Подайте заявку на обучение по {topic} для меня", "split": "train"}
+{"id": "ds_0054", "text": "Хочу записаться на обучение по пожарной безопасности", "intent": "create_request", "request_type": "training_request", "template": "Хочу записаться на обучение по {topic}", "split": "train"}
+{"id": "ds_0235", "text": "Сколько длится процесс медосмотра?", "intent": "qa", "request_type": "none", "template": "Сколько длится процесс {proc}?", "split": "train"}
+{"id": "ds_0270", "text": "Через сколько дней рассматривают заявки на доступ в ЦУС?", "intent": "qa", "request_type": "none", "template": "Через сколько дней рассматривают {obj}?", "split": "train"}
+{"id": "ds_0360", "text": "добрый день, не надо отправлять", "intent": "confirm_no", "request_type": "none", "template": "не надо отправлять", "split": "train"}
+{"id": "ds_0111", "text": "Прошу записать меня на медицинский осмотр на завтра", "intent": "create_request", "request_type": "medical_request", "template": "Прошу записать меня на медицинский осмотр {when_on}", "split": "train"}
+{"id": "ds_0353", "text": "подтверждаю, пусть уходит", "intent": "confirm_yes", "request_type": "none", "template": "подтверждаю, пусть уходит", "split": "train"}
+{"id": "ds_0373", "text": "забудь", "intent": "cancel", "request_type": "none", "template": "забудь", "split": "train"}
+{"id": "ds_0157", "text": "Хочу обратиться в ИИ-лабораторию: нужно автоматизировать проверку исполнительной документации", "intent": "create_request", "request_type": "ai_lab_request", "template": "Хочу обратиться в ИИ-лабораторию: нужно {ai_inf}", "split": "train"}
+{"id": "ds_0296", "text": "Какой регламент действует для выдачи предписания?", "intent": "qa", "request_type": "none", "template": "Какой регламент действует для {proc}?", "split": "train"}
+{"id": "ds_0222", "text": "Кто отвечает за работу ЕКТП?", "intent": "qa", "request_type": "none", "template": "Кто отвечает за {area}?", "split": "train"}
+{"id": "ds_0387", "text": "будьте добры, пожалуйста, отмените оформление", "intent": "cancel", "request_type": "none", "template": "пожалуйста, отмените оформление", "split": "train"}
+{"id": "ds_0194", "text": "слушайте, хочу конфиденциально сообщить о нарушении", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Хочу конфиденциально сообщить о нарушении", "split": "train"}
+{"id": "ds_0333", "text": "будьте добры, согласен", "intent": "confirm_yes", "request_type": "none", "template": "согласен", "split": "train"}
+{"id": "ds_0239", "text": "Кто участвует в процессе выдачи предписания?", "intent": "qa", "request_type": "none", "template": "Кто участвует в процессе {proc}?", "split": "train"}
+{"id": "ds_0323", "text": "Москва, улица Ленина, дом 3", "intent": "qa", "request_type": "none", "template": "Москва, улица Ленина, дом {n}", "split": "train"}
+{"id": "ds_0109", "text": "Пора проходить периодический осмотр, оформите заявку срочно", "intent": "create_request", "request_type": "medical_request", "template": "Пора проходить периодический осмотр, оформите заявку", "split": "train"}
+{"id": "ds_0072", "text": "Подайте заявку на обучение по работе в Excel для меня", "intent": "create_request", "request_type": "training_request", "template": "Подайте заявку на обучение по {topic} для меня", "split": "train"}
+{"id": "ds_0145", "text": "Откройте доступ в ЦУС для нового сотрудника", "intent": "create_request", "request_type": "tsus_access_request", "template": "Откройте доступ в ЦУС для {role}", "split": "train"}
+{"id": "ds_0074", "text": "Мне нужно повысить квалификацию — курс по пожарной безопасности", "intent": "create_request", "request_type": "training_request", "template": "Мне нужно повысить квалификацию — курс по {topic}", "split": "train"}
+{"id": "ds_0113", "text": "Хочу записаться к врачам на ежегодный медосмотр", "intent": "create_request", "request_type": "medical_request", "template": "Хочу записаться к врачам на ежегодный медосмотр", "split": "train"}
+{"id": "ds_0047", "text": "добрый день, надо срочно доехать до объекта, нужен транспорт", "intent": "create_request", "request_type": "transport_request", "template": "Надо срочно доехать до объекта, нужен транспорт", "split": "train"}
+{"id": "ds_0039", "text": "Забронируйте мне автомобиль на понедельник", "intent": "create_request", "request_type": "transport_request", "template": "Забронируйте мне автомобиль {when_on}", "split": "train"}
+{"id": "ds_0033", "text": "Прошу выделить служебный транспорт на пятницу", "intent": "create_request", "request_type": "transport_request", "template": "Прошу выделить служебный транспорт {when_on}", "split": "train"}
+{"id": "ds_0007", "text": "Хочу заказать автомобиль с водителем в понедельник", "intent": "create_request", "request_type": "transport_request", "template": "Хочу заказать автомобиль с водителем {when_at}", "split": "train"}
+{"id": "ds_0018", "text": "Мне нужен водитель и машина в пятницу утром", "intent": "create_request", "request_type": "transport_request", "template": "Мне нужен водитель и машина {when_at}", "split": "train"}
+{"id": "ds_0366", "text": "нет, ничего не отправляй", "intent": "confirm_no", "request_type": "none", "template": "нет, ничего не отправляй", "split": "train"}
+{"id": "ds_0285", "text": "Подскажите, куда обращаться по вопросам выдачи предписания", "intent": "qa", "request_type": "none", "template": "Подскажите, куда обращаться по вопросам {proc}", "split": "train"}
+{"id": "ds_0135", "text": "Создайте учётную запись в ЦУС для нового сотрудника, спасибо", "intent": "create_request", "request_type": "tsus_access_request", "template": "Создайте учётную запись в ЦУС для {role}", "split": "train"}
+{"id": "ds_0038", "text": "Забронируйте мне автомобиль на 15 число", "intent": "create_request", "request_type": "transport_request", "template": "Забронируйте мне автомобиль {when_on}", "split": "train"}
+{"id": "ds_0283", "text": "Подскажите, куда обращаться по вопросам медосмотра", "intent": "qa", "request_type": "none", "template": "Подскажите, куда обращаться по вопросам {proc}", "split": "train"}
+{"id": "ds_0211", "text": "Что такое исполнительная документация?", "intent": "qa", "request_type": "none", "template": "Что такое {term}?", "split": "train"}
+{"id": "ds_0114", "text": "пожалуйста, хочу записаться к врачам на ежегодный медосмотр", "intent": "create_request", "request_type": "medical_request", "template": "Хочу записаться к врачам на ежегодный медосмотр", "split": "train"}
+{"id": "ds_0035", "text": "Нужна машина для командировки на площадку в Тюмени", "intent": "create_request", "request_type": "transport_request", "template": "Нужна машина для командировки на {site}", "split": "train"}
+{"id": "ds_0215", "text": "Расскажи про периодический медосмотр, спасибо", "intent": "qa", "request_type": "none", "template": "Расскажи про {term}", "split": "train"}
+{"id": "ds_0085", "text": "Нужна запись на обучение по промышленной безопасности на завтра", "intent": "create_request", "request_type": "training_request", "template": "Нужна запись на обучение по {topic} {when_on}", "split": "train"}
+{"id": "ds_0346", "text": "слушайте, угу, отправляйте заявку", "intent": "confirm_yes", "request_type": "none", "template": "угу, отправляйте заявку", "split": "train"}
+{"id": "ds_0297", "text": "Есть ли в базе знаний информация про предписание?", "intent": "qa", "request_type": "none", "template": "Есть ли в базе знаний информация про {term}?", "split": "train"}
+{"id": "ds_0153", "text": "пожалуйста, есть задача для лаборатории ИИ — помогите с моделью", "intent": "create_request", "request_type": "ai_lab_request", "template": "Есть задача для лаборатории ИИ — помогите с моделью", "split": "train"}
+{"id": "ds_0108", "text": "Пора проходить периодический осмотр, оформите заявку пожалуйста", "intent": "create_request", "request_type": "medical_request", "template": "Пора проходить периодический осмотр, оформите заявку", "split": "train"}
+{"id": "ds_0337", "text": "отправляй, спасибо", "intent": "confirm_yes", "request_type": "none", "template": "отправляй", "split": "train"}
+{"id": "ds_0369", "text": "не нужно, спасибо", "intent": "confirm_no", "request_type": "none", "template": "не нужно, спасибо", "split": "train"}
+{"id": "ds_0012", "text": "Требуется транспорт для выезда на базу подрядчика", "intent": "create_request", "request_type": "transport_request", "template": "Требуется транспорт для выезда на {site}", "split": "train"}
+{"id": "ds_0213", "text": "Расскажи про исполнительная документация", "intent": "qa", "request_type": "none", "template": "Расскажи про {term}", "split": "train"}
+{"id": "ds_0230", "text": "Как проходит процесс получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Как проходит процесс {proc}?", "split": "train"}
+{"id": "ds_0236", "text": "Сколько длится процесс обучения по охране труда?", "intent": "qa", "request_type": "none", "template": "Сколько длится процесс {proc}?", "split": "train"}
+{"id": "ds_0060", "text": "Нужно пройти обучение по охране труда", "intent": "create_request", "request_type": "training_request", "template": "Нужно пройти обучение по {topic}", "split": "train"}
+{"id": "ds_0084", "text": "Нужна запись на обучение по оказанию первой помощи на 15 число", "intent": "create_request", "request_type": "training_request", "template": "Нужна запись на обучение по {topic} {when_on}", "split": "train"}
+{"id": "ds_0231", "text": "Как проходит процесс выдачи предписания?", "intent": "qa", "request_type": "none", "template": "Как проходит процесс {proc}?", "split": "train"}
+{"id": "ds_0321", "text": "С 10:00 до 18:00", "intent": "qa", "request_type": "none", "template": "С {time} до 18:00", "split": "train"}
+{"id": "ds_0320", "text": "С 8:00 до 18:00", "intent": "qa", "request_type": "none", "template": "С {time} до 18:00", "split": "train"}
+{"id": "ds_0115", "text": "Нужен медосмотр перед выходом на объект, оформите", "intent": "create_request", "request_type": "medical_request", "template": "Нужен медосмотр перед выходом на объект, оформите", "split": "train"}
+{"id": "ds_0224", "text": "Какие статусы бывают у предписания?", "intent": "qa", "request_type": "none", "template": "Какие статусы бывают у {obj}?", "split": "train"}
+{"id": "ds_0185", "text": "Хочу подать анонимное обращение о нарушении пожалуйста", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Хочу подать анонимное обращение о нарушении", "split": "train"}
+{"id": "ds_0006", "text": "пожалуйста, нужна служебная машина для поездки на площадку в Тюмени", "intent": "create_request", "request_type": "transport_request", "template": "Нужна служебная машина для поездки на {site}", "split": "train"}
+{"id": "ds_0139", "text": "Подайте заявку на подключение к ЦУС", "intent": "create_request", "request_type": "tsus_access_request", "template": "Подайте заявку на подключение к ЦУС", "split": "train"}
+{"id": "ds_0141", "text": "Прошу предоставить доступ к ЦУС для руководителя группы", "intent": "create_request", "request_type": "tsus_access_request", "template": "Прошу предоставить доступ к ЦУС для {role}", "split": "train"}
+{"id": "ds_0233", "text": "будьте добры, как проходит процесс получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Как проходит процесс {proc}?", "split": "train"}
+{"id": "ds_0197", "text": "Передайте в комплаенс анонимно: речь о завышении объёмов работ", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Передайте в комплаенс анонимно: речь о {violation}", "split": "train"}
+{"id": "ds_0345", "text": "угу, отправляйте заявку", "intent": "confirm_yes", "request_type": "none", "template": "угу, отправляйте заявку", "split": "train"}
+{"id": "ds_0043", "text": "будьте добры, заказать транспорт", "intent": "create_request", "request_type": "transport_request", "template": "Заказать транспорт", "split": "train"}
+{"id": "ds_0155", "text": "Оформите заявку в лабораторию ИИ, хотим автоматизировать проверку исполнительной документации", "intent": "create_request", "request_type": "ai_lab_request", "template": "Оформите заявку в лабораторию ИИ, хотим {ai_inf}", "split": "train"}
+{"id": "ds_0179", "text": "Предлагаю задачу для ИИ-лаборатории — анализировать договоры", "intent": "create_request", "request_type": "ai_lab_request", "template": "Предлагаю задачу для ИИ-лаборатории — {ai_inf}", "split": "train"}
+{"id": "ds_0026", "text": "Нужно такси на объект на следующей неделе, оформите заявку", "intent": "create_request", "request_type": "transport_request", "template": "Нужно такси на объект {when_at}, оформите заявку", "split": "train"}
+{"id": "ds_0336", "text": "отправляй", "intent": "confirm_yes", "request_type": "none", "template": "отправляй", "split": "train"}
+{"id": "ds_0250", "text": "Что сказано в законодательстве о отпуске?", "intent": "qa", "request_type": "none", "template": "Что сказано в законодательстве о {law}?", "split": "train"}
+{"id": "ds_0309", "text": "2 пассажира срочно", "intent": "qa", "request_type": "none", "template": "{n} пассажира", "split": "train"}
+{"id": "ds_0150", "text": "Нужны права в ЦУС на пятницу, оформите заявку", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужны права в ЦУС {when_on}, оформите заявку", "split": "train"}
+{"id": "ds_0024", "text": "Нужно такси на объект в понедельник, оформите заявку", "intent": "create_request", "request_type": "transport_request", "template": "Нужно такси на объект {when_at}, оформите заявку", "split": "train"}
+{"id": "ds_0210", "text": "Что такое предписание?", "intent": "qa", "request_type": "none", "template": "Что такое {term}?", "split": "train"}
+{"id": "ds_0081", "text": "Оформить заявку на обучение", "intent": "create_request", "request_type": "training_request", "template": "Оформить заявку на обучение", "split": "train"}
+{"id": "ds_0195", "text": "Передайте в комплаенс анонимно: речь о нарушении правил охраны труда на объекте", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Передайте в комплаенс анонимно: речь о {violation}", "split": "train"}
+{"id": "ds_0067", "text": "Прошу направить меня на тренинг по управлению проектами", "intent": "create_request", "request_type": "training_request", "template": "Прошу направить меня на тренинг по {topic}", "split": "train"}
+{"id": "ds_0263", "text": "будьте добры, какие роли есть в процессе получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Какие роли есть в процессе {proc}?", "split": "train"}
+{"id": "ds_0306", "text": "2 пассажира", "intent": "qa", "request_type": "none", "template": "{n} пассажира", "split": "train"}
+{"id": "ds_0117", "text": "Организуйте мне прохождение медкомиссии в понедельник", "intent": "create_request", "request_type": "medical_request", "template": "Организуйте мне прохождение медкомиссии {when_at}", "split": "train"}
+{"id": "ds_0242", "text": "Какие сроки установлены для получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Какие сроки установлены для {proc}?", "split": "train"}
+{"id": "ds_0225", "text": "Какие статусы бывают у акта скрытых работ?", "intent": "qa", "request_type": "none", "template": "Какие статусы бывают у {obj}?", "split": "train"}
+{"id": "ds_0071", "text": "Подайте заявку на обучение по промышленной безопасности для меня", "intent": "create_request", "request_type": "training_request", "template": "Подайте заявку на обучение по {topic} для меня", "split": "train"}
+{"id": "ds_0056", "text": "Оформите заявку на курс по электробезопасности", "intent": "create_request", "request_type": "training_request", "template": "Оформите заявку на курс по {topic}", "split": "train"}
+{"id": "ds_0148", "text": "Заведите мне учётку в ЦУС", "intent": "create_request", "request_type": "tsus_access_request", "template": "Заведите мне учётку в ЦУС", "split": "train"}
+{"id": "ds_0165", "text": "Подайте заявку в Лабораторию ИИ срочно", "intent": "create_request", "request_type": "ai_lab_request", "template": "Подайте заявку в Лабораторию ИИ", "split": "train"}
+{"id": "ds_0313", "text": "ivanov@company.ru", "intent": "qa", "request_type": "none", "template": "{email}", "split": "train"}
+{"id": "ds_0003", "text": "Нужна служебная машина для поездки на площадку в Тюмени", "intent": "create_request", "request_type": "transport_request", "template": "Нужна служебная машина для поездки на {site}", "split": "train"}
+{"id": "ds_0041", "text": "будьте добры, забронируйте мне автомобиль на 15 число", "intent": "create_request", "request_type": "transport_request", "template": "Забронируйте мне автомобиль {when_on}", "split": "train"}
+{"id": "ds_0338", "text": "всё верно, подтверждаю", "intent": "confirm_yes", "request_type": "none", "template": "всё верно, подтверждаю", "split": "train"}
+{"id": "ds_0374", "text": "забудь, спасибо", "intent": "cancel", "request_type": "none", "template": "забудь", "split": "train"}
+{"id": "ds_0249", "text": "Что сказано в законодательстве о охране труда?", "intent": "qa", "request_type": "none", "template": "Что сказано в законодательстве о {law}?", "split": "train"}
+{"id": "ds_0359", "text": "не надо отправлять", "intent": "confirm_no", "request_type": "none", "template": "не надо отправлять", "split": "train"}
+{"id": "ds_0022", "text": "Организуйте служебную поездку на Ванкорское месторождение в понедельник", "intent": "create_request", "request_type": "transport_request", "template": "Организуйте служебную поездку на {site} {when_at}", "split": "train"}
+{"id": "ds_0019", "text": "Мне нужен водитель и машина на следующей неделе", "intent": "create_request", "request_type": "transport_request", "template": "Мне нужен водитель и машина {when_at}", "split": "train"}
+{"id": "ds_0344", "text": "пожалуйста, конечно, да", "intent": "confirm_yes", "request_type": "none", "template": "конечно, да", "split": "train"}
+{"id": "ds_0293", "text": "добрый день, какие задачи решает Лаборатория ИИ?", "intent": "qa", "request_type": "none", "template": "Какие задачи решает Лаборатория ИИ?", "split": "train"}
+{"id": "ds_0325", "text": "Москва, улица Ленина, дом 2", "intent": "qa", "request_type": "none", "template": "Москва, улица Ленина, дом {n}", "split": "train"}
+{"id": "ds_0367", "text": "no", "intent": "confirm_no", "request_type": "none", "template": "no", "split": "train"}
+{"id": "ds_0341", "text": "да, всё так, спасибо", "intent": "confirm_yes", "request_type": "none", "template": "да, всё так", "split": "train"}
+{"id": "ds_0329", "text": "ок", "intent": "confirm_yes", "request_type": "none", "template": "ок", "split": "train"}
+{"id": "ds_0302", "text": "на следующей неделе в 14:30", "intent": "qa", "request_type": "none", "template": "{when_at} в {time}", "split": "train"}
+{"id": "ds_0005", "text": "Нужна служебная машина для поездки на склад в Сургуте", "intent": "create_request", "request_type": "transport_request", "template": "Нужна служебная машина для поездки на {site}", "split": "train"}
+{"id": "ds_0378", "text": "я передумал, отмени заявку", "intent": "cancel", "request_type": "none", "template": "я передумал, отмени заявку", "split": "train"}
+{"id": "ds_0214", "text": "Расскажи про акт скрытых работ", "intent": "qa", "request_type": "none", "template": "Расскажи про {term}", "split": "train"}
+{"id": "ds_0132", "text": "Создайте учётную запись в ЦУС для нового сотрудника", "intent": "create_request", "request_type": "tsus_access_request", "template": "Создайте учётную запись в ЦУС для {role}", "split": "train"}
+{"id": "ds_0055", "text": "Оформите заявку на курс по пожарной безопасности", "intent": "create_request", "request_type": "training_request", "template": "Оформите заявку на курс по {topic}", "split": "train"}
+{"id": "ds_0370", "text": "добрый день, не нужно, спасибо", "intent": "confirm_no", "request_type": "none", "template": "не нужно, спасибо", "split": "train"}
+{"id": "ds_0036", "text": "Нужна машина для командировки на объект №5", "intent": "create_request", "request_type": "transport_request", "template": "Нужна машина для командировки на {site}", "split": "train"}
+{"id": "ds_0147", "text": "пожалуйста, откройте доступ в ЦУС для руководителя группы", "intent": "create_request", "request_type": "tsus_access_request", "template": "Откройте доступ в ЦУС для {role}", "split": "train"}
+{"id": "ds_0388", "text": "давай отменим", "intent": "cancel", "request_type": "none", "template": "давай отменим", "split": "train"}
+{"id": "ds_0164", "text": "Подайте заявку в Лабораторию ИИ", "intent": "create_request", "request_type": "ai_lab_request", "template": "Подайте заявку в Лабораторию ИИ", "split": "train"}
+{"id": "ds_0343", "text": "добрый день, конечно, да", "intent": "confirm_yes", "request_type": "none", "template": "конечно, да", "split": "train"}
+{"id": "ds_0291", "text": "Привет! Что ты умеешь?", "intent": "qa", "request_type": "none", "template": "Привет! Что ты умеешь?", "split": "train"}
+{"id": "ds_0151", "text": "Нужны права в ЦУС на понедельник, оформите заявку", "intent": "create_request", "request_type": "tsus_access_request", "template": "Нужны права в ЦУС {when_on}, оформите заявку", "split": "train"}
+{"id": "ds_0057", "text": "Оформите заявку на курс по оказанию первой помощи", "intent": "create_request", "request_type": "training_request", "template": "Оформите заявку на курс по {topic}", "split": "train"}
+{"id": "ds_0282", "text": "слушайте, какой срок действия медосмотра?", "intent": "qa", "request_type": "none", "template": "Какой срок действия медосмотра?", "split": "train"}
+{"id": "ds_0275", "text": "Почему предписания могут отклонить?", "intent": "qa", "request_type": "none", "template": "Почему {obj} могут отклонить?", "split": "train"}
+{"id": "ds_0308", "text": "12 пассажира", "intent": "qa", "request_type": "none", "template": "{n} пассажира", "split": "train"}
+{"id": "ds_0046", "text": "Надо срочно доехать до объекта, нужен транспорт", "intent": "create_request", "request_type": "transport_request", "template": "Надо срочно доехать до объекта, нужен транспорт", "split": "train"}
+{"id": "ds_0271", "text": "Через сколько дней рассматривают заявки на обучение?", "intent": "qa", "request_type": "none", "template": "Через сколько дней рассматривают {obj}?", "split": "train"}
+{"id": "ds_0355", "text": "не подтверждаю", "intent": "confirm_no", "request_type": "none", "template": "не подтверждаю", "split": "train"}
+{"id": "ds_0020", "text": "Организуйте служебную поездку на площадку в Тюмени в понедельник", "intent": "create_request", "request_type": "transport_request", "template": "Организуйте служебную поездку на {site} {when_at}", "split": "train"}
+{"id": "ds_0237", "text": "Кто участвует в процессе получения доступа в ЦУС?", "intent": "qa", "request_type": "none", "template": "Кто участвует в процессе {proc}?", "split": "train"}
+{"id": "ds_0340", "text": "привет, да, всё так", "intent": "confirm_yes", "request_type": "none", "template": "да, всё так", "split": "train"}
+{"id": "ds_0356", "text": "неверно", "intent": "confirm_no", "request_type": "none", "template": "неверно", "split": "train"}
+{"id": "ds_0119", "text": "Оформить медосмотр", "intent": "create_request", "request_type": "medical_request", "template": "Оформить медосмотр", "split": "train"}
+{"id": "ds_0202", "text": "Надо сообщить о нарушении, но без указания моей фамилии — оформите обращение", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Надо сообщить о нарушении, но без указания моей фамилии — оформите обращение", "split": "train"}
+{"id": "ds_0175", "text": "Нужен датасет и модель, чтобы анализировать договоры. Создайте заявку в ИИ-лабораторию", "intent": "create_request", "request_type": "ai_lab_request", "template": "Нужен датасет и модель, чтобы {ai_inf}. Создайте заявку в ИИ-лабораторию", "split": "train"}
+{"id": "ds_0326", "text": "будьте добры, да", "intent": "confirm_yes", "request_type": "none", "template": "да", "split": "train"}
+{"id": "ds_0208", "text": "Заметил нарушение на объекте, хочу сообщить анонимно", "intent": "create_request", "request_type": "anonymous_appeal", "template": "Заметил нарушение на объекте, хочу сообщить анонимно", "split": "train"}
+{"id": "ds_0008", "text": "Хочу заказать автомобиль с водителем на следующей неделе", "intent": "create_request", "request_type": "transport_request", "template": "Хочу заказать автомобиль с водителем {when_at}", "split": "train"}
+{"id": "ds_0128", "text": "Хочу получить права доступа в ЦУС", "intent": "create_request", "request_type": "tsus_access_request", "template": "Хочу получить права доступа в ЦУС", "split": "train"}
+{"id": "ds_0284", "text": "Подскажите, куда обращаться по вопросам получения доступа в ЦУС", "intent": "qa", "request_type": "none", "template": "Подскажите, куда обращаться по вопросам {proc}", "split": "train"}
+{"id": "ds_0142", "text": "Прошу предоставить доступ к ЦУС для подрядчика", "intent": "create_request", "request_type": "tsus_access_request", "template": "Прошу предоставить доступ к ЦУС для {role}", "split": "train"}
+{"id": "ds_0342", "text": "конечно, да", "intent": "confirm_yes", "request_type": "none", "template": "конечно, да", "split": "train"}
+{"id": "ds_0383", "text": "забудь про заявку", "intent": "cancel", "request_type": "none", "template": "забудь про заявку", "split": "train"}
+{"id": "ds_0327", "text": "давай", "intent": "confirm_yes", "request_type": "none", "template": "давай", "split": "train"}
+{"id": "ds_0238", "text": "Кто участвует в процессе обучения по охране труда?", "intent": "qa", "request_type": "none", "template": "Кто участвует в процессе {proc}?", "split": "train"}
+{"id": "ds_0219", "text": "будьте добры, объясни, что значит ЦУС", "intent": "qa", "request_type": "none", "template": "Объясни, что значит {term}", "split": "train"}
+{"id": "ds_0133", "text": "Создайте учётную запись в ЦУС для инженера стройконтроля", "intent": "create_request", "request_type": "tsus_access_request", "template": "Создайте учётную запись в ЦУС для {role}", "split": "train"}
+{"id": "ds_0011", "text": "Требуется транспорт для выезда на объект №5", "intent": "create_request", "request_type": "transport_request", "template": "Требуется транспорт для выезда на {site}", "split": "train"}
+{"id": "ds_0116", "text": "Организуйте мне прохождение медкомиссии послезавтра", "intent": "create_request", "request_type": "medical_request", "template": "Организуйте мне прохождение медкомиссии {when_at}", "split": "train"}
+{"id": "ds_0070", "text": "Хочу на семинар по строительному контролю", "intent": "create_request", "request_type": "training_request", "template": "Хочу на семинар по {topic}", "split": "train"}
+{"id": "ds_0144", "text": "Откройте доступ в ЦУС для руководителя группы", "intent": "create_request", "request_type": "tsus_access_request", "template": "Откройте доступ в ЦУС для {role}", "split": "train"}
