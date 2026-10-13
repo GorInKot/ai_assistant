@@ -171,6 +171,9 @@ export interface CadCheck {
 
 export interface CadResult {
   clarify: string | null;
+  // что из описания пока не поддерживается (деталь при этом не построена)
+  unsupported?: string | null;
+  can_build?: string[];
   attempts: number;
   title?: string;
   summary?: string[];

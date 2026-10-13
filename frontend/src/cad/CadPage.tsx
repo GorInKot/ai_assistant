@@ -10,6 +10,7 @@ const EXAMPLES = [
   "Стальная пластина 100 на 60 мм, толщина 5 мм, четыре отверстия диаметром 6 мм по углам на расстоянии 10 мм от краёв, углы скруглить радиусом 5",
   "Фланец из нержавеющей стали диаметром 200 мм, толщина 16 мм, центральное отверстие 80 мм, восемь отверстий по 18 мм на окружности диаметром 160 мм",
   "Алюминиевая планка 300 на 40 мм, толщина 8, три отверстия диаметром 10 мм вдоль оси: первое в 50 мм от края, шаг 100 мм",
+  "Две соединённые трубы под углом 60 градусов: наружный диаметр 100 мм, толщина стенки 5 мм, длина каждой трубы 500 мм",
 ];
 
 type Tab = "build" | "editor";
@@ -121,7 +122,24 @@ export function CadPage({ onBackToChat }: Props) {
               </div>
             )}
 
-            {result && !result.clarify && <ResultView result={result} />}
+            {result?.unsupported && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="font-semibold mb-1">Пока не поддерживается</div>
+                {result.unsupported}
+                {(result.can_build ?? []).length > 0 && (
+                  <div className="mt-2 text-xs text-amber-800">
+                    Сейчас можно построить:
+                    <ul className="list-disc pl-5 mt-0.5 space-y-0.5">
+                      {(result.can_build ?? []).map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {result && !result.clarify && !result.unsupported && <ResultView result={result} />}
 
             <p className="text-xs text-slate-400">
               Модель только заполняет схему детали, команды CAD строит программа; размеры и объём
@@ -130,7 +148,7 @@ export function CadPage({ onBackToChat }: Props) {
                 SolidCraft
               </a>
               {status?.version ? ` ${status.version}` : ""} (MIT/Apache-2.0). Поддерживаются простые детали:
-              плита или цилиндр со сквозными отверстиями.
+              плита, цилиндр или труба со сквозными отверстиями, две трубы под углом.
             </p>
           </div>
         </div>
