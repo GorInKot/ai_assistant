@@ -16,6 +16,16 @@ import { MessageList } from "./MessageList";
 import { ProfileDialog } from "./ProfileDialog";
 import { Sidebar } from "./Sidebar";
 
+const SIDEBAR_KEY = "ai_assistant_sidebar_collapsed";
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "1";
+  } catch {
+    return false; // хранилище недоступно — панель развёрнута
+  }
+}
+
 let nextLocalId = -1;
 const localId = () => nextLocalId--;
 
@@ -27,7 +37,20 @@ export function ChatPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps" | "cad">("chat");
   const [error, setError] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const { isAdmin, isManager } = useCurrentUser();
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+      } catch {
+        /* состояние не сохранится между сеансами, но панель всё равно переключится */
+      }
+      return next;
+    });
+  };
 
   const loadConversations = useCallback(async () => {
     const data = await api.get<{ conversations: ConversationSummary[] }>("/api/conversations");
@@ -147,6 +170,8 @@ export function ChatPage() {
         activeId={activeId}
         isAdmin={isAdmin}
         isManager={isManager}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
         onSelect={(id) => {
           setView("chat");
           openConversation(id).catch((err) => setError(err?.message));
