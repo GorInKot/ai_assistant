@@ -13,6 +13,7 @@ interface Props {
   onOpenProfile: () => void;
   onOpenUsersAdmin: () => void;
   onOpenGaps: () => void;
+  onOpenCad: () => void;
   onLogout: () => void;
 }
 
@@ -28,6 +29,7 @@ export function Sidebar({
   onOpenProfile,
   onOpenUsersAdmin,
   onOpenGaps,
+  onOpenCad,
   onLogout,
 }: Props) {
   return (
@@ -58,6 +60,9 @@ export function Sidebar({
       </div>
 
       <div className="p-3 border-t border-slate-800 space-y-1">
+        <button onClick={onOpenCad} className={footerBtn}>
+          🧩 Конструктор деталей
+        </button>
         {isManager && (
           <button onClick={onOpenGaps} className={footerBtn}>
             📊 Пробелы в знаниях

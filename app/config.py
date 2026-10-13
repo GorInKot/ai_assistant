@@ -34,6 +34,9 @@ class Settings:
     embeddings_api_key: str | None
     embeddings_query_prefix: str
     embeddings_doc_prefix: str
+    # Конструктор деталей: каталог с бинарником solidcraft-cli и веб-редактором
+    # (ставится scripts/fetch_solidcraft.sh). Нет каталога — вкладка «Конструктор» недоступна.
+    solidcraft_dir: Path
 
 
 def _as_bool(value: str | None, default: bool) -> bool:
@@ -68,6 +71,13 @@ def load_settings() -> Settings:
         else Path(embeddings_cache_raw)
     )
 
+    solidcraft_raw = os.getenv("SOLIDCRAFT_DIR", "tools/solidcraft")
+    solidcraft_dir = (
+        (base_dir / solidcraft_raw).resolve()
+        if not Path(solidcraft_raw).is_absolute()
+        else Path(solidcraft_raw)
+    )
+
     return Settings(
         base_dir=base_dir,
         kb_root=kb_root,
@@ -87,4 +97,5 @@ def load_settings() -> Settings:
         embeddings_api_key=os.getenv("EMBEDDINGS_API_KEY") or None,
         embeddings_query_prefix=os.getenv("EMBEDDINGS_QUERY_PREFIX", "").replace("\\n", "\n"),
         embeddings_doc_prefix=os.getenv("EMBEDDINGS_DOC_PREFIX", "").replace("\\n", "\n"),
+        solidcraft_dir=solidcraft_dir,
     )

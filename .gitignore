@@ -12,3 +12,6 @@ logs/embeddings_cache.npz
 
 # Кэши эмбеддингов (по модели)
 logs/*.npz
+
+# SolidCraft: бинарники скачиваются scripts/fetch_solidcraft.sh
+tools/solidcraft/

@@ -212,6 +212,21 @@ class LLMService:
             ) from exc
         return (response.choices[0].message.content or "").strip()
 
+    def complete_text(self, messages: list[dict], *, json_mode: bool = False) -> str:
+        """Один вызов модели по готовым сообщениям (температура 0). RuntimeError, если модель недоступна."""
+        if not self.client:
+            raise RuntimeError("LLM не настроен: задайте LLM_BASE_URL и/или LLM_API_KEY")
+        kwargs: dict = {"model": self.model, "temperature": 0, "messages": messages}
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        try:
+            response = self._create(**kwargs)
+        except Exception as exc:  # noqa: BLE001 — сетевые/auth-ошибки
+            raise RuntimeError(
+                "Модель недоступна (проверьте LLM_BASE_URL/LLM_MODEL и что сервер модели запущен)."
+            ) from exc
+        return (response.choices[0].message.content or "").strip()
+
     def extract_fields(self, text: str, fields: list[dict]) -> dict:
         """Извлечь значения полей из текста документа или сообщения.
 

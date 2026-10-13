@@ -156,3 +156,29 @@ export interface KnowledgeGapsReport {
     unused_checked: boolean;
   };
 }
+
+export interface CadStatus {
+  available: boolean;
+  version: string | null;
+  editor: boolean;
+}
+
+export interface CadCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface CadResult {
+  clarify: string | null;
+  attempts: number;
+  title?: string;
+  summary?: string[];
+  assumptions?: string[];
+  spec?: Record<string, unknown>;
+  script?: { commands: unknown[] };
+  checks?: CadCheck[];
+  metrics?: { size_mm: number[]; volume_cm3: number; mass_g: number; material: string };
+  images?: Record<string, string>;
+  step_base64?: string;
+}
