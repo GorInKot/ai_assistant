@@ -566,7 +566,7 @@ def process_ask(
             local=smalltalk.is_local_llm(settings.llm_base_url),
         )
         request_logger.log(raw_question, [], answer=answer)
-        return AskResponse(answer=answer, sources=[], no_exact_match=False)
+        return AskResponse(answer=answer, sources=[], no_exact_match=False, kind="smalltalk")
 
     effective_question, is_clarification = dialog_state.merge_with_pending(session_id, raw_question)
 
@@ -621,7 +621,13 @@ def process_ask(
             answer = build_fallback_answer(language, final_sources, reason="ambiguous")
             dialog_state.set_pending(session_id, effective_question)
             request_logger.log(raw_question, final_sources, answer=answer)
-            return AskResponse(answer=answer, sources=final_sources, no_exact_match=True)
+            return AskResponse(
+                answer=answer,
+                sources=final_sources,
+                no_exact_match=True,
+                kind="clarify",
+                resolved_question=effective_question,
+            )
 
         # process_hint здесь гарантированно задан (иначе вышли бы выше).
         role_scope_process = process_hint
@@ -632,7 +638,13 @@ def process_ask(
             answer = build_fallback_answer(language, final_sources, reason="ambiguous")
             dialog_state.set_pending(session_id, effective_question)
             request_logger.log(raw_question, final_sources, answer=answer)
-            return AskResponse(answer=answer, sources=final_sources, no_exact_match=True)
+            return AskResponse(
+                answer=answer,
+                sources=final_sources,
+                no_exact_match=True,
+                kind="clarify",
+                resolved_question=effective_question,
+            )
         else:
             participants = extract_participants_from_results(
                 reranked_results[: min(len(reranked_results), 24)],
@@ -650,7 +662,12 @@ def process_ask(
                 answer = build_participants_answer(language, participants, process_hint=role_scope_process)
             dialog_state.clear(session_id)
             request_logger.log(raw_question, final_sources, answer=answer)
-            return AskResponse(answer=answer, sources=final_sources, no_exact_match=False)
+            return AskResponse(
+                answer=answer,
+                sources=final_sources,
+                no_exact_match=False,
+                resolved_question=effective_question,
+            )
 
     if not has_strong_context or (process_ambiguous and process_hint is None):
         reason = "ambiguous" if process_ambiguous and process_hint is None else "missing"
@@ -658,7 +675,13 @@ def process_ask(
         if reason == "ambiguous":
             dialog_state.set_pending(session_id, effective_question)
         request_logger.log(raw_question, final_sources, answer=answer)
-        return AskResponse(answer=answer, sources=final_sources, no_exact_match=True)
+        return AskResponse(
+            answer=answer,
+            sources=final_sources,
+            no_exact_match=True,
+            kind="clarify" if reason == "ambiguous" else "missing",
+            resolved_question=effective_question,
+        )
 
     try:
         answer = llm_service.generate_answer(
@@ -682,7 +705,13 @@ def process_ask(
         else grounding.check_grounding(answer, [r.chunk for r in context_results]).summary()
     )
     return AskResponse(
-        answer=answer, sources=final_sources, no_exact_match=no_exact_match, grounding=grounding_info
+        answer=answer,
+        sources=final_sources,
+        no_exact_match=no_exact_match,
+        grounding=grounding_info,
+        kind="missing" if no_exact_match else "answer",
+        resolved_question=effective_question,
+        log_sources=context_sources,
     )
 
 

@@ -121,9 +121,39 @@ class Message(Base):
     # Проверка обоснованности ответа (цитаты, неподтверждённые утверждения) — JSON или NULL.
     grounding_json = Column(Text, nullable=True)
     no_exact_match = Column(Integer, nullable=False, default=0)
+    # Оценка ответа пользователем: 1 — полезно, -1 — не полезно, NULL — не оценён.
+    rating = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")
+
+
+class QaLog(Base):
+    """Журнал вопросов к базе знаний — основа аналитики пробелов (services/gaps.py).
+
+    Живёт отдельно от `messages`: беседы пользователь может удалить, а статистика
+    должна остаться. `message_id` — ссылка на ответ без внешнего ключа: связь нужна лишь
+    пока беседа существует, чтобы перенести оценку в журнал.
+    """
+
+    __tablename__ = "qa_log"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    message_id = Column(Integer, nullable=True, index=True)
+    # Нужен, чтобы считать разных людей, а не повторы одного и того же вопроса. Без внешнего
+    # ключа; отчёт отдаёт только числа, кто именно спрашивал — не показывается.
+    user_id = Column(Integer, nullable=True)
+    # Вопрос с учётом уточнения («по ЕКТП» дописывается к исходному вопросу).
+    question = Column(Text, nullable=False)
+    # answer — ответ по документам; missing — в базе не нашлось; clarify — просьба уточнить.
+    kind = Column(String, nullable=False)
+    division = Column(String, nullable=True)
+    # Проверка обоснованности: сколько утверждений в ответе и сколько без опоры в документах.
+    claims_total = Column(Integer, nullable=True)
+    claims_unsupported = Column(Integer, nullable=True)
+    # JSON: [{"relative_path": ..., "source_type": ...}] — какие документы показаны к ответу.
+    sources_json = Column(Text, nullable=True)
+    rating = Column(Integer, nullable=True)
 
 
 def init_db():

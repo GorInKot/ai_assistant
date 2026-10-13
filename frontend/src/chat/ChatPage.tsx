@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GapsAdmin } from "../admin/GapsAdmin";
 import { UsersAdmin } from "../admin/UsersAdmin";
 import { api, ApiError } from "../api/client";
 import { clearToken } from "../auth/store";
@@ -23,9 +24,9 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [view, setView] = useState<"chat" | "admin-users">("chat");
+  const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps">("chat");
   const [error, setError] = useState<string | null>(null);
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, isManager } = useCurrentUser();
 
   const loadConversations = useCallback(async () => {
     const data = await api.get<{ conversations: ConversationSummary[] }>("/api/conversations");
@@ -88,7 +89,7 @@ export function ChatPage() {
             });
 
       const assistantMsg: ChatMessage = {
-        id: localId(),
+        id: response.message_id ?? localId(),
         role: "assistant",
         content: response.answer,
         sources: response.sources,
@@ -144,6 +145,7 @@ export function ChatPage() {
         conversations={conversations}
         activeId={activeId}
         isAdmin={isAdmin}
+        isManager={isManager}
         onSelect={(id) => {
           setView("chat");
           openConversation(id).catch((err) => setError(err?.message));
@@ -156,11 +158,16 @@ export function ChatPage() {
         onDelete={handleDelete}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenUsersAdmin={() => setView("admin-users")}
+        onOpenGaps={() => setView("admin-gaps")}
         onLogout={handleLogout}
       />
       {view === "admin-users" ? (
         <main className="flex-1">
           <UsersAdmin onBackToChat={() => setView("chat")} />
+        </main>
+      ) : view === "admin-gaps" ? (
+        <main className="flex-1">
+          <GapsAdmin onBackToChat={() => setView("chat")} />
         </main>
       ) : (
         <main className="flex-1 flex flex-col bg-slate-50">

@@ -29,6 +29,21 @@ class AskResponse(BaseModel):
     # Проверка обоснованности ответа по найденным фрагментам: цитаты и неподтверждённые
     # утверждения (только для ответов, сгенерированных моделью). См. services/grounding.py.
     grounding: dict | None = None
+    # Что за ответ: answer — по документам; missing — в базе не нашлось; clarify — просьба
+    # уточнить вопрос; smalltalk — ответ об ассистенте; file — результат работы с файлом. Нужно журналу вопросов (services/gaps.py).
+    kind: str = "answer"
+    # id сохранённого сообщения ассистента — по нему интерфейс отправляет оценку ответа.
+    message_id: int | None = None
+    # Вопрос с учётом уточнения; только для журнала, в ответ API не попадает.
+    resolved_question: str | None = Field(default=None, exclude=True)
+    # Документы, из которых собран ответ (в интерфейсе показываются не все: markdown-заметки
+    # скрыты), — для журнала вопросов. Если не задано, берутся показанные источники.
+    log_sources: list[dict] | None = Field(default=None, exclude=True)
+
+
+class RatingRequest(BaseModel):
+    # 1 — полезно, -1 — не полезно, null — снять оценку.
+    rating: int | None = Field(default=None)
 
 
 class DialogClearRequest(BaseModel):

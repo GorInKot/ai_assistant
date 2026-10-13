@@ -19,6 +19,7 @@ from app.routers import (
     chat,
     conversations,
     documents,
+    knowledge_gaps,
     profile,
     system,
     users_admin,
@@ -35,6 +36,7 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(conversations.router)
 app.include_router(documents.router)
+app.include_router(knowledge_gaps.router)
 app.include_router(actions.router)
 app.include_router(profile.router)
 app.include_router(users_admin.router)

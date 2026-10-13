@@ -52,6 +52,8 @@ export interface ChatMessage {
   sources: ChatSource[];
   grounding?: Grounding | null;
   no_exact_match: boolean;
+  // 1 — полезно, -1 — не полезно, null — не оценён
+  rating?: number | null;
   created_at: string;
   attachment?: AskAttachment | null;
 }
@@ -66,6 +68,8 @@ export interface AskResponse {
   grounding?: Grounding | null;
   no_exact_match: boolean;
   conversation_id: number | null;
+  // id сохранённого сообщения ассистента (null, если беседа не ведётся)
+  message_id?: number | null;
   attachment?: AskAttachment | null;
 }
 
@@ -105,3 +109,50 @@ export interface AdminUser {
   roles: string[];
 }
 
+
+export interface KnowledgeGap {
+  topic: string;
+  problem: "no_document" | "weak_document";
+  problem_label: string;
+  requests: number;
+  people: number;
+  divisions: string[];
+  not_useful: number;
+  unanswered: number;
+  warned: number;
+  examples: string[];
+  sources: { relative_path: string; count: number }[];
+  last_asked: string | null;
+}
+
+export interface GapDocument {
+  relative_path: string;
+  file_name: string;
+  used?: number;
+  useful?: number;
+  not_useful?: number;
+}
+
+export interface KnowledgeGapsReport {
+  period_days: number;
+  generated_at: string;
+  grouping: "embeddings" | "words";
+  summary: {
+    questions: number;
+    people: number;
+    answered: number;
+    refused: number;
+    clarifications: number;
+    warned: number;
+    rated: number;
+    useful: number;
+    not_useful: number;
+    usefulness: number | null;
+  };
+  gaps: KnowledgeGap[];
+  documents: {
+    weak: GapDocument[];
+    unused: GapDocument[];
+    unused_checked: boolean;
+  };
+}

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { api } from "../api/client";
 import type { AskAttachment, ChatMessage, ChatSource, Grounding } from "../api/types";
 
 interface Props {
@@ -61,7 +62,59 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         {msg.grounding && msg.grounding.total > 0 && <GroundingBlock grounding={msg.grounding} />}
         {msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
         {msg.attachment && <AttachmentDownload attachment={msg.attachment} />}
+        {!isUser && msg.id > 0 && <RatingButtons messageId={msg.id} initial={msg.rating ?? null} />}
       </div>
+    </div>
+  );
+}
+
+// Оценка ответа: «полезно / не полезно». Повторное нажатие снимает оценку.
+// Оценки попадают в аналитику пробелов в знаниях (кабинет владельца базы).
+function RatingButtons({ messageId, initial }: { messageId: number; initial: number | null }) {
+  const [rating, setRating] = useState<number | null>(initial);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const choose = async (value: 1 | -1) => {
+    const next = rating === value ? null : value;
+    const previous = rating;
+    setRating(next);
+    setBusy(true);
+    setFailed(false);
+    try {
+      await api.put(`/api/messages/${messageId}/rating`, { rating: next });
+    } catch {
+      setRating(previous);
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const base = "rounded-md border px-2 py-0.5 text-xs transition disabled:opacity-50 ";
+  const idle = "border-slate-200 bg-white text-slate-500 hover:border-slate-400";
+  return (
+    <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+      <span>Ответ был полезен?</span>
+      <button
+        type="button"
+        disabled={busy}
+        aria-pressed={rating === 1}
+        onClick={() => choose(1)}
+        className={base + (rating === 1 ? "border-emerald-400 bg-emerald-50 text-emerald-800" : idle)}
+      >
+        👍 Полезно
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        aria-pressed={rating === -1}
+        onClick={() => choose(-1)}
+        className={base + (rating === -1 ? "border-amber-400 bg-amber-50 text-amber-800" : idle)}
+      >
+        👎 Не полезно
+      </button>
+      {failed && <span className="text-red-600">Не удалось сохранить оценку</span>}
     </div>
   );
 }

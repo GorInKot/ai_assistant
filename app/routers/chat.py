@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_db
 from app.db import Conversation, Message, User
-from app.schemas import AskAttachment, AskRequest, AskResponse, DialogClearRequest
+from app.schemas import AskAttachment, AskRequest, AskResponse, DialogClearRequest, RatingRequest
+from app.services import gaps
 from app.services.ask_service import clear_dialog, process_ask
 from app.services.chat_documents import handle_chat_files
 from app.services.document_processing import MAX_FILES, DocumentError
@@ -75,19 +76,26 @@ def ask(
         conversation_id=conversation.id if conversation else None,
     )
 
+    message_id: int | None = None
     if conversation is not None:
-        db.add(Message(
+        assistant_msg = Message(
             conversation_id=conversation.id,
             role="assistant",
             content=response.answer,
             sources_json=json.dumps(response.sources, ensure_ascii=False),
             grounding_json=json.dumps(response.grounding, ensure_ascii=False) if response.grounding else None,
             no_exact_match=1 if response.no_exact_match else 0,
-        ))
+        )
+        db.add(assistant_msg)
         conversation.updated_at = func.now()
         db.commit()
         response.conversation_id = conversation.id
+        message_id = assistant_msg.id
+        response.message_id = message_id
 
+    gaps.record_answer(
+        db, user=current_user, response=response, fallback_question=raw_question, message_id=message_id
+    )
     return response
 
 
@@ -142,16 +150,19 @@ async def ask_files(
         else None
     )
 
+    message_id: int | None = None
     if conversation is not None:
-        db.add(Message(
+        assistant_msg = Message(
             conversation_id=conversation.id,
             role="assistant",
             content=result.answer,
             sources_json="[]",
             no_exact_match=0,
-        ))
+        )
+        db.add(assistant_msg)
         conversation.updated_at = func.now()
         db.commit()
+        message_id = assistant_msg.id
 
     return AskResponse(
         answer=result.answer,
@@ -159,7 +170,37 @@ async def ask_files(
         no_exact_match=False,
         conversation_id=conversation.id if conversation else None,
         attachment=attachment,
+        kind="file",
+        message_id=message_id,
     )
+
+
+@router.put("/messages/{message_id}/rating")
+def rate_message(
+    message_id: int,
+    payload: RatingRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Оценка ответа ассистента: 1 — полезно, -1 — не полезно, null — снять оценку.
+
+    Оценивать можно только свои беседы. Оценка идёт в аналитику пробелов в знаниях."""
+    if payload.rating not in (gaps.RATING_USEFUL, gaps.RATING_NOT_USEFUL, None):
+        raise HTTPException(status_code=422, detail="Оценка: 1 (полезно), -1 (не полезно) или null")
+    message = (
+        db.query(Message)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .filter(
+            Message.id == message_id,
+            Message.role == "assistant",
+            Conversation.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not message:
+        raise HTTPException(status_code=404, detail="Ответ не найден")
+    gaps.set_rating(db, message, payload.rating)
+    return {"message_id": message.id, "rating": message.rating}
 
 
 @router.post("/dialog/clear")
