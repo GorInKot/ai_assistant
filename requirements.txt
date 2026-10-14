@@ -10,6 +10,8 @@ python-docx==1.1.2
 pymupdf==1.28.2
 pytesseract==0.3.13
 pillow==12.3.0
+# Реестр спецификаций по сканам: поиск граф бланка, пунктира, перекоса (без GUI-зависимостей)
+opencv-python-headless==5.0.0.93
 
 # Векторный поиск (Yandex Foundation Models)
 httpx==0.28.1

@@ -15,7 +15,7 @@ import base64
 from dataclasses import dataclass
 
 from app.llm import LLMService
-from app.services import registry
+from app.services import registry, spec_registry
 from app.services.document_processing import (
     DiffResult,
     DocumentError,
@@ -62,6 +62,9 @@ _MERGE_KW = ("объедин", "слей", "слить", "соедини", "ск
 _SUMMARY_KW = ("выжимк", "резюме", "кратк", "саммари", "summary", "о ч[её]м", "суть", "перескаж")
 _EXCEL_KW = ("excel", "эксель", "xlsx", "таблиц")
 _REGISTRY_KW = ("реестр", "извлек", "извлеч", "выпиши", "вытащи", "достань", "собери данные", "реквизит", "поля")
+_SPEC_KW = ("спецификац",)  # реестр позиций по форме ГОСТ 21.110 (сканы), без модели
+_POSITIONS_KW = ("позици",)
+_WORD_KW = ("word", "ворд", "docx")
 _CONVERT_KW = ("word", "ворд", "docx", "конверт", "переведи", "перевести") + _EXCEL_KW
 _EXTRACT_KW = ("извлеки", "что в файл", "таблиц", "содерж", "распарс", "покажи данные", "разбери")
 
@@ -379,8 +382,11 @@ def _handle_pdf(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> Ch
 
     Реестр — если просят «реестр/извлеки поля» или приложено несколько PDF без просьбы
     о конвертации. Один PDF без таких слов — конвертация (Word по умолчанию, Excel для таблиц).
+    Про спецификации («реестр спецификаций», «позиции спецификации») — реестр позиций по форме.
     """
     wants_registry = _has(msg, _REGISTRY_KW)
+    if not _has(msg, _WORD_KW) and (_has(msg, _SPEC_KW) or (wants_registry and _has(msg, _POSITIONS_KW))):
+        return _handle_spec_registry(files)
     if len(files) > 1 and not wants_registry:
         if _has(msg, _CONVERT_KW):
             raise DocumentError(
@@ -495,6 +501,75 @@ def _registry_summary(result: "registry.RegistryResult") -> str:
         lines.append(_md_table(["Файл", *result.fields], [[r.filename, *[r.values[f] for f in result.fields]] for r in ok_rows[:5]]))
         if len(ok_rows) > 5:
             lines.append(f"\n_…ещё {len(ok_rows) - 5} строк в файле_")
+    lines.append("\nГотовый файл ниже — можно скачать. 👇")
+    return "\n".join(lines)
+
+
+def _handle_spec_registry(files: list[tuple[str, bytes]]) -> ChatFileResult:
+    """Реестр позиций спецификаций по сканам: форма ГОСТ 21.110, OCR по графам, без модели."""
+    if len(files) > spec_registry.MAX_SPEC_FILES:
+        raise DocumentError(
+            f"Слишком много файлов для одного реестра ({len(files)}), лимит — {spec_registry.MAX_SPEC_FILES}."
+        )
+    problem = spec_registry.unavailable_reason()
+    if problem:
+        raise DocumentError(problem)
+    for name, content in files:
+        spec_registry.check_pdf(content, name)
+    result = spec_registry.build_spec_registry(files)
+    attachment = Attachment(
+        filename="specifications.xlsx",
+        content_base64=base64.b64encode(spec_registry.build_spec_xlsx(result)).decode("ascii"),
+        mime=_XLSX_MIME,
+    )
+    return ChatFileResult(answer=_spec_summary(result), attachment=attachment)
+
+
+def _spec_summary(result: "spec_registry.SpecRegistry") -> str:
+    docs = result.documents
+    pages = sum(d.table_pages for d in docs)
+    lines = [
+        f"**Реестр позиций спецификаций** → `specifications.xlsx`: {len(docs)} файл(ов), "
+        f"{pages} страниц с таблицей, разобрано за {int(result.seconds)} с.",
+        f"Позиций: **{result.positions}**.",
+    ]
+    if result.changed or result.excluded:
+        lines.append(
+            f"Учтены правки по документу: в {result.changed} позициях зачёркнутое значение заменено новым "
+            f"(голубые, старое — в колонке «Правки по документу»), {result.excluded} позиций зачёркнуты целиком "
+            "(серые, в суммы не включать)."
+        )
+    if result.flagged:
+        lines.append(
+            f"\n⚠️ **Проверьте {result.flagged}** — выделены жёлтым, причина в колонке «Проверить»: "
+            "правки от руки, цветные пометки, неуверенно прочитанные числа, не число в количестве. "
+            "Значения не додумываются: что не прочиталось уверенно, оставлено как прочитано."
+        )
+    no_form = [d for d in docs if not d.error and d.table_pages == 0]
+    if no_form:
+        lines.append("\nНе похожи на спецификацию по ГОСТ 21.110 (таблица из 9 граф не найдена): "
+                     + ", ".join(d.filename for d in no_form) + ".")
+    partial = [d for d in docs if d.table_pages and d.skipped_pages]
+    if partial:
+        lines.append("Страницы без таблицы спецификации (титул, лист регистрации изменений и т.п.): "
+                     + "; ".join(f"{d.filename} — стр. {_page_list(d.skipped_pages, 8)}" for d in partial) + ".")
+    failed = [d for d in docs if d.error]
+    if failed:
+        lines.append("\n❌ **Не разобраны:**")
+        lines += [f"- {d.filename}: {d.error}" for d in failed]
+    broken = [d for d in docs if d.failed_pages]
+    if broken:
+        lines.append("\n❌ Сбой распознавания отдельных страниц (остальные разобраны): "
+                     + "; ".join(f"{d.filename} — стр. {_page_list(d.failed_pages, 8)}" for d in broken) + ".")
+    rows = [
+        [d.filename, str(d.table_pages), str(len(d.positions)), str(d.flagged)]
+        for d in docs if d.table_pages
+    ]
+    if rows:
+        lines.append("")
+        lines.append(_md_table(["Файл", "Стр.", "Позиций", "Проверить"], rows[:10]))
+        if len(rows) > 10:
+            lines.append(f"\n_…ещё {len(rows) - 10} документов в файле_")
     lines.append("\nГотовый файл ниже — можно скачать. 👇")
     return "\n".join(lines)
 
