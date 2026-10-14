@@ -332,7 +332,8 @@ def test_status_reports_missing_solidcraft(client, monkeypatch, tmp_path):
     monkeypatch.setattr(cad_router, "settings", dataclasses.replace(state.settings, solidcraft_dir=tmp_path))
     headers = register(client, "cad0@test.local")
     body = client.get("/api/cad/status", headers=headers).json()
-    assert body == {"available": False, "version": None, "editor": False}
+    assert {k: body[k] for k in ("available", "version", "editor")} == {"available": False, "version": None, "editor": False}
+    assert set(body["drawing"]) == {"available", "version", "editor"}
     resp = client.post("/api/cad/generate", headers=headers, json={"description": "пластина"})
     assert resp.status_code == 503 and "fetch_solidcraft" in resp.json()["detail"]
 

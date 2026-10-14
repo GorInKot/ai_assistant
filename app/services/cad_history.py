@@ -14,6 +14,10 @@ OUTCOME_CLARIFY = "clarify"
 OUTCOME_UNSUPPORTED = "unsupported"
 OUTCOME_ERROR = "error"
 
+KIND_PART = "part"
+KIND_ROUTE = "route"
+KINDS = (KIND_PART, KIND_ROUTE)
+
 MAX_PER_USER = 200  # старые записи удаляются, чтобы история не росла бесконечно
 DEFAULT_LIMIT = 50
 
@@ -24,6 +28,7 @@ def record(
     description: str,
     outcome: str,
     *,
+    kind: str = KIND_PART,
     title: str | None = None,
     detail: str | None = None,
     spec: dict | None = None,
@@ -35,6 +40,7 @@ def record(
             user_id=user_id,
             description=description.strip(),
             outcome=outcome,
+            kind=kind,
             title=title,
             detail=detail,
             spec_json=json.dumps(spec, ensure_ascii=False) if spec else None,
@@ -44,7 +50,7 @@ def record(
         db.commit()
         old = (
             db.query(CadRequest.id)
-            .filter(CadRequest.user_id == user_id)
+            .filter(CadRequest.user_id == user_id, CadRequest.kind == kind)
             .order_by(CadRequest.id.desc())
             .offset(MAX_PER_USER)
             .all()
@@ -67,16 +73,17 @@ def serialize(row: CadRequest) -> dict:
         "created_at": created.isoformat() if created else None,
         "description": row.description,
         "outcome": row.outcome,
+        "kind": row.kind,
         "title": row.title,
         "detail": row.detail,
         "can_rebuild": row.outcome == OUTCOME_BUILT and bool(row.spec_json),
     }
 
 
-def list_for_user(db: Session, user_id: int, limit: int = DEFAULT_LIMIT) -> list[dict]:
+def list_for_user(db: Session, user_id: int, limit: int = DEFAULT_LIMIT, kind: str = KIND_PART) -> list[dict]:
     rows = (
         db.query(CadRequest)
-        .filter(CadRequest.user_id == user_id)
+        .filter(CadRequest.user_id == user_id, CadRequest.kind == kind)
         .order_by(CadRequest.id.desc())
         .limit(limit)
         .all()

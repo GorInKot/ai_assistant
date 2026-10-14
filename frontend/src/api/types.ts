@@ -185,6 +185,8 @@ export interface CadStatus {
   available: boolean;
   version: string | null;
   editor: boolean;
+  // чертёж трассы (CADCraft)
+  drawing?: { available: boolean; version: string | null; editor: boolean };
 }
 
 export interface CadCheck {
@@ -219,4 +221,21 @@ export interface CadHistoryItem {
   detail: string | null;
   // деталь можно собрать заново по сохранённой спецификации
   can_rebuild: boolean;
+}
+
+export interface RouteResult {
+  clarify: string | null;
+  unsupported?: string | null;
+  can_build?: string[];
+  attempts: number;
+  title?: string;
+  summary?: string[];
+  assumptions?: string[];
+  spec?: Record<string, unknown>;
+  checks?: CadCheck[];
+  metrics?: { total_m: number; scale: string; segments: number };
+  images?: { preview: string };
+  pdf_base64?: string;
+  dxf_base64?: string;
+  dwg_base64?: string;
 }

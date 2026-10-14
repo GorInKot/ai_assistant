@@ -16,6 +16,7 @@ interface Props {
   onOpenUsersAdmin: () => void;
   onOpenGaps: () => void;
   onOpenCad: () => void;
+  onOpenDrawing: () => void;
   onLogout: () => void;
 }
 
@@ -34,6 +35,7 @@ export function Sidebar({
   onOpenUsersAdmin,
   onOpenGaps,
   onOpenCad,
+  onOpenDrawing,
   onLogout,
 }: Props) {
   // В свёрнутом режиме список бесед открывается выезжающей панелью поверх чата.
@@ -89,6 +91,9 @@ export function Sidebar({
         <div className="flex-1" />
         <button onClick={onOpenCad} className={railBtn} title="Конструктор деталей" aria-label="Конструктор деталей">
           🧩
+        </button>
+        <button onClick={onOpenDrawing} className={railBtn} title="Чертёж трассы" aria-label="Чертёж трассы">
+          📐
         </button>
         {isManager && (
           <button onClick={onOpenGaps} className={railBtn} title="Пробелы в знаниях" aria-label="Пробелы в знаниях">
@@ -178,6 +183,9 @@ export function Sidebar({
       <div className="p-3 border-t border-slate-800 space-y-1">
         <button onClick={onOpenCad} className={footerBtn}>
           🧩 Конструктор деталей
+        </button>
+        <button onClick={onOpenDrawing} className={footerBtn}>
+          📐 Чертёж трассы
         </button>
         {isManager && (
           <button onClick={onOpenGaps} className={footerBtn}>

@@ -171,6 +171,8 @@ class CadRequest(Base):
     # built — деталь построена; clarify — модель попросила уточнить; unsupported — «пока не
     # поддерживается»; error — не удалось составить или построить деталь.
     outcome = Column(String, nullable=False)
+    # part — деталь (3D, SolidCraft); route — чертёж трассы (2D, CADCraft).
+    kind = Column(String, nullable=False, default="part", server_default="part")
     title = Column(String, nullable=True)
     # Вопрос на уточнение, текст «пока не поддерживается» или сообщение об ошибке.
     detail = Column(Text, nullable=True)

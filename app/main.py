@@ -26,7 +26,7 @@ from app.routers import (
     system,
     users_admin,
 )
-from app.services import cad
+from app.services import cad, route_drawing
 from app.state import kb_index, kb_lock, settings
 
 
@@ -49,6 +49,11 @@ app.include_router(users_admin.router)
 _editor = cad.editor_dir(settings.solidcraft_dir)
 if _editor.is_dir():
     app.mount("/cad-editor", StaticFiles(directory=_editor, html=True), name="cad-editor")
+
+# Веб-редактор CADCraft для вкладки «Чертёж трассы» (ставится scripts/fetch_cadcraft.sh).
+_drawing_editor = route_drawing.editor_dir(settings.cadcraft_dir)
+if _drawing_editor.is_dir():
+    app.mount("/cadcraft-editor", StaticFiles(directory=_drawing_editor, html=True), name="cadcraft-editor")
 
 # Раздача JS/CSS-бандла нового React-фронта (frontend/dist/assets) — если фронт собран.
 system.attach_static_assets(app)

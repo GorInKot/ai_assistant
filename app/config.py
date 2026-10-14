@@ -37,6 +37,8 @@ class Settings:
     # Конструктор деталей: каталог с бинарником solidcraft-cli и веб-редактором
     # (ставится scripts/fetch_solidcraft.sh). Нет каталога — вкладка «Конструктор» недоступна.
     solidcraft_dir: Path
+    # Чертёж трассы: каталог с cadcraft-cli и веб-редактором (scripts/fetch_cadcraft.sh).
+    cadcraft_dir: Path
 
 
 def _as_bool(value: str | None, default: bool) -> bool:
@@ -78,6 +80,13 @@ def load_settings() -> Settings:
         else Path(solidcraft_raw)
     )
 
+    cadcraft_raw = os.getenv("CADCRAFT_DIR", "tools/cadcraft")
+    cadcraft_dir = (
+        (base_dir / cadcraft_raw).resolve()
+        if not Path(cadcraft_raw).is_absolute()
+        else Path(cadcraft_raw)
+    )
+
     return Settings(
         base_dir=base_dir,
         kb_root=kb_root,
@@ -98,4 +107,5 @@ def load_settings() -> Settings:
         embeddings_query_prefix=os.getenv("EMBEDDINGS_QUERY_PREFIX", "").replace("\\n", "\n"),
         embeddings_doc_prefix=os.getenv("EMBEDDINGS_DOC_PREFIX", "").replace("\\n", "\n"),
         solidcraft_dir=solidcraft_dir,
+        cadcraft_dir=cadcraft_dir,
     )

@@ -15,3 +15,7 @@ logs/*.npz
 
 # SolidCraft: бинарники скачиваются scripts/fetch_solidcraft.sh
 tools/solidcraft/
+tools/cadcraft/
+
+# Образцы с работы: только локально, в репозиторий не попадают
+samples/
