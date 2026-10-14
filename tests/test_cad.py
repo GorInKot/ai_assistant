@@ -258,6 +258,19 @@ def test_extract_spec_lists_skipped_features_as_not_supported_yet():
     assert "Пока не поддерживается и не учтено: фаски по кромкам, резьба." in result.assumptions
 
 
+def test_clean_skipped_features_keeps_names_and_drops_comments_and_dimensions():
+    items = ["фаски по кромкам", "Резьба.", "габариты 800 × 534 × 100 мм (не учитывается, только стык)",
+             "угол 60°", "резьба", "а" * 80, "пазы (по краю)", ""]
+    assert cad.clean_skipped_features(items) == ["фаски по кромкам", "Резьба", "пазы"]
+
+
+def test_extract_spec_does_not_report_junk_as_unsupported():
+    junk = json.dumps(PLATE | dict(skipped=["габариты 100 × 60 × 5 мм (не учитывается)", "фаски"]))
+    result = cad.extract_spec("Стальная пластина с фасками", ScriptedLLM(junk))
+    assert cad.SKIPPED_NOTE_PREFIX + "фаски." in result.assumptions
+    assert not any("габариты" in a for a in result.assumptions)
+
+
 def test_extract_spec_accepts_pipe_joint_json():
     result = cad.extract_spec("Две стальные трубы под углом 60", ScriptedLLM(json.dumps(PIPES)))
     assert result.spec.shape == "pipes" and result.spec.angle_deg == 60

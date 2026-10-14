@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import { getToken } from "../auth/store";
-import type { KnowledgeGap, KnowledgeGapsReport } from "../api/types";
+import type { CadDemand, CadDemandTopic, KnowledgeGap, KnowledgeGapsReport } from "../api/types";
 
 interface Props {
   onBackToChat: () => void;
@@ -220,7 +220,83 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
           </div>
         </div>
       </section>
+
+      {report.cad && <CadDemandSection cad={report.cad} />}
     </>
+  );
+}
+
+// Конструктор деталей: что просили построить, но это пока не поддерживается.
+function CadDemandSection({ cad }: { cad: CadDemand }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold text-slate-700">
+        Конструктор деталей: что просили построить, но это пока не поддерживается
+      </h2>
+      {cad.requests === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+          За выбранный период запросов к конструктору не было.
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-slate-500">
+            Запросов к конструктору: {cad.requests} · построено: {cad.built} · «пока не поддерживается»:{" "}
+            {cad.unsupported} · нужно уточнить: {cad.clarify} · не получилось: {cad.errors}
+          </p>
+          {cad.topics.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+              Запросов, которые конструктор не умеет, не было.
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {cad.topics.map((topic, i) => (
+                <CadTopicCard key={i} topic={topic} />
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-slate-400">
+            Темы объединены {cad.grouping === "embeddings" ? "по смыслу (эмбеддинги)" : "по общим словам"}.
+            Это подсказка, что добавить в конструктор следующим: чем больше разных сотрудников просили одно и то
+            же, тем важнее.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function CadTopicCard({ topic }: { topic: CadDemandTopic }) {
+  const refused = topic.kind === "refused";
+  return (
+    <li className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-start gap-2">
+        <span
+          className={
+            "text-xs rounded-full px-2.5 py-0.5 font-medium " +
+            (refused ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-700")
+          }
+        >
+          {refused ? "Отказ: конструктор не умеет" : "Деталь построена без этого"}
+        </span>
+        <span className="text-xs text-slate-500 pt-0.5">
+          {topic.people} {pluralPeople(topic.people)} · запросов: {topic.requests}
+          {topic.divisions.length > 0 ? ` · ${topic.divisions.join(", ")}` : ""}
+        </span>
+      </div>
+      <div className="mt-2 text-sm font-medium text-slate-800">{topic.topic}</div>
+      {topic.examples.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs text-accent">
+            как просили ({topic.examples.length})
+          </summary>
+          <ul className="mt-1 list-disc pl-5 text-xs text-slate-600 space-y-0.5">
+            {topic.examples.map((text, i) => (
+              <li key={i}>{text}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
   );
 }
 

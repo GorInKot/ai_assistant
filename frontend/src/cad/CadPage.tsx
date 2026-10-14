@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { CadResult, CadStatus } from "../api/types";
+import type { CadHistoryItem, CadResult, CadStatus } from "../api/types";
 
 interface Props {
   onBackToChat: () => void;
@@ -22,6 +22,21 @@ export function CadPage({ onBackToChat }: Props) {
   const [result, setResult] = useState<CadResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<CadHistoryItem[]>([]);
+  const [openingId, setOpeningId] = useState<number | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const data = await api.get<{ items: CadHistoryItem[] }>("/api/cad/history");
+      setHistory(data.items);
+    } catch {
+      /* история вторична: без неё вкладка работает */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   useEffect(() => {
     api
@@ -40,6 +55,32 @@ export function CadPage({ onBackToChat }: Props) {
       setError(err instanceof ApiError ? err.message : "Не удалось построить деталь");
     } finally {
       setBusy(false);
+      loadHistory();
+    }
+  };
+
+  // Открыть запись истории: деталь собирается заново по сохранённой спецификации, без модели.
+  const openFromHistory = async (item: CadHistoryItem) => {
+    setDescription(item.description);
+    setError(null);
+    setResult(null);
+    setOpeningId(item.id);
+    try {
+      setResult(await api.post<CadResult>(`/api/cad/history/${item.id}/rebuild`));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось собрать деталь заново");
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+  const removeFromHistory = async (item: CadHistoryItem) => {
+    if (!confirm("Удалить запрос из истории?")) return;
+    try {
+      await api.delete(`/api/cad/history/${item.id}`);
+      setHistory((prev) => prev.filter((h) => h.id !== item.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось удалить запись");
     }
   };
 
@@ -63,6 +104,7 @@ export function CadPage({ onBackToChat }: Props) {
       {tab === "editor" ? (
         <EditorTab status={status} />
       ) : (
+        <div className="flex-1 flex min-h-0">
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
             {status && !status.available && (
@@ -152,8 +194,103 @@ export function CadPage({ onBackToChat }: Props) {
             </p>
           </div>
         </div>
+        <HistoryPanel
+          items={history}
+          openingId={openingId}
+          onOpen={openFromHistory}
+          onRepeat={(item) => setDescription(item.description)}
+          onDelete={removeFromHistory}
+        />
+        </div>
       )}
     </div>
+  );
+}
+
+const OUTCOME_LABEL: Record<CadHistoryItem["outcome"], { text: string; className: string }> = {
+  built: { text: "✔ построено", className: "bg-emerald-50 text-emerald-800" },
+  clarify: { text: "? нужно уточнить", className: "bg-sky-50 text-sky-800" },
+  unsupported: { text: "⚠ пока не поддерживается", className: "bg-amber-50 text-amber-800" },
+  error: { text: "✖ не получилось", className: "bg-red-50 text-red-700" },
+};
+
+function formatWhen(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function HistoryPanel({
+  items,
+  openingId,
+  onOpen,
+  onRepeat,
+  onDelete,
+}: {
+  items: CadHistoryItem[];
+  openingId: number | null;
+  onOpen: (item: CadHistoryItem) => void;
+  onRepeat: (item: CadHistoryItem) => void;
+  onDelete: (item: CadHistoryItem) => void;
+}) {
+  return (
+    <aside className="w-80 shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0">
+      <div className="px-4 py-3 border-b border-slate-200 text-xs font-semibold text-slate-600">
+        История запросов
+      </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        {items.length === 0 && (
+          <p className="text-xs text-slate-400 px-2 py-4 text-center">
+            Здесь будут ваши запросы к конструктору.
+          </p>
+        )}
+        {items.map((item) => {
+          const label = OUTCOME_LABEL[item.outcome];
+          return (
+            <div key={item.id} className="rounded-lg border border-slate-200 p-2.5 text-xs">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`rounded-full px-2 py-0.5 font-medium ${label.className}`}>{label.text}</span>
+                <span className="text-slate-400 ml-auto">{formatWhen(item.created_at)}</span>
+              </div>
+              <div className="text-slate-700 line-clamp-3" title={item.description}>
+                {item.description}
+              </div>
+              {item.detail && item.outcome !== "built" && (
+                <div className="mt-1 text-slate-500 line-clamp-2" title={item.detail}>
+                  {item.detail}
+                </div>
+              )}
+              <div className="mt-2 flex items-center gap-3">
+                {item.can_rebuild && (
+                  <button
+                    onClick={() => onOpen(item)}
+                    disabled={openingId === item.id}
+                    className="text-accent hover:underline disabled:opacity-50"
+                  >
+                    {openingId === item.id ? "Собираю…" : "Открыть"}
+                  </button>
+                )}
+                <button onClick={() => onRepeat(item)} className="text-accent hover:underline">
+                  Повторить
+                </button>
+                <button
+                  onClick={() => onDelete(item)}
+                  className="ml-auto text-slate-400 hover:text-red-600"
+                  title="Удалить из истории"
+                  aria-label="Удалить из истории"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
 }
 

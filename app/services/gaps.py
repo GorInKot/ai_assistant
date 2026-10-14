@@ -475,6 +475,21 @@ def build_report_xlsx(report: dict) -> bytes:
         [52, 46, 22, 10, 12],
     )
 
+    cad = report.get("cad")
+    if cad:
+        kinds = {"refused": "отказ: конструктор не умеет", "partial": "построено без этого"}
+        sheet(
+            "Конструктор",
+            ["Что просили, но пока не поддерживается", "Как проявилось", "Сотрудников", "Запросов",
+             "Подразделения", "Примеры запросов"],
+            [
+                [t["topic"], kinds[t["kind"]], t["people"], t["requests"], ", ".join(t["divisions"]),
+                 "\n".join(t["examples"])]
+                for t in cad["topics"]
+            ],
+            [48, 30, 13, 11, 28, 70],
+        )
+
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()

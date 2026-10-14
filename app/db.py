@@ -156,6 +156,29 @@ class QaLog(Base):
     rating = Column(Integer, nullable=True)
 
 
+class CadRequest(Base):
+    """История запросов во вкладке «Конструктор деталей» (на пользователя).
+
+    Картинки и STEP не хранятся: деталь собирается заново из спецификации (`spec_json`) без
+    обращения к модели, либо запрос повторяется по описанию.
+    """
+
+    __tablename__ = "cad_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    description = Column(Text, nullable=False)
+    # built — деталь построена; clarify — модель попросила уточнить; unsupported — «пока не
+    # поддерживается»; error — не удалось составить или построить деталь.
+    outcome = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+    # Вопрос на уточнение, текст «пока не поддерживается» или сообщение об ошибке.
+    detail = Column(Text, nullable=True)
+    spec_json = Column(Text, nullable=True)
+    # JSON-список пометок («Материал не назван…», «Пока не поддерживается и не учтено: …»).
+    notes_json = Column(Text, nullable=True)
+
+
 def init_db():
     _run_migrations()
     _seed_roles()

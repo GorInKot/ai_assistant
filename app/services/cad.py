@@ -64,12 +64,37 @@ MATERIALS_RU = {
 }
 
 
+# Начало пометки о пропущенных функциях; по нему отчёт для владельца базы находит такие записи.
+SKIPPED_NOTE_PREFIX = "Пока не поддерживается и не учтено: "
+
 # Что умеет конструктор сейчас — показывается пользователю вместе с «пока не поддерживается».
 CAPABILITIES = [
     "плита или блок со сквозными отверстиями (по углам, сеткой, в заданных точках), скруглённые углы",
     "цилиндр, диск, фланец, втулка, прямая труба (в том числе с отверстиями по окружности)",
     "две соединённые трубы под углом",
 ]
+
+
+_PAREN_RE = re.compile(r"\([^)]*\)?")
+_DIMENSION_RE = re.compile(r"\d\s*[×xх*]\s*\d|\d\s*(?:мм|см|м|°)(?![а-яa-z])", re.IGNORECASE)
+MAX_FEATURE_LEN = 60
+
+
+def clean_skipped_features(items) -> list[str]:
+    """Названия неподдерживаемых функций без мусора.
+
+    Модель иногда кладёт в `skipped` комментарии и размеры («габариты 800 × 534 мм (не учитывается…)»).
+    Оставляем только короткие названия функций вроде «фаски по кромкам»: скобочные пояснения
+    отбрасываем, а всё, что похоже на размеры, считаем не функцией.
+    """
+    cleaned: list[str] = []
+    for item in items:
+        text = _PAREN_RE.sub("", str(item)).strip(" \t.,;:-)")
+        if not text or len(text) > MAX_FEATURE_LEN or _DIMENSION_RE.search(text):
+            continue
+        if text.lower() not in (c.lower() for c in cleaned):
+            cleaned.append(text)
+    return cleaned
 
 
 class CadError(Exception):
@@ -548,7 +573,8 @@ SYSTEM_PROMPT = """Ты помощник-конструктор. Пользов�
 (тройник, ответвление, уголок и кронштейн, болт, шестерня, труба с плавным изгибом, сборка из нескольких \
 деталей, шар, профиль) — верни {"unsupported": "что именно пока не поддерживается"}. Если предмет \
 поддерживается, а просят лишнее для схемы (фаски, резьба, пазы, надписи) — построй деталь без этого и \
-перечисли пропущенное в поле "skipped": ["что не учтено"]. Никогда не подменяй один предмет другим: \
+перечисли пропущенное в поле "skipped": ["что не учтено"] — только короткие названия функций \
+(фаски, резьба, пазы), без размеров, пояснений и скобок. Никогда не подменяй один предмет другим: \
 уголок или кронштейн — это не плита, это "unsupported".
 
 Примеры.
@@ -643,9 +669,9 @@ def extract_spec(description: str, llm) -> Generation:
             if not _MATERIAL_WORD.search(description):
                 material = MATERIALS_RU[normalize_material(spec.material)[0]]
                 assumptions.append(f"Материал в описании не назван — принят: {material}.")
-            skipped = [str(item).strip() for item in spec.skipped if str(item).strip()]
+            skipped = clean_skipped_features(spec.skipped)
             if skipped:
-                assumptions.append("Пока не поддерживается и не учтено: " + ", ".join(skipped) + ".")
+                assumptions.append(SKIPPED_NOTE_PREFIX + ", ".join(skipped) + ".")
             ignored = unknown_fields(spec)
             if ignored:
                 assumptions.append("Не учтено (такого нет в схеме детали): " + ", ".join(ignored) + ".")
@@ -661,19 +687,8 @@ def extract_spec(description: str, llm) -> Generation:
 # ------------------------------ всё вместе ------------------------------
 
 
-def generate(description: str, llm, solidcraft_dir: Path) -> dict:
-    """Описание → модель. Возвращает словарь для API; вопрос на уточнение приходит в `clarify`."""
-    if not is_available(solidcraft_dir):
-        raise CadUnavailable("SolidCraft не установлен. Выполните scripts/fetch_solidcraft.sh и перезапустите сервер.")
-    generation = extract_spec(description, llm)
-    if generation.unsupported:
-        return {"clarify": None, "unsupported": generation.unsupported, "can_build": CAPABILITIES,
-                "attempts": generation.attempts}
-    if generation.clarify:
-        return {"clarify": generation.clarify, "attempts": generation.attempts}
-
-    spec = generation.spec
-    assert spec is not None
+def build_result(spec: PartSpec, solidcraft_dir: Path, *, assumptions: list[str], attempts: int) -> dict:
+    """Спецификация → построение в CAD, проверки и файлы для API."""
     commands = spec_to_commands(spec)
     run = run_cad(commands, solidcraft_dir)
     body = run.body
@@ -682,8 +697,8 @@ def generate(description: str, llm, solidcraft_dir: Path) -> dict:
         "clarify": None,
         "title": spec.title,
         "summary": describe(spec),
-        "assumptions": generation.assumptions,
-        "attempts": generation.attempts,
+        "assumptions": assumptions,
+        "attempts": attempts,
         "spec": spec.model_dump(exclude_none=True, exclude={"skipped"}),
         "script": {"commands": commands},
         "checks": verify(spec, body),
@@ -696,3 +711,32 @@ def generate(description: str, llm, solidcraft_dir: Path) -> dict:
         "images": {name: base64.b64encode(data).decode("ascii") for name, data in run.images.items()},
         "step_base64": base64.b64encode(run.step).decode("ascii"),
     }
+
+
+def generate(description: str, llm, solidcraft_dir: Path) -> dict:
+    """Описание → модель. Возвращает словарь для API; вопрос на уточнение приходит в `clarify`."""
+    if not is_available(solidcraft_dir):
+        raise CadUnavailable("SolidCraft не установлен. Выполните scripts/fetch_solidcraft.sh и перезапустите сервер.")
+    generation = extract_spec(description, llm)
+    if generation.unsupported:
+        return {"clarify": None, "unsupported": generation.unsupported, "can_build": CAPABILITIES,
+                "attempts": generation.attempts}
+    if generation.clarify:
+        return {"clarify": generation.clarify, "attempts": generation.attempts}
+    assert generation.spec is not None
+    return build_result(generation.spec, solidcraft_dir, assumptions=generation.assumptions,
+                        attempts=generation.attempts)
+
+
+def rebuild(spec_data: dict, solidcraft_dir: Path, *, notes: list[str]) -> dict:
+    """Повторное построение по сохранённой спецификации — без обращения к модели."""
+    if not is_available(solidcraft_dir):
+        raise CadUnavailable("SolidCraft не установлен. Выполните scripts/fetch_solidcraft.sh и перезапустите сервер.")
+    try:
+        spec = PartSpec.model_validate(spec_data)
+    except ValidationError as exc:
+        raise CadSpecError("Сохранённая спецификация повреждена: " + "; ".join(_pydantic_errors(exc))) from exc
+    errors = validate_spec(spec)
+    if errors:
+        raise CadSpecError("Сохранённая спецификация больше не проходит проверку: " + "; ".join(errors))
+    return build_result(spec, solidcraft_dir, assumptions=notes, attempts=1)

@@ -155,6 +155,30 @@ export interface KnowledgeGapsReport {
     unused: GapDocument[];
     unused_checked: boolean;
   };
+  cad?: CadDemand;
+}
+
+// Спрос на конструктор деталей: что просили построить, но это пока не поддерживается.
+export interface CadDemandTopic {
+  topic: string;
+  kind: "refused" | "partial";
+  requests: number;
+  people: number;
+  divisions: string[];
+  refused: number;
+  partial: number;
+  examples: string[];
+  last_asked: string | null;
+}
+
+export interface CadDemand {
+  requests: number;
+  built: number;
+  unsupported: number;
+  clarify: number;
+  errors: number;
+  topics: CadDemandTopic[];
+  grouping: "embeddings" | "words";
 }
 
 export interface CadStatus {
@@ -184,4 +208,15 @@ export interface CadResult {
   metrics?: { size_mm: number[]; volume_cm3: number; mass_g: number; material: string };
   images?: Record<string, string>;
   step_base64?: string;
+}
+
+export interface CadHistoryItem {
+  id: number;
+  created_at: string | null;
+  description: string;
+  outcome: "built" | "clarify" | "unsupported" | "error";
+  title: string | null;
+  detail: string | null;
+  // деталь можно собрать заново по сохранённой спецификации
+  can_rebuild: boolean;
 }

@@ -368,7 +368,7 @@ def test_export_is_xlsx_and_neutralizes_formulas_in_questions(client):
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/vnd.openxmlformats")
     wb = load_workbook(BytesIO(resp.content))
-    assert wb.sheetnames == ["Сводка", "Пробелы", "Документы"]
+    assert wb.sheetnames == ["Сводка", "Пробелы", "Документы", "Конструктор"]
     cell = wb["Пробелы"]["A2"]
     assert cell.data_type == "s" and cell.value.startswith("=HYPERLINK")
     assert cell.quotePrefix is True

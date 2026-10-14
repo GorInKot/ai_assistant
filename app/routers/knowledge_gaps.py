@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_db, require_role
 from app.db import ROLE_ADMIN, ROLE_MANAGER, User
-from app.services import gaps
+from app.services import cad_demand, gaps
 from app.state import embedder, kb_index, kb_lock
 
 
@@ -25,7 +25,9 @@ XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 def _report(db: Session, days: int) -> dict:
     with kb_lock:
         known = {path: doc.file_name for path, doc in kb_index.documents.items() if doc.searchable}
-    return gaps.build_report(db, days=days, embedder=embedder, known_documents=known)
+    report = gaps.build_report(db, days=days, embedder=embedder, known_documents=known)
+    report["cad"] = cad_demand.build(db, days=days, embedder=embedder)
+    return report
 
 
 @router.get("")
