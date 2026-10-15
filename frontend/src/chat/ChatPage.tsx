@@ -122,6 +122,8 @@ export function ChatPage() {
         no_exact_match: response.no_exact_match,
         created_at: new Date().toISOString(),
         attachment: response.attachment ?? null,
+        suggestions: response.suggestions ?? [],
+        files: response.suggestions?.length ? files : undefined,
       };
       setMessages((prev) => [...prev, assistantMsg]);
 
@@ -209,7 +211,7 @@ export function ChatPage() {
       ) : (
         <main className="flex-1 flex flex-col bg-slate-50">
           <Header />
-          <MessageList messages={messages} loading={sending} />
+          <MessageList messages={messages} loading={sending} onSuggest={handleSend} />
           {error && (
             <div className="mx-auto max-w-3xl w-full px-6">
               <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">

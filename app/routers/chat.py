@@ -170,6 +170,7 @@ async def ask_files(
         no_exact_match=False,
         conversation_id=conversation.id if conversation else None,
         attachment=attachment,
+        suggestions=result.suggestions,
         kind="file",
         message_id=message_id,
     )

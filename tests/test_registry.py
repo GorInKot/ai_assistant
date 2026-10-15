@@ -165,13 +165,15 @@ def test_registry_uses_fields_from_message():
     assert "Поля вы не указали" not in res.answer
 
 
-def test_single_pdf_without_keywords_still_converts():
+def test_single_pdf_without_keywords_is_identified_not_extracted():
+    # файл без указаний: ассистент определяет вид и предлагает действия, но сам ничего не извлекает
     class NoLLM:
         def extract_fields(self, *a, **k):
-            raise AssertionError("LLM не нужен для конвертации")
+            raise AssertionError("без просьбы реквизиты не извлекаются")
 
     res = cd.handle_chat_files("", _files(1), NoLLM())
-    assert res.attachment.filename == "act0.docx"
+    assert res.attachment is None
+    assert "Извлечь реквизиты" in [s["label"] for s in res.suggestions]
 
 
 def test_registry_warns_about_unverified_values_in_chat():

@@ -45,6 +45,13 @@ export interface AskAttachment {
   mime: string;
 }
 
+// Предложенное действие с тем же файлом: файл приложен без указаний — ассистент
+// определил вид документа и предлагает, что с ним сделать.
+export interface AskSuggestion {
+  label: string;
+  message: string;
+}
+
 export interface ChatMessage {
   id: number;
   role: "user" | "assistant";
@@ -56,6 +63,10 @@ export interface ChatMessage {
   rating?: number | null;
   created_at: string;
   attachment?: AskAttachment | null;
+  suggestions?: AskSuggestion[];
+  // Файлы, к которым относятся suggestions, — только в браузере, на сервере не хранятся:
+  // после перезагрузки страницы кнопок нет, файл нужно приложить заново.
+  files?: File[];
 }
 
 export interface ConversationDetail extends ConversationSummary {
@@ -71,6 +82,7 @@ export interface AskResponse {
   // id сохранённого сообщения ассистента (null, если беседа не ведётся)
   message_id?: number | null;
   attachment?: AskAttachment | null;
+  suggestions?: AskSuggestion[];
 }
 
 export interface ProfileOptions {

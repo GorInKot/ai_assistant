@@ -26,6 +26,9 @@ class AskResponse(BaseModel):
     conversation_id: int | None = None
     # Файл-результат операции над документом (напр. объединённый xlsx) — для скачивания.
     attachment: AskAttachment | None = None
+    # Предложенные действия с тем же файлом (кнопки): [{"label", "message"}]. Файл без указаний —
+    # ассистент определяет вид документа и предлагает, что с ним сделать (services/doc_identify.py).
+    suggestions: list[dict] = Field(default_factory=list)
     # Проверка обоснованности ответа по найденным фрагментам: цитаты и неподтверждённые
     # утверждения (только для ответов, сгенерированных моделью). См. services/grounding.py.
     grounding: dict | None = None

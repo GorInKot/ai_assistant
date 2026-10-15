@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -856,6 +857,40 @@ def _ocr_page(page) -> str | None:
         return ""
 
 
+# Буквы Latin-1 без «×» и «÷»: у них те же коды, но в размерах («530×8») это не кракозябры.
+_LATIN1_LETTER = "À-ÖØ-öø-ÿ"
+_MOJIBAKE_TOKEN = re.compile(rf"\S*[{_LATIN1_LETTER}]\S*")
+_CYRILLIC_LETTERS = re.compile(r"[А-яЁё]")
+
+
+def fix_cp1251(text: str) -> str:
+    """«Èçì.» → «Изм.»: байты Windows-1252 читаются как Windows-1251; прочие символы не трогаем."""
+    out = []
+    for ch in text:
+        try:
+            out.append(ch.encode("cp1252").decode("cp1251"))
+        except UnicodeError:
+            out.append(ch)
+    return "".join(out)
+
+
+def _repair_token(match: re.Match) -> str:
+    token = match.group(0)
+    letters = re.findall(rf"[A-Za-z{_LATIN1_LETTER}А-яЁё]", token)
+    latin1 = len(re.findall(rf"[{_LATIN1_LETTER}]", token))
+    if _CYRILLIC_LETTERS.search(token) or latin1 < 0.5 * len(letters):
+        return token  # «café», «Citroën» — настоящая латиница, не трогаем
+    fixed = fix_cp1251(token)
+    return fixed if len(_CYRILLIC_LETTERS.findall(fixed)) >= 0.5 * len(letters) else token
+
+
+def repair_cp1251(text: str) -> str:
+    """Кириллица, записанная в PDF без таблицы соответствия кодировок (частое у чертежей из САПР,
+    причём на одной странице бывают и нормальные, и «сломанные» шрифты): «Èçì. Êîë.ó÷» → «Изм. Кол.уч».
+    Чинятся отдельные слова, в которых латиница с диакритикой и нет кириллицы."""
+    return _MOJIBAKE_TOKEN.sub(_repair_token, text) if text else text
+
+
 def _extract_tables(page, page_no: int) -> list[PdfTable]:
     """Таблицы текстового слоя страницы; пустые ложные срабатывания отбрасываем."""
     try:
@@ -969,6 +1004,11 @@ def parse_pdf(content: bytes, filename: str) -> PdfData:
                 page_tables = _extract_tables(page, page_no)
                 tables.extend(page_tables)
                 blocks = _page_blocks(page, page_tables)
+                # чертежи из САПР: «Èçì.» вместо «Изм.» (см. repair_cp1251)
+                for table in page_tables:
+                    table.rows = [[repair_cp1251(cell) for cell in row] for row in table.rows]
+                for block in blocks:
+                    block.text = repair_cp1251(block.text)
                 pages.append(
                     PdfPageText(
                         page=page_no,

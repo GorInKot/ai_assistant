@@ -106,6 +106,15 @@ def _join_hyphens(lines: list[_Line]) -> list[_Line]:
     return [line for line in result if line]
 
 
+MAX_SCAN_PIXELS = 40_000_000  # огромный скан (чертёж) — с пониженным разрешением, иначе не хватит памяти
+
+
+def scan_dpi(page) -> int:
+    """300 dpi, но не больше MAX_SCAN_PIXELS на страницу."""
+    inches = (page.rect.width / 72) * (page.rect.height / 72)
+    return int(min(SCAN_DPI, (MAX_SCAN_PIXELS / inches) ** 0.5)) if inches else SCAN_DPI
+
+
 def _ocr_page(page) -> list[_Line] | None:
     """Строки скана со словами и уверенностью Tesseract; None — распознавание недоступно."""
     if not shutil.which("tesseract"):
@@ -119,7 +128,7 @@ def _ocr_page(page) -> list[_Line] | None:
         from app.services import spec_registry as sr
     except ImportError:
         return None
-    pix = page.get_pixmap(dpi=SCAN_DPI, colorspace=pymupdf.csGRAY)
+    pix = page.get_pixmap(dpi=scan_dpi(page), colorspace=pymupdf.csGRAY)
     gray = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.stride)[:, :pix.width].copy()
     angle = sr.osd_rotation(gray)
     if angle:
@@ -209,7 +218,8 @@ def _reread_numbers(gray, words: list[list]) -> None:
 def _text_layer_lines(page) -> list[_Line]:
     lines: dict[tuple[int, int], _Line] = {}
     for _x0, _y0, _x1, _y1, text, block, line, _no in page.get_text("words"):
-        lines.setdefault((block, line), []).append((text, 100.0))
+        # чертежи из САПР: «Èçì.» вместо «Изм.» (см. document_processing.repair_cp1251)
+        lines.setdefault((block, line), []).append((dp.repair_cp1251(text), 100.0))
     return list(lines.values())
 
 

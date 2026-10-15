@@ -290,8 +290,8 @@ def test_build_xlsx_without_tables_is_error():
 # ============================ маршрутизация чата ==========================
 
 
-def test_chat_pdf_defaults_to_word():
-    res = cd.handle_chat_files("", [("letter.pdf", _text_pdf("Входящее письмо № 5"))], _StubLLM())
+def test_chat_pdf_to_word():
+    res = cd.handle_chat_files("переведи в Word", [("letter.pdf", _text_pdf("Входящее письмо № 5"))], _StubLLM())
     assert res.attachment.filename == "letter.docx"
     assert res.attachment.mime.endswith("wordprocessingml.document")
     docx = Document(io.BytesIO(_decode_attachment(res)))
@@ -308,7 +308,7 @@ def test_chat_pdf_excel_keyword_gives_xlsx():
 
 @needs_ocr
 def test_chat_scan_warns_about_ocr():
-    res = cd.handle_chat_files("", [("scan.pdf", _scan_pdf("Invoice number 12345"))], _StubLLM())
+    res = cd.handle_chat_files("переведи в Word", [("scan.pdf", _scan_pdf("Invoice number 12345"))], _StubLLM())
     assert "OCR" in res.answer
     assert "Проверьте результат" in res.answer
 

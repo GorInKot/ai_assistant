@@ -6,9 +6,11 @@ import type { AskAttachment, ChatMessage, ChatSource, Grounding } from "../api/t
 interface Props {
   messages: ChatMessage[];
   loading: boolean;
+  // Кнопка предложенного действия: отправить тот же файл с этой просьбой.
+  onSuggest: (message: string, files: File[]) => void;
 }
 
-export function MessageList({ messages, loading }: Props) {
+export function MessageList({ messages, loading, onSuggest }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function MessageList({ messages, loading }: Props) {
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} />
+          <MessageBubble key={msg.id} msg={msg} busy={loading} onSuggest={onSuggest} />
         ))}
         {loading && (
           <div className="flex gap-3">
@@ -47,7 +49,15 @@ export function MessageList({ messages, loading }: Props) {
   );
 }
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({
+  msg,
+  busy,
+  onSuggest,
+}: {
+  msg: ChatMessage;
+  busy: boolean;
+  onSuggest: (message: string, files: File[]) => void;
+}) {
   const isUser = msg.role === "user";
   return (
     <div className="flex gap-3">
@@ -62,6 +72,21 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         {msg.grounding && msg.grounding.total > 0 && <GroundingBlock grounding={msg.grounding} />}
         {msg.sources.length > 0 && <SourcesList sources={msg.sources} />}
         {msg.attachment && <AttachmentDownload attachment={msg.attachment} />}
+        {msg.suggestions && msg.suggestions.length > 0 && msg.files && msg.files.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {msg.suggestions.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                disabled={busy}
+                onClick={() => onSuggest(s.message, msg.files ?? [])}
+                className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs text-sky-800 transition hover:border-sky-500 hover:bg-sky-100 disabled:opacity-50"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
         {!isUser && msg.id > 0 && <RatingButtons messageId={msg.id} initial={msg.rating ?? null} />}
       </div>
     </div>

@@ -256,6 +256,14 @@ def header_matches(img: np.ndarray, grid: Grid) -> bool:
     return sum(word in text for word in HEADER_WORDS) >= MIN_HEADER_WORDS
 
 
+MAX_FORM_AREA_MM2 = 841 * 594  # лист больше A1 — чертёж, а не спецификация; при 300 dpi это >70 Мп
+
+
+def too_large_for_form(page) -> bool:
+    """Огромный лист (чертёж в длину) не рендерим ради поиска формы: на 8 ГБ памяти опасно."""
+    return (page.rect.width / 72 * 25.4) * (page.rect.height / 72 * 25.4) > MAX_FORM_AREA_MM2
+
+
 def render_page(page) -> tuple[np.ndarray, np.ndarray]:
     """Страница PDF → (полутоновое изображение 300 dpi, маска цветных чернил).
 
@@ -1167,6 +1175,9 @@ def process_pdf(content: bytes, filename: str, page_budget: int) -> SpecDocument
         if doc_info.table_pages == 0 and len(doc_info.skipped_pages) >= MAX_LEADING_MISSES:
             doc_info.unchecked_pages = min(len(pdf), page_budget) - index
             break
+        if too_large_for_form(pdf[index]):
+            doc_info.skipped_pages.append(index + 1)
+            continue
         gray, colored = render_page(pdf[index])
         try:
             located = locate_form(gray, colored)

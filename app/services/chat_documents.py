@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 
 from app.llm import LLMService
-from app.services import registry, spec_compare, spec_registry, text_compare
+from app.services import doc_identify, registry, spec_compare, spec_registry, text_compare
 from app.services.document_processing import (
     DiffResult,
     DocumentError,
@@ -55,12 +55,14 @@ class Attachment:
 class ChatFileResult:
     answer: str  # markdown для показа в чате
     attachment: Attachment | None = None
+    # Предложенные действия с тем же файлом (кнопки в интерфейсе): {label, message}
+    suggestions: list[dict] = field(default_factory=list)
 
 
 # Ключевые слова намерений (нормализованный, lower-case текст сообщения).
 _COMPARE_KW = ("сравн", "различ", "отлич", "разниц", "diff", "что измен")
 _MERGE_KW = ("объедин", "слей", "слить", "соедини", "склей", "merge")
-_SUMMARY_KW = ("выжимк", "резюме", "кратк", "саммари", "summary", "о ч[её]м", "суть", "перескаж")
+_SUMMARY_KW = ("выжимк", "резюме", "кратк", "саммари", "summary", "о чём", "о чем", "суть", "перескаж")
 _EXCEL_KW = ("excel", "эксель", "xlsx", "таблиц")
 _REGISTRY_KW = ("реестр", "извлек", "извлеч", "выпиши", "вытащи", "достань", "собери данные", "реквизит", "поля")
 _SPEC_KW = ("спецификац",)  # реестр позиций по форме ГОСТ 21.110 (сканы), без модели
@@ -69,6 +71,9 @@ _WORD_KW = ("word", "ворд", "docx")
 _ANYWAY_KW = ("всё равно", "все равно", "всё-таки", "все-таки")
 _CONVERT_KW = ("word", "ворд", "docx", "конверт", "переведи", "перевести") + _EXCEL_KW
 _EXTRACT_KW = ("извлеки", "что в файл", "таблиц", "содерж", "распарс", "покажи данные", "разбери")
+# Файл без указаний или вопрос «что это» — определить вид документа и предложить действия.
+_WHAT_KW = ("что это", "что за файл", "что за документ", "что можно", "что можешь", "что с ним", "что с этим",
+            "посмотри", "глянь", "определи", "какой это", "какой документ")
 
 
 def _has(text: str, words: tuple[str, ...]) -> bool:
@@ -113,6 +118,9 @@ def handle_chat_files(
     xlsx_files = [(n, b) for n, b in files if _xlsx(n)]
     docx_files = [(n, b) for n, b in files if _word(n)]
     pdf_files = [(n, b) for n, b in files if _pdf(n)]
+
+    if len(files) == 1 and not xlsx_files and (not msg or _has(msg, _WHAT_KW)):
+        return _handle_identify(files[0], llm)
 
     if sum(bool(group) for group in (xlsx_files, docx_files, pdf_files)) > 1:
         if len(files) == 2 and not xlsx_files:
@@ -311,6 +319,37 @@ def _answer_merge_xlsx(workbooks: list[WorkbookData]) -> ChatFileResult:
     return ChatFileResult(answer="\n".join(lines), attachment=attachment)
 
 
+# ------------------------------ Что за файл -------------------------------
+
+
+def _handle_identify(file: tuple[str, bytes], llm: LLMService) -> ChatFileResult:
+    """Файл без указаний: назвать вид документа, показать основание и предложить действия."""
+    name, content = file
+    found = doc_identify.identify(content, name, llm)
+    lines = []
+    if found.kind:
+        lines.append(f"**«{name}»** — похоже на: **{found.kind}** ({found.basis}).")
+    else:
+        lines.append(f"**«{name}»** — вид документа определить не удалось: заголовка с видом документа "
+                     "в начале нет, а модель не дала уверенного ответа.")
+    title = []
+    if found.title and found.title.lower() != found.kind.lower():
+        title.append(f"заголовок «{found.title}»")
+    if found.number:
+        title.append(f"№ {found.number}")
+    if found.date:
+        title.append(f"от {found.date}")
+    for part in (title, found.details):  # первая буква заглавная, остальное как есть («PDF», «№»)
+        if part:
+            text = ", ".join(part)
+            lines.append(text[:1].upper() + text[1:] + ".")
+    lines += ["", "Что можно сделать — выберите действие ниже или напишите своими словами:"]
+    lines += [f"- {s.label}" for s in found.suggestions]
+    if found.hint:
+        lines += ["", found.hint]
+    return ChatFileResult(answer="\n".join(lines), suggestions=[asdict(s) for s in found.suggestions])
+
+
 # -------------------------------- Word -----------------------------------
 
 
@@ -468,6 +507,8 @@ def _handle_pdf(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> Ch
                 "документов в один Excel, напишите, например: «составь реестр: номер, дата, сумма»."
             )
         wants_registry = True
+    if len(files) == 1 and not wants_registry and _has(msg, _SUMMARY_KW):
+        return _answer_summary_pdf(files[0], llm)
     if wants_registry:
         return _handle_pdf_registry(msg, files, llm)
 
@@ -494,6 +535,24 @@ def _handle_pdf(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> Ch
         mime=mime,
     )
     return ChatFileResult(answer=_pdf_summary(data, attachment.filename), attachment=attachment)
+
+
+def _answer_summary_pdf(file: tuple[str, bytes], llm: LLMService) -> ChatFileResult:
+    """Выжимка PDF (сканы распознаются) — тем же способом, что выжимка Word."""
+    from app.services.document_processing import MAX_SUMMARY_CHARS
+
+    name, content = file
+    data = parse_pdf(content, name)
+    text = data.full_text
+    if not text.strip():
+        raise DocumentError("В PDF не удалось найти текст для выжимки (страницы пусты или не распознаны)")
+    summary = llm.summarize_text(text[:MAX_SUMMARY_CHARS])
+    notes = []
+    if len(text) > MAX_SUMMARY_CHARS:
+        notes.append("_Документ длинный — выжимка по началу текста._")
+    if data.scanned_pages:
+        notes.append(f"_Страницы {_page_ranges(data.scanned_pages)} — сканы, текст распознан автоматически._")
+    return ChatFileResult(answer=f"**Выжимка — {name}:**\n\n{summary}" + "".join("\n\n" + n for n in notes))
 
 
 def _pdf_summary(data: PdfData, out_name: str) -> str:
