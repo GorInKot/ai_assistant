@@ -263,7 +263,7 @@ ROWS = [
 ]
 
 
-def _synthetic_scan(rotate: int = 0) -> bytes:
+def _synthetic_scan(rotate: int = 0, content: list[tuple[str, ...]] = ROWS) -> bytes:
     """Лист A3 со спецификацией по форме ГОСТ 21.110, как картинка в PDF (скан без текста)."""
     import pymupdf
     from PIL import Image, ImageDraw, ImageFont
@@ -287,7 +287,7 @@ def _synthetic_scan(rotate: int = 0) -> bytes:
     for i, title in enumerate(titles):
         draw.text((xs[i] + 1.5 * mm, top + 12 * mm), title, font=small, fill=0)
         draw.text(((xs[i] + xs[i + 1]) / 2, header + 1.5 * mm), str(i + 1), font=small, fill=0)
-    for r, (pos, name, type_, unit, qty, mass) in enumerate(ROWS):
+    for r, (pos, name, type_, unit, qty, mass) in enumerate(content):
         y = numbers + r * 8 * mm + 2 * mm
         for col, text in ((0, pos), (1, name), (2, type_), (5, unit), (6, qty), (7, mass)):
             if text:

@@ -15,7 +15,7 @@ import base64
 from dataclasses import dataclass
 
 from app.llm import LLMService
-from app.services import registry, spec_registry
+from app.services import registry, spec_compare, spec_registry
 from app.services.document_processing import (
     DiffResult,
     DocumentError,
@@ -65,6 +65,7 @@ _REGISTRY_KW = ("реестр", "извлек", "извлеч", "выпиши", 
 _SPEC_KW = ("спецификац",)  # реестр позиций по форме ГОСТ 21.110 (сканы), без модели
 _POSITIONS_KW = ("позици",)
 _WORD_KW = ("word", "ворд", "docx")
+_ANYWAY_KW = ("всё равно", "все равно", "всё-таки", "все-таки")
 _CONVERT_KW = ("word", "ворд", "docx", "конверт", "переведи", "перевести") + _EXCEL_KW
 _EXTRACT_KW = ("извлеки", "что в файл", "таблиц", "содерж", "распарс", "покажи данные", "разбери")
 
@@ -383,7 +384,10 @@ def _handle_pdf(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> Ch
     Реестр — если просят «реестр/извлеки поля» или приложено несколько PDF без просьбы
     о конвертации. Один PDF без таких слов — конвертация (Word по умолчанию, Excel для таблиц).
     Про спецификации («реестр спецификаций», «позиции спецификации») — реестр позиций по форме.
+    Два PDF и «сравни» — сравнение редакций спецификации по позициям.
     """
+    if len(files) == 2 and _has(msg, _COMPARE_KW):
+        return _handle_pdf_compare(msg, files)
     wants_registry = _has(msg, _REGISTRY_KW)
     if not _has(msg, _WORD_KW) and (_has(msg, _SPEC_KW) or (wants_registry and _has(msg, _POSITIONS_KW))):
         return _handle_spec_registry(files)
@@ -445,6 +449,17 @@ def _pdf_summary(data: PdfData, out_name: str) -> str:
 def _page_list(pages: list[int], limit: int = 15) -> str:
     shown = ", ".join(str(p) for p in pages[:limit])
     return shown + (f" и ещё {len(pages) - limit}" if len(pages) > limit else "")
+
+
+def _page_ranges(pages: list[int]) -> str:
+    """[2, 4, 5, 6, 9] → «2, 4–6, 9»."""
+    parts: list[str] = []
+    for page in sorted(pages):
+        if parts and page == int(parts[-1].split("–")[-1]) + 1:
+            parts[-1] = parts[-1].split("–")[0] + f"–{page}"
+        else:
+            parts.append(str(page))
+    return ", ".join(parts)
 
 
 def _handle_pdf_registry(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> ChatFileResult:
@@ -570,6 +585,76 @@ def _spec_summary(result: "spec_registry.SpecRegistry") -> str:
         lines.append(_md_table(["Файл", "Стр.", "Позиций", "Проверить"], rows[:10]))
         if len(rows) > 10:
             lines.append(f"\n_…ещё {len(rows) - 10} документов в файле_")
+    lines.append("\nГотовый файл ниже — можно скачать. 👇")
+    return "\n".join(lines)
+
+
+def _handle_pdf_compare(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
+    """Две редакции спецификации (сканы, форма ГОСТ 21.110): что изменилось по позициям."""
+    problem = spec_registry.unavailable_reason()
+    if problem:
+        raise DocumentError(problem)
+    for name, content in files:
+        spec_registry.check_pdf(content, name)
+    budget = spec_registry.MAX_SPEC_PAGES // 2
+    docs = [spec_registry.process_pdf(content, name, budget) for name, content in files]
+    for doc in docs:
+        if doc.error:
+            raise DocumentError(f"«{doc.filename}»: {doc.error}")
+    not_spec = [d.filename for d in docs if not d.table_pages]
+    if not_spec:
+        raise DocumentError(
+            "Сравнение PDF пока умеет только спецификации по форме ГОСТ 21.110: в "
+            + ", ".join(f"«{n}»" for n in not_spec) + " таблица спецификации не найдена."
+        )
+    result = spec_compare.compare(*docs)
+    result.seconds = round(sum(d.seconds for d in docs) + result.seconds, 1)
+    if not result.same_document and not _has(msg, _ANYWAY_KW):
+        return ChatFileResult(answer=(
+            f"Похоже, «{result.old.filename}» и «{result.new.filename}» — не версии одного документа "
+            f"({result.evidence}). Сравнение по позициям здесь ничего не покажет, поэтому его не делаю.\n\n"
+            "Если это всё-таки редакции одного документа, напишите «сравни всё равно»."
+        ))
+    attachment = Attachment(
+        filename="spec_comparison.xlsx",
+        content_base64=base64.b64encode(spec_compare.build_compare_xlsx(result)).decode("ascii"),
+        mime=_XLSX_MIME,
+    )
+    return ChatFileResult(answer=_compare_summary(result), attachment=attachment)
+
+
+def _compare_summary(result: "spec_compare.SpecComparison") -> str:
+    sc = spec_compare
+    lines = [
+        f"**Сравнение редакций спецификации** → `spec_comparison.xlsx` (разобрано за {int(result.seconds)} с).",
+        f"Старая: «{result.old.filename}», новая: «{result.new.filename}» ({result.order_note}).",
+    ]
+    if result.same_document:
+        lines.append(f"Версии одного документа: {result.evidence}.")
+    else:
+        lines.append(f"⚠️ Не похоже на версии одного документа ({result.evidence}) — сравнение по вашей просьбе.")
+    lines += [
+        "",
+        f"- Изменено: **{result.count(sc.STATUS_CHANGED)}** — значения различаются, в обеих редакциях прочитаны уверенно.",
+        f"- ⚠️ Проверить: **{result.count(sc.STATUS_CHECK)}** — различия, где значение прочитано неуверенно "
+        "(правка от руки, штамп, плохой скан): сверьте со сканами.",
+        f"- Добавлено: {result.count(sc.STATUS_ADDED)}, удалено: {result.count(sc.STATUS_REMOVED)}, "
+        f"без изменений: {result.count(sc.STATUS_SAME)}.",
+    ]
+    for status, side in ((sc.STATUS_NEW_SHEET, "новой"), (sc.STATUS_OLD_SHEET, "старой")):
+        pages = result.pages(status)
+        if pages:
+            lines.append(
+                f"- Листы только в {side} редакции: стр. {_page_ranges(pages)} ({result.count(status)} позиций) — "
+                "в другой нет ни одной общей позиции (например, изменение выпущено только на заменяемые листы)."
+            )
+    changed = [r for r in result.rows if r.status == sc.STATUS_CHANGED]
+    if changed:
+        lines.append("")
+        rows = [[str(r.new.page), r.new.cells[spec_registry.COL_NAME], "; ".join(r.changes)] for r in changed[:15]]
+        lines.append(_md_table(["Стр.", "Наименование", "Что изменилось"], rows))
+        if len(changed) > 15:
+            lines.append(f"\n_…ещё {len(changed) - 15} изменений в файле_")
     lines.append("\nГотовый файл ниже — можно скачать. 👇")
     return "\n".join(lines)
 
