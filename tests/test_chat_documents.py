@@ -124,19 +124,18 @@ def test_route_two_docx_diff():
     a = _docx_bytes([("Первый.", ""), ("Второй.", "")])
     b = _docx_bytes([("Первый.", ""), ("Второй изменён.", "")])
     res = cd.handle_chat_files("сравни", [("a.docx", a), ("b.docx", b)], _StubLLM())
-    assert "Различия между файлами" in res.answer
-    assert "«Второй.» → «Второй изменён.»" in res.answer
+    assert "Сравнение документов" in res.answer
+    assert "добавлено «…Первый. Второй **изменён.**»" in res.answer
+    assert res.attachment.filename == "comparison.docx"
 
 
 def test_docx_diff_attributes_lines_to_document():
-    # Строка «000» есть только во втором документе — должна быть подписана им.
+    # Строка «000» есть только во втором документе — значит, добавлена, а не удалена.
     one = _docx_bytes([("Общая строка.", ""), ("Ещё общая.", "")])
     two = _docx_bytes([("Общая строка.", ""), ("000", ""), ("Ещё общая.", "")])
     res = cd.handle_chat_files("сравни", [("1.docx", one), ("2.docx", two)], _StubLLM())
-    assert "Только в документе «2.docx»" in res.answer
-    assert "строка «000»" in res.answer
-    # уникального в первом нет
-    assert "Только в документе «1.docx»" not in res.answer
+    assert "добавлено: **1**, удалено: **0**" in res.answer
+    assert "абз. 2: добавлено «…Общая строка. **000** Ещё общая.…»" in res.answer
 
 
 def test_route_mixed_types_rejected():
@@ -187,8 +186,8 @@ def test_doc_and_docx_compared_together(monkeypatch):
     )
     new = _docx_bytes([("Первый.", ""), ("Второй изменён.", "")])
     res = cd.handle_chat_files("сравни", [("old.doc", b"fake"), ("new.docx", new)], _StubLLM())
-    assert "Различия между файлами" in res.answer
-    assert "«Второй.» → «Второй изменён.»" in res.answer
+    assert "Старая: «old.doc», новая: «new.docx»" in res.answer
+    assert "добавлено «…Первый. Второй **изменён.**»" in res.answer
 
 
 def test_doc_empty_text_raises(monkeypatch):
@@ -335,6 +334,30 @@ def test_table_diff_attributes_rows_to_document():
     assert "Только в документе «реестр2.xlsx»" in res.answer
     assert "Семён" in res.answer
     assert "Только в документе «реестр1.xlsx»" not in res.answer
+
+
+def test_unrelated_tables_are_not_compared():
+    staff = _xlsx_bytes(["Табельный №", "ФИО", "Должность"], [[101, "Иванов И.И.", "Инженер"], [102, "Петров П.П.", "Мастер"]])
+    pumps = _xlsx_bytes(["Марка насоса", "Подача, м3/ч", "Напор, м"], [["НД-25", 2.5, 40], ["НД-40", 4, 32]])
+    res = cd.handle_chat_files("сравни", [("staff.xlsx", staff), ("pumps.xlsx", pumps)], _StubLLM())
+    assert "не версии одной таблицы" in res.answer and "общих заголовков колонок — 0 %" in res.answer
+    forced = cd.handle_chat_files("сравни всё равно", [("staff.xlsx", staff), ("pumps.xlsx", pumps)], _StubLLM())
+    assert "Различия между файлами" in forced.answer
+
+
+def test_table_versions_ordered_by_revision_in_names():
+    old = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Пётр"]])
+    new = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Пётр"], [3, "Семён"]])
+    # новая приложена первой — старая определяется по номеру редакции
+    res = cd.handle_chat_files("сравни", [("реестр_R02.xlsx", new), ("реестр_R01.xlsx", old)], _StubLLM())
+    assert "Только в документе «реестр_R02.xlsx»" in res.answer and "Семён" in res.answer
+
+
+def test_unrelated_forms_are_not_compared():
+    request = _form_xlsx([("Заявитель", "Иванов И.И.", ""), ("Отдел", "Снабжение", ""), ("Дата", "01.10.2026", "")])
+    permit = _form_xlsx([("Объект", "Насосная станция", ""), ("Вид работ", "Сварочные", ""), ("Срок", "3 дня", "")])
+    res = cd.handle_chat_files("сравни", [("request.xlsx", request), ("permit.xlsx", permit)], _StubLLM())
+    assert "не версии одного бланка" in res.answer
 
 
 def test_summary_length_instruction_scales():

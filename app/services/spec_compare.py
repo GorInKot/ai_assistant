@@ -285,14 +285,18 @@ def revision(filename: str) -> tuple[str, int] | None:
     return None
 
 
-def order_documents(first: SpecDocument, second: SpecDocument) -> tuple[SpecDocument, SpecDocument, str]:
-    """Какая версия старая: по номеру редакции в именах файлов (одна схема нумерации),
-    иначе — по порядку, в котором файлы приложены."""
-    a, b = revision(first.filename), revision(second.filename)
+def order_files(first: str, second: str) -> tuple[bool, str]:
+    """Какой файл старый: по номеру редакции в именах (одна схема нумерации), иначе — по
+    порядку, в котором файлы приложены. Возвращает (поменять ли местами, пояснение)."""
+    a, b = revision(first), revision(second)
     if a and b and a[0] == b[0] and a[1] != b[1]:
-        old, new = (first, second) if a[1] < b[1] else (second, first)
-        return old, new, "определено по номеру редакции в именах файлов"
-    return first, second, "старой считается первый приложенный файл: номер редакции по именам файлов не определить"
+        return a[1] > b[1], "определено по номеру редакции в именах файлов"
+    return False, "старой считается первый приложенный файл: номер редакции по именам файлов не определить"
+
+
+def order_documents(first: SpecDocument, second: SpecDocument) -> tuple[SpecDocument, SpecDocument, str]:
+    swap, note = order_files(first.filename, second.filename)
+    return (second, first, note) if swap else (first, second, note)
 
 
 def compare(first: SpecDocument, second: SpecDocument) -> SpecComparison:

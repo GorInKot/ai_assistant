@@ -15,7 +15,7 @@ import base64
 from dataclasses import dataclass
 
 from app.llm import LLMService
-from app.services import registry, spec_compare, spec_registry
+from app.services import registry, spec_compare, spec_registry, text_compare
 from app.services.document_processing import (
     DiffResult,
     DocumentError,
@@ -27,15 +27,16 @@ from app.services.document_processing import (
     build_docx_from_pdf,
     build_xlsx,
     build_xlsx_from_pdf,
-    diff_docx,
     diff_forms,
     diff_workbooks,
+    form_similarity,
     is_form_like,
     merge_workbooks,
     parse_docx,
     parse_pdf,
     parse_xlsx,
     parse_xlsx_grid,
+    table_similarity,
 )
 
 
@@ -114,6 +115,9 @@ def handle_chat_files(
     pdf_files = [(n, b) for n, b in files if _pdf(n)]
 
     if sum(bool(group) for group in (xlsx_files, docx_files, pdf_files)) > 1:
+        if len(files) == 2 and not xlsx_files:
+            # PDF и Word — сравнить по тексту (например, скан подписанного документа и исходник)
+            return _handle_text_compare(msg, files)
         raise DocumentError("Приложите файлы одного типа: Excel, Word или PDF")
 
     if pdf_files:
@@ -135,21 +139,43 @@ def _handle_xlsx(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
 
     # Два файла без явного «объедини» — по умолчанию сравниваем (частый сценарий).
     if len(workbooks) == 2 and (_has(msg, _COMPARE_KW) or not _has(msg, _MERGE_KW)):
-        return _diff_two_xlsx(files, workbooks)
+        return _diff_two_xlsx(msg, files, workbooks)
     return _answer_merge_xlsx(workbooks)
 
 
 def _diff_two_xlsx(
-    files: list[tuple[str, bytes]], workbooks: list[WorkbookData]
+    msg: str, files: list[tuple[str, bytes]], workbooks: list[WorkbookData]
 ) -> ChatFileResult:
-    """Сравнить два .xlsx, выбрав режим: бланк-форма или таблица-реестр."""
+    """Сравнить два .xlsx, выбрав режим: бланк-форма или таблица-реестр.
+
+    Старый файл — по номеру редакции в именах, иначе первый приложенный. Не похожие
+    друг на друга файлы не сравниваются (если не попросили «сравни всё равно»)."""
+    swap, _note = spec_compare.order_files(files[0][0], files[1][0])
+    if swap:
+        files, workbooks = files[::-1], workbooks[::-1]
+    force = _has(msg, _ANYWAY_KW)
     grid_a = parse_xlsx_grid(files[0][1], files[0][0])
     grid_b = parse_xlsx_grid(files[1][1], files[1][0])
     a = grid_a[0] if grid_a else None
     b = grid_b[0] if grid_b else None
     if a and b and is_form_like(a) and is_form_like(b):
+        same, evidence = form_similarity(a, b)
+        if not same and not force:
+            return _not_similar(files, "одного бланка", evidence)
         return _answer_diff_form(files[0][0], files[1][0], a, b)
+    if workbooks[0].sheets and workbooks[1].sheets:
+        same, evidence = table_similarity(workbooks[0].sheets[0], workbooks[1].sheets[0])
+        if not same and not force:
+            return _not_similar(files, "одной таблицы", evidence)
     return _answer_diff_xlsx(workbooks[0], workbooks[1])
+
+
+def _not_similar(files: list[tuple[str, bytes]], what: str, evidence: str) -> ChatFileResult:
+    return ChatFileResult(answer=(
+        f"Похоже, «{files[0][0]}» и «{files[1][0]}» — не версии {what} ({evidence}). "
+        "Сравнение покажет изменённым почти всё, поэтому его не делаю.\n\n"
+        "Если это всё-таки версии одного файла, напишите «сравни всё равно»."
+    ))
 
 
 def _answer_diff_form(name_old: str, name_new: str, old, new) -> ChatFileResult:
@@ -289,14 +315,12 @@ def _answer_merge_xlsx(workbooks: list[WorkbookData]) -> ChatFileResult:
 
 
 def _handle_docx(msg: str, files: list[tuple[str, bytes]], llm: LLMService) -> ChatFileResult:
-    docs = [parse_docx(content, name) for name, content in files]
+    if len(files) >= 2:
+        if len(files) > 2:
+            raise DocumentError("Сравнение поддерживает ровно два Word-файла")
+        return _handle_text_compare(msg, files)
 
-    if len(docs) >= 2:
-        if len(docs) > 2:
-            raise DocumentError("Сравнение поддерживает ровно два .docx-файла")
-        return _answer_diff_docx(docs[0], docs[1])
-
-    doc = docs[0]
+    doc = parse_docx(files[0][1], files[0][0])
     # Один файл: выжимка по умолчанию; «извлеки/таблицы» → структура.
     if _has(msg, _EXTRACT_KW) and not _has(msg, _SUMMARY_KW):
         return _answer_extract_docx(doc)
@@ -334,42 +358,88 @@ def _answer_summary_docx(doc: DocxData, llm: LLMService) -> ChatFileResult:
     return ChatFileResult(answer=f"**Выжимка — {doc.filename}:**\n\n{summary}{note}")
 
 
-def _answer_diff_docx(old: DocxData, new: DocxData) -> ChatFileResult:
-    result = diff_docx(old, new)
-    summary = result.summary
-    lines = [f"**Различия между файлами:** «{old.filename}» и «{new.filename}»", ""]
+CHAT_TEXT_CHANGES = 15  # сколько изменений текста показываем в чате (все — в файле)
 
-    if not result.items:
-        lines.append("Документы идентичны по тексту. ✅")
-        return ChatFileResult(answer="\n".join(lines).strip())
 
-    lines.append(
-        f"**Итог:** только в «{new.filename}» — {summary['added']}, "
-        f"только в «{old.filename}» — {summary['removed']}, изменено — {summary['changed']}."
+def _handle_text_compare(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
+    """Две версии документа (PDF — текст или скан, Word) — что изменилось в тексте."""
+    import time
+
+    started = time.time()
+    docs = [text_compare.load_document(content, name) for name, content in files]
+    result = text_compare.compare(docs[0], docs[1], force=_has(msg, _ANYWAY_KW))
+    result.seconds = round(time.time() - started, 1)
+    if not result.same_document and not _has(msg, _ANYWAY_KW):
+        return ChatFileResult(answer=(
+            f"Похоже, «{result.old.filename}» и «{result.new.filename}» — не версии одного документа: "
+            f"общего текста всего {round(result.shared * 100)} %. Сравнение здесь покажет почти весь текст "
+            "как изменённый, поэтому его не делаю.\n\n"
+            "Если это всё-таки версии одного документа, напишите «сравни всё равно»."
+        ))
+    answer = _text_compare_summary(result)
+    if not result.changes:
+        return ChatFileResult(answer=answer)
+    attachment = Attachment(
+        filename="comparison.docx",
+        content_base64=base64.b64encode(text_compare.build_compare_docx(result)).decode("ascii"),
+        mime=_DOCX_MIME,
     )
+    return ChatFileResult(answer=answer + "\n\nОтчёт со всеми изменениями — в файле ниже. 👇", attachment=attachment)
 
-    shown = result.items[:CHAT_DIFF_ITEMS]
-    only_new = [it.new for it in shown if it.op == "added"]
-    only_old = [it.old for it in shown if it.op == "removed"]
-    changed = [(it.old, it.new) for it in shown if it.op == "changed"]
 
-    # Каждое отличие привязано к документу, в котором оно есть.
-    if only_new:
-        lines.append("")
-        lines.append(f"**Только в документе «{new.filename}»:**")
-        lines += [f"- строка «{t}»" for t in only_new]
-    if only_old:
-        lines.append("")
-        lines.append(f"**Только в документе «{old.filename}»:**")
-        lines += [f"- строка «{t}»" for t in only_old]
-    if changed:
-        lines.append("")
-        lines.append("**Изменённые строки:**")
-        lines += [f"- «{o}» → «{n}»" for o, n in changed]
+def _md_text(words: list) -> str:
+    return " ".join(w.text for w in words).replace("*", "\\*").replace("_", "\\_")
 
-    if result.truncated or len(result.items) > CHAT_DIFF_ITEMS:
-        lines.append("\n_Показаны не все различия._")
-    return ChatFileResult(answer="\n".join(lines).strip())
+
+def _fragment(change, words: list) -> str:
+    before, after = _md_text(change.before[-3:]), _md_text(change.after[:3])
+    core = f"**{_md_text(words)}**" if words else "—"
+    return "«" + " ".join(part for part in (before and "…" + before, core, after and after + "…") if part) + "»"
+
+
+def _text_compare_summary(result: "text_compare.TextComparison") -> str:
+    tc = text_compare
+    lines = [
+        f"**Сравнение документов** (за {int(result.seconds)} с).",
+        f"Старая: «{result.old.filename}», новая: «{result.new.filename}» ({result.order_note}).",
+    ]
+    shared = round(result.shared * 100)
+    if result.same_document:
+        lines.append(f"Общий текст — {shared} %: версии одного документа.")
+    else:
+        lines.append(f"⚠️ Общий текст — всего {shared} %: не похоже на версии одного документа, сравнение по вашей просьбе.")
+    scans = [d for d in (result.old, result.new) if d.scanned_pages]
+    if scans:
+        lines.append(
+            "Сканы распознаны автоматически: "
+            + "; ".join(f"«{d.filename}» — стр. {_page_ranges(d.scanned_pages)}" for d in scans)
+            + ". Различия, похожие на ошибки распознавания, отмечены «проверить»."
+        )
+    if not result.changes:
+        lines.append("\nРазличий в тексте нет. ✅")
+        return "\n".join(lines)
+    lines += [
+        "",
+        f"- Изменено: **{result.count(tc.STATUS_CHANGED)}**, добавлено: **{result.count(tc.STATUS_ADDED)}**, "
+        f"удалено: **{result.count(tc.STATUS_REMOVED)}**.",
+    ]
+    if result.count(tc.STATUS_CHECK):
+        lines.append(f"- ⚠️ Проверить: **{result.count(tc.STATUS_CHECK)}** — на скане прочитано неуверенно "
+                     "или похоже на ошибку распознавания: сверьте со сканом.")
+    lines += ["", "**Изменения:**"]
+    for change in result.changes[:CHAT_TEXT_CHANGES]:
+        if change.status == tc.STATUS_ADDED:
+            text = f"добавлено {_fragment(change, change.new)}"
+        elif change.status == tc.STATUS_REMOVED:
+            text = f"удалено {_fragment(change, change.old)}"
+        else:
+            text = f"{_fragment(change, change.old)} → {_fragment(change, change.new)}"
+        where = change.where_old if change.status == tc.STATUS_REMOVED else change.where_new
+        mark = " ⚠️ проверить" if change.status == tc.STATUS_CHECK else ""
+        lines.append(f"- {where}: {text}{mark}")
+    if len(result.changes) > CHAT_TEXT_CHANGES:
+        lines.append(f"\n_…ещё {len(result.changes) - CHAT_TEXT_CHANGES} изменений в отчёте._")
+    return "\n".join(lines)
 
 
 # --------------------------------- PDF -----------------------------------
@@ -590,23 +660,20 @@ def _spec_summary(result: "spec_registry.SpecRegistry") -> str:
 
 
 def _handle_pdf_compare(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
-    """Две редакции спецификации (сканы, форма ГОСТ 21.110): что изменилось по позициям."""
-    problem = spec_registry.unavailable_reason()
-    if problem:
-        raise DocumentError(problem)
-    for name, content in files:
-        spec_registry.check_pdf(content, name)
-    budget = spec_registry.MAX_SPEC_PAGES // 2
-    docs = [spec_registry.process_pdf(content, name, budget) for name, content in files]
-    for doc in docs:
-        if doc.error:
-            raise DocumentError(f"«{doc.filename}»: {doc.error}")
-    not_spec = [d.filename for d in docs if not d.table_pages]
-    if not_spec:
-        raise DocumentError(
-            "Сравнение PDF пока умеет только спецификации по форме ГОСТ 21.110: в "
-            + ", ".join(f"«{n}»" for n in not_spec) + " таблица спецификации не найдена."
-        )
+    """Два PDF: если оба — спецификации по форме ГОСТ 21.110, сравнение по позициям,
+    иначе — по тексту."""
+    if spec_registry.unavailable_reason() is None:
+        for name, content in files:
+            spec_registry.check_pdf(content, name)
+        budget = spec_registry.MAX_SPEC_PAGES // 2
+        docs = [spec_registry.process_pdf(content, name, budget) for name, content in files]
+        if all(not d.error and d.table_pages for d in docs):
+            return _answer_spec_compare(msg, docs)
+    return _handle_text_compare(msg, files)
+
+
+def _answer_spec_compare(msg: str, docs: list["spec_registry.SpecDocument"]) -> ChatFileResult:
+    """Две редакции спецификации: что изменилось по позициям."""
     result = spec_compare.compare(*docs)
     result.seconds = round(sum(d.seconds for d in docs) + result.seconds, 1)
     if not result.same_document and not _has(msg, _ANYWAY_KW):

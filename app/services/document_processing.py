@@ -17,7 +17,6 @@ Excel (`.xlsx`): извлечение данных (6.A.1), объединени
 
 from __future__ import annotations
 
-import difflib
 import io
 import os
 import shutil
@@ -475,6 +474,42 @@ def diff_workbooks(old: WorkbookData, new: WorkbookData) -> DiffResult:
     )
 
 
+# --------------------- Похожи ли файлы, чтобы их сравнивать ----------------
+#
+# Сравнение двух не связанных таблиц покажет «изменённым» всё подряд — пользу это не
+# несёт, а выглядит как ответ. Поэтому до сравнения проверяем, что это версии одной
+# таблицы или одного бланка (как и для документов в `text_compare`).
+
+SAME_TABLE_HEADERS = 0.5  # общих заголовков колонок (доля меньшего набора) — одна таблица
+SAME_TABLE_VALUES = 0.3  # или столько общих значений ячеек
+SAME_FORM_VALUES = 0.4  # у бланков — общих надписей и значений
+SIMILARITY_ROWS = 2000  # строк, по которым считаем общие значения
+
+
+def _containment(a: set[str], b: set[str]) -> float:
+    return len(a & b) / min(len(a), len(b)) if a and b else 0.0
+
+
+def table_similarity(old: SheetData, new: SheetData) -> tuple[bool, str]:
+    """Версии одной таблицы? Общие заголовки колонок либо заметная доля общих значений."""
+    def headers(sheet: SheetData) -> set[str]:  # «Колонка N» — подставлены за пустой заголовок
+        return {h for h in _structure_signature(sheet.headers) if h and not h.startswith("колонка ")}
+
+    def values(sheet: SheetData) -> set[str]:
+        return {_norm_header(v) for row in sheet.rows[:SIMILARITY_ROWS] for v in row if v.strip()}
+
+    shared_headers = _containment(headers(old), headers(new))
+    shared_values = _containment(values(old), values(new))
+    same = shared_headers >= SAME_TABLE_HEADERS or shared_values >= SAME_TABLE_VALUES
+    return same, f"общих заголовков колонок — {round(shared_headers * 100)} %, общих значений — {round(shared_values * 100)} %"
+
+
+def form_similarity(old: "SheetGrid", new: "SheetGrid") -> tuple[bool, str]:
+    """Версии одного бланка? Большая часть надписей и значений общая."""
+    share = _containment({_norm_header(v) for v in old.cells.values()}, {_norm_header(v) for v in new.cells.values()})
+    return share >= SAME_FORM_VALUES, f"общих надписей и значений — {round(share * 100)} %"
+
+
 # ----------------------- 6.A.3 (форма) Сравнение бланков -----------------
 #
 # Таблица-реестр (строка-заголовок + строки данных) сравнивается выше в
@@ -745,65 +780,7 @@ def parse_docx(content: bytes, filename: str) -> DocxData:
     return DocxData(filename=filename, paragraphs=paragraphs, tables=tables)
 
 
-@dataclass
-class DocxDiffItem:
-    op: str  # "added" | "removed" | "changed"
-    old: str | None
-    new: str | None
-
-
-@dataclass
-class DocxDiffResult:
-    items: list[DocxDiffItem]
-    truncated: bool
-
-    @property
-    def summary(self) -> dict[str, int]:
-        out = {"added": 0, "removed": 0, "changed": 0}
-        for it in self.items:
-            out[it.op] += 1
-        return out
-
-
-def diff_docx(old: DocxData, new: DocxData) -> DocxDiffResult:
-    """Сравнить два .docx по абзацам (6.B.3).
-
-    Сравнение по тексту, форматирование не учитывается (осознанное упрощение
-    первой итерации). Гранулярность — абзац: difflib по спискам абзацев.
-    Соседние replace-блоки 1:1 трактуем как «изменён абзац».
-    """
-    old_paras = [p.text for p in old.paragraphs]
-    new_paras = [p.text for p in new.paragraphs]
-
-    matcher = difflib.SequenceMatcher(a=old_paras, b=new_paras, autojunk=False)
-    items: list[DocxDiffItem] = []
-    truncated = False
-
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == "equal":
-            continue
-        if len(items) >= MAX_DIFF_ITEMS:
-            truncated = True
-            break
-        if tag == "replace":
-            old_block = old_paras[i1:i2]
-            new_block = new_paras[j1:j2]
-            # Сопоставимые 1:1 абзацы — «изменён»; излишек — удалён/добавлен.
-            pairs = min(len(old_block), len(new_block))
-            for k in range(pairs):
-                items.append(DocxDiffItem(op="changed", old=old_block[k], new=new_block[k]))
-            for text in old_block[pairs:]:
-                items.append(DocxDiffItem(op="removed", old=text, new=None))
-            for text in new_block[pairs:]:
-                items.append(DocxDiffItem(op="added", old=None, new=text))
-        elif tag == "delete":
-            for text in old_paras[i1:i2]:
-                items.append(DocxDiffItem(op="removed", old=text, new=None))
-        elif tag == "insert":
-            for text in new_paras[j1:j2]:
-                items.append(DocxDiffItem(op="added", old=None, new=text))
-
-    return DocxDiffResult(items=items[:MAX_DIFF_ITEMS], truncated=truncated)
+# Сравнение двух Word-файлов (и Word с PDF) — по словам, в `text_compare`.
 
 
 # ============================== PDF → Word/Excel =========================

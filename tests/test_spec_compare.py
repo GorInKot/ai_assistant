@@ -13,7 +13,6 @@ from openpyxl import load_workbook
 from app.services import chat_documents as cd
 from app.services import spec_compare as sc
 from app.services import spec_registry as sr
-from app.services.document_processing import DocumentError
 
 CODE = "12345678.001-Р-100.000.000-ТХ-01-С-001"
 
@@ -237,11 +236,17 @@ def test_page_ranges():
     assert cd._page_ranges([7]) == "7"
 
 
-def test_chat_compare_needs_spec_form(monkeypatch, ocr_ready):
+def test_chat_compares_other_pdfs_by_text(monkeypatch, ocr_ready):
+    # не спецификация — сравнение по тексту, а не по позициям
+    from app.services import text_compare as tc
+
     docs = {"a.pdf": _doc("a.pdf", _base()), "letter.pdf": sr.SpecDocument(filename="letter.pdf", pages=2)}
     monkeypatch.setattr(sr, "process_pdf", _fake_process(docs))
-    with pytest.raises(DocumentError, match="только спецификации"):
-        cd.handle_chat_files("сравни", [("a.pdf", b"%PDF"), ("letter.pdf", b"%PDF")], llm=None)
+    words = "Письмо о переносе срока поставки на две недели по просьбе подрядчика".split()
+    monkeypatch.setattr(tc, "load_document", lambda content, name: tc.TextDoc(
+        name, [tc.Word(w, tc.word_key(w), "стр. 1") for w in words]))
+    result = cd.handle_chat_files("сравни", [("a.pdf", b"%PDF"), ("letter.pdf", b"%PDF")], llm=None)
+    assert "Сравнение документов" in result.answer and "Различий в тексте нет" in result.answer
 
 
 # ------------------------- сквозной прогон по «сканам» -------------------------
