@@ -251,3 +251,62 @@ export interface RouteResult {
   dxf_base64?: string;
   dwg_base64?: string;
 }
+
+// ---------- Замер времени «вручную / с ассистентом» ----------
+
+export type TimingTask = "spec_to_excel" | "compare_versions" | "search";
+export type TimingMode = "manual" | "assisted";
+
+export interface TimingRun {
+  id: number;
+  participant: string;
+  task: TimingTask;
+  document: string;
+  doc_type: string;
+  mode: TimingMode;
+  status: "running" | "done" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  total_seconds: number;
+  machine_seconds: number;
+  human_seconds: number;
+  comment: string;
+  sheets: number | null;
+  positions: number | null;
+  flagged: number | null;
+  errors_wrong: number | null;
+  errors_missed: number | null;
+  errors_extra: number | null;
+  changes_missed: number | null;
+  changes_false: number | null;
+}
+
+export interface TimingStats {
+  n: number;
+  median: number;
+  min: number;
+  max: number;
+}
+
+export interface TimingSummaryRow {
+  task: TimingTask;
+  title: string;
+  unit: string;
+  manual: TimingStats | null;
+  assisted: TimingStats | null;
+  saved_seconds: number | null;
+  saved_share: number | null;
+}
+
+export interface TimingOption {
+  value: string;
+  label: string;
+  unit?: string;
+}
+
+export interface TimingOverview {
+  runs: TimingRun[];
+  active: TimingRun | null;
+  summary: TimingSummaryRow[];
+  options: { tasks: TimingOption[]; modes: TimingOption[]; doc_types: TimingOption[] };
+}

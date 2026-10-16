@@ -17,6 +17,7 @@ interface Props {
   onOpenGaps: () => void;
   onOpenCad: () => void;
   onOpenDrawing: () => void;
+  onOpenTiming: () => void;
   onLogout: () => void;
 }
 
@@ -36,6 +37,7 @@ export function Sidebar({
   onOpenGaps,
   onOpenCad,
   onOpenDrawing,
+  onOpenTiming,
   onLogout,
 }: Props) {
   // В свёрнутом режиме список бесед открывается выезжающей панелью поверх чата.
@@ -98,6 +100,11 @@ export function Sidebar({
         {isManager && (
           <button onClick={onOpenGaps} className={railBtn} title="Пробелы в знаниях" aria-label="Пробелы в знаниях">
             📊
+          </button>
+        )}
+        {isManager && (
+          <button onClick={onOpenTiming} className={railBtn} title="Замер времени" aria-label="Замер времени">
+            ⏱
           </button>
         )}
         {isAdmin && (
@@ -190,6 +197,11 @@ export function Sidebar({
         {isManager && (
           <button onClick={onOpenGaps} className={footerBtn}>
             📊 Пробелы в знаниях
+          </button>
+        )}
+        {isManager && (
+          <button onClick={onOpenTiming} className={footerBtn}>
+            ⏱ Замер времени
           </button>
         )}
         {isAdmin && (

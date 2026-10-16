@@ -25,6 +25,7 @@ from app.routers import (
     portal_sso,
     profile,
     system,
+    timing as timing_router,
     users_admin,
 )
 from app.services import cad, route_drawing
@@ -46,6 +47,7 @@ app.include_router(actions.router)
 app.include_router(profile.router)
 app.include_router(users_admin.router)
 app.include_router(portal_sso.router)
+app.include_router(timing_router.router)
 
 
 @app.middleware("http")

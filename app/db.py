@@ -4,6 +4,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -179,6 +180,37 @@ class CadRequest(Base):
     spec_json = Column(Text, nullable=True)
     # JSON-список пометок («Материал не назван…», «Пока не поддерживается и не учтено: …»).
     notes_json = Column(Text, nullable=True)
+
+
+class TimingRun(Base):
+    """Замер времени одной задачи «вручную / с ассистентом» (страница «Замер», services/timing.py).
+
+    Участник — код, а не ФИО. Машинное время набегает само: всё, что ассистент обрабатывает
+    для того, кто ведёт замер, пока идёт замер «с ассистентом».
+    """
+
+    __tablename__ = "timing_runs"
+    id = Column(Integer, primary_key=True, index=True)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    participant = Column(String, nullable=False)
+    task = Column(String, nullable=False)  # spec_to_excel / compare_versions / search
+    document = Column(String, nullable=False)
+    doc_type = Column(String, nullable=False, default="")  # clean / handwritten / text / ""
+    mode = Column(String, nullable=False)  # manual / assisted
+    status = Column(String, nullable=False, default="running")  # running / done / failed
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    machine_seconds = Column(Float, nullable=False, default=0.0, server_default="0")
+    sheets = Column(Integer, nullable=True)
+    positions = Column(Integer, nullable=True)
+    flagged = Column(Integer, nullable=True)
+    errors_wrong = Column(Integer, nullable=True)  # неверное значение
+    errors_missed = Column(Integer, nullable=True)  # пропущенная позиция
+    errors_extra = Column(Integer, nullable=True)  # лишняя позиция
+    changes_missed = Column(Integer, nullable=True)  # сравнение: пропущенные изменения
+    changes_false = Column(Integer, nullable=True)  # сравнение: ложные изменения
+    comment = Column(Text, nullable=True)
 
 
 def init_db():

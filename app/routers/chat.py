@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import func
@@ -11,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, get_db
 from app.db import Conversation, Message, User
 from app.schemas import AskAttachment, AskRequest, AskResponse, DialogClearRequest, RatingRequest
-from app.services import gaps
+from app.services import gaps, timing
 from app.services.ask_service import clear_dialog, process_ask
 from app.services.chat_documents import handle_chat_files
 from app.services.document_processing import MAX_FILES, DocumentError
@@ -68,6 +69,7 @@ def ask(
         conversation.updated_at = func.now()
         db.commit()
 
+    started = time.monotonic()
     response = process_ask(
         raw_question=payload.question,
         session_id_raw=payload.session_id,
@@ -75,6 +77,7 @@ def ask(
         db=db,
         conversation_id=conversation.id if conversation else None,
     )
+    timing.add_machine_seconds(db, current_user.id, time.monotonic() - started)  # если идёт замер
 
     message_id: int | None = None
     if conversation is not None:
@@ -133,12 +136,15 @@ async def ask_files(
         conversation.updated_at = func.now()
         db.commit()
 
+    started = time.monotonic()
     try:
         result = handle_chat_files(user_text, payloads, llm_service)
     except DocumentError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:  # LLM не настроен (выжимка)
         raise HTTPException(status_code=503, detail=str(exc))
+    finally:
+        timing.add_machine_seconds(db, current_user.id, time.monotonic() - started)  # если идёт замер
 
     attachment = (
         AskAttachment(

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CadPage } from "../cad/CadPage";
 import { DrawingPage } from "../cad/DrawingPage";
 import { GapsAdmin } from "../admin/GapsAdmin";
+import { formatDuration, TimingPage, useElapsed } from "../admin/TimingPage";
 import { UsersAdmin } from "../admin/UsersAdmin";
 import { api, ApiError } from "../api/client";
 import { clearToken } from "../auth/store";
@@ -11,6 +12,7 @@ import type {
   ChatMessage,
   ConversationDetail,
   ConversationSummary,
+  TimingRun,
 } from "../api/types";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
@@ -36,10 +38,21 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps" | "cad" | "drawing">("chat");
+  const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps" | "cad" | "drawing" | "timing">("chat");
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const { isAdmin, isManager } = useCurrentUser();
+  // Идущий замер времени (страница «Замер») — плашка над чатом, пока участник работает.
+  const [activeRun, setActiveRun] = useState<TimingRun | null>(null);
+
+  useEffect(() => {
+    if (!isManager) return;
+    api
+      .get<{ active: TimingRun | null }>("/api/admin/timing/active")
+      .then((data) => setActiveRun(data.active))
+      .catch(() => undefined);
+  }, [isManager, view]);
+
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
@@ -189,6 +202,7 @@ export function ChatPage() {
         onOpenGaps={() => setView("admin-gaps")}
         onOpenCad={() => setView("cad")}
         onOpenDrawing={() => setView("drawing")}
+        onOpenTiming={() => setView("timing")}
         onLogout={handleLogout}
       />
       {view === "admin-users" ? (
@@ -203,6 +217,10 @@ export function ChatPage() {
         <main className="flex-1">
           <CadPage onBackToChat={() => setView("chat")} />
         </main>
+      ) : view === "timing" ? (
+        <main className="flex-1">
+          <TimingPage onBackToChat={() => setView("chat")} onActiveChange={setActiveRun} />
+        </main>
       ) : view === "admin-gaps" ? (
         <main className="flex-1">
           <GapsAdmin onBackToChat={() => setView("chat")} />
@@ -210,6 +228,7 @@ export function ChatPage() {
       ) : (
         <main className="flex-1 flex flex-col bg-surface-muted">
           <Header />
+          {activeRun && <TimingBanner run={activeRun} onOpen={() => setView("timing")} />}
           <MessageList messages={messages} loading={sending} onSuggest={handleSend} />
           {error && (
             <div className="mx-auto max-w-3xl w-full px-6">
@@ -234,5 +253,20 @@ function Header() {
     <header className="border-b border-line bg-surface px-6 py-3">
       <h1 className="font-display text-base font-bold uppercase tracking-wide text-ink">Корпоративный ИИ-ассистент</h1>
     </header>
+  );
+}
+
+function TimingBanner({ run, onOpen }: { run: TimingRun; onOpen: () => void }) {
+  const elapsed = useElapsed(run.started_at);
+  return (
+    <div className="bg-inverse text-inverse-fg px-6 py-2 text-sm flex items-center gap-3">
+      <span className="font-display text-lg font-bold tabular-nums text-primary">{formatDuration(elapsed)}</span>
+      <span>
+        Идёт замер: {run.participant} · {run.document} · {run.mode === "assisted" ? "с ассистентом" : "вручную"}
+      </span>
+      <button onClick={onOpen} className="ml-auto text-xs underline text-inverse-muted hover:text-inverse-fg">
+        открыть замер
+      </button>
+    </div>
   );
 }
