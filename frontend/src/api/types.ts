@@ -37,6 +37,8 @@ export interface Grounding {
   ratio: number;
   unsupported: string[];
   citations: GroundingCitation[];
+  // page — ответ по странице портала (сверено с тем, что на экране, и с документами, если были)
+  basis?: "page";
 }
 
 export interface AskAttachment {
@@ -61,6 +63,8 @@ export interface ChatMessage {
   no_exact_match: boolean;
   // 1 — полезно, -1 — не полезно, null — не оценён
   rating?: number | null;
+  // Вопрос из панели на странице портала: «Метрология → Реестр средств измерений».
+  page_label?: string | null;
   created_at: string;
   attachment?: AskAttachment | null;
   suggestions?: AskSuggestion[];
@@ -71,6 +75,29 @@ export interface ChatMessage {
 
 export interface ConversationDetail extends ConversationSummary {
   messages: ChatMessage[];
+}
+
+// ---------- Что открыто на странице портала (кнопка ассистента, widget.js) ----------
+
+export interface PageContext {
+  path: string;
+  title: string;
+  heading: string;
+  tab: string;
+  fields: { label: string; value: string }[];
+  selected: string;
+  tables: { caption: string; headers: string[]; rows: string[][]; total_rows: number | null }[];
+  errors: string[];
+  text: string;
+}
+
+// Что ассистент увидит на странице — ровно то, что уйдёт модели (POST /api/page-context/preview).
+export interface PageContextPreview {
+  label: string;
+  section: string;
+  rows: number;
+  fields: number;
+  text: string;
 }
 
 export interface AskResponse {

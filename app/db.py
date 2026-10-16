@@ -124,6 +124,8 @@ class Message(Base):
     no_exact_match = Column(Integer, nullable=False, default=0)
     # Оценка ответа пользователем: 1 — полезно, -1 — не полезно, NULL — не оценён.
     rating = Column(Integer, nullable=True)
+    # Вопрос из панели на странице портала: «Метрология → Реестр средств измерений» (не текст страницы).
+    page_label = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")
@@ -155,6 +157,8 @@ class QaLog(Base):
     # JSON: [{"relative_path": ..., "source_type": ...}] — какие документы показаны к ответу.
     sources_json = Column(Text, nullable=True)
     rating = Column(Integer, nullable=True)
+    # Раздел портала, с которого задан вопрос (кнопка ассистента); NULL — из самого ассистента.
+    portal_section = Column(String, nullable=True, index=True)
 
 
 class CadRequest(Base):

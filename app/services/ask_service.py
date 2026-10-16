@@ -26,7 +26,10 @@ from app.roles import (
     is_responsibility_question,
 )
 from app.schemas import AskResponse
-from app.services import grounding, smalltalk
+from types import SimpleNamespace
+
+from app.services import grounding, page_context, smalltalk
+from app.services.page_context import PageContext
 from app.state import (
     dialog_state,
     kb_index,
@@ -538,12 +541,18 @@ def process_ask(
     current_user: User,
     db: Session,
     conversation_id: int | None = None,
+    page: PageContext | None = None,
 ) -> AskResponse:
     """Главная точка входа для /api/ask.
 
     Логика: уточнение к незавершённому вопросу склеивается с ним, затем —
     обычный QA с RAG. Оформление заявок вынесено в Портал и здесь не
     поддерживается — такие сообщения идут как обычные вопросы.
+
+    page — что открыто на странице портала (кнопка ассистента). Вопрос об экране
+    («что на экране», «это поле»), о введённых данных («даты, которые я указал») или о поле
+    со страницы отвечается по странице; если по базе знаний ответа нет или вопрос
+    неоднозначен — тоже по странице, а не просьбой уточнить процесс.
     """
     raw_question = raw_question.strip()
     if not raw_question:
@@ -569,6 +578,10 @@ def process_ask(
         return AskResponse(answer=answer, sources=[], no_exact_match=False, kind="smalltalk")
 
     effective_question, is_clarification = dialog_state.merge_with_pending(session_id, raw_question)
+
+    if page is not None and page_context.is_page_question(raw_question, page):
+        dialog_state.clear(session_id)
+        return _answer_from_page(raw_question, page)
 
     # ---- Обычный QA flow ----
     language = detect_language(effective_question)
@@ -669,6 +682,10 @@ def process_ask(
                 resolved_question=effective_question,
             )
 
+    if (not has_strong_context or (process_ambiguous and process_hint is None)) and page is not None:
+        dialog_state.clear(session_id)
+        return _answer_from_page(raw_question, page, context_results if has_strong_context else [])
+
     if not has_strong_context or (process_ambiguous and process_hint is None):
         reason = "ambiguous" if process_ambiguous and process_hint is None else "missing"
         answer = build_fallback_answer(language, final_sources, reason=reason)
@@ -712,6 +729,39 @@ def process_ask(
         kind="missing" if no_exact_match else "answer",
         resolved_question=effective_question,
         log_sources=context_sources,
+    )
+
+
+PAGE_SOURCE = "Страница портала"
+
+
+def _answer_from_page(
+    question: str, page: PageContext, context_results: list[RetrievalResult] | None = None
+) -> AskResponse:
+    """Ответ по тому, что открыто на странице портала (и по документам, если нашлись)."""
+    block = page_context.render(page)
+    context_results = list(context_results or [])[:3]
+    try:
+        answer = llm_service.generate_page_answer(question, block, context_results)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    # Сверка с тем, из чего отвечала модель: страница — отдельным «фрагментом».
+    page_chunk = SimpleNamespace(text=block, relative_path=PAGE_SOURCE, page=None, section=page_context.label(page))
+    chunks = [page_chunk, *(r.chunk for r in context_results)]
+    with kb_lock:
+        sources = kb_index.build_sources_from_results(context_results) if context_results else []
+    request_logger.log(question, sources, answer=answer)
+    # basis — сверено со страницей (интерфейс подписывает «Сверено со страницей», а не «в документах»)
+    return AskResponse(
+        answer=answer,
+        sources=sources,
+        no_exact_match=False,
+        grounding={**grounding.check_grounding(answer, chunks).summary(), "basis": "page"},
+        kind="page",
+        resolved_question=question,
     )
 
 

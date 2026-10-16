@@ -101,6 +101,7 @@ def record_answer(
                 claims_total=grounding.get("total"),
                 claims_unsupported=len(grounding.get("unsupported", [])) if grounding else None,
                 sources_json=json.dumps(sources, ensure_ascii=False),
+                portal_section=getattr(response, "portal_section", None),
             )
         )
         db.commit()

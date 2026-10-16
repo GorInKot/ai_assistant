@@ -48,6 +48,7 @@ def _serialize_message(msg: Message) -> dict:
         "grounding": grounding,
         "no_exact_match": bool(msg.no_exact_match),
         "rating": msg.rating,
+        "page_label": msg.page_label,
         "created_at": msg.created_at.isoformat() if msg.created_at else None,
     }
 

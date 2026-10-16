@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.services.page_context import PageContext
+
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
@@ -11,6 +13,9 @@ class AskRequest(BaseModel):
     # Если передан — сообщения сохраняются в эту беседу.
     # Если None — обратная совместимость со старым UI: ответ возвращается, но в БД не пишется.
     conversation_id: int | None = None
+    # Что открыто на странице портала, с которой задан вопрос (кнопка ассистента), — данные,
+    # а не инструкции. Только для этого ответа: в истории остаётся метка раздела.
+    page_context: PageContext | None = None
 
 
 class AskAttachment(BaseModel):
@@ -42,6 +47,8 @@ class AskResponse(BaseModel):
     # Документы, из которых собран ответ (в интерфейсе показываются не все: markdown-заметки
     # скрыты), — для журнала вопросов. Если не задано, берутся показанные источники.
     log_sources: list[dict] | None = Field(default=None, exclude=True)
+    # Раздел портала, с которого задан вопрос, — для журнала вопросов.
+    portal_section: str | None = Field(default=None, exclude=True)
 
 
 class RatingRequest(BaseModel):

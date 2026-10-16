@@ -67,6 +67,11 @@ function MessageBubble({
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-ink-subtle mb-1">
           {isUser ? "Вы" : "Ассистент"}
+          {isUser && msg.page_label && (
+            <span className="ml-2 font-normal text-ink-faint" title="Вопрос задан со страницы портала">
+              📍 {msg.page_label}
+            </span>
+          )}
         </div>
         {/* переносы строк сохраняем только у вопроса: ответ верстает Markdown, иначе — лишние пустые строки */}
         <div className={`prose-msg text-sm text-ink break-words ${isUser ? "whitespace-pre-wrap" : ""}`}>
@@ -192,20 +197,24 @@ function Avatar({ role }: { role: "user" | "assistant" }) {
 function GroundingBlock({ grounding }: { grounding: Grounding }) {
   const alarms = grounding.unsupported.length;
   const confirmed = grounding.total - alarms;
+  const onPage = grounding.basis === "page";
   return (
     <div className="mt-3 space-y-2">
       <div
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
           alarms === 0 ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
         }`}
-        title="Сверяются слова и числа ответа с найденными фрагментами документов. Выдуманные числа и детали проверка ловит; перепутанный смысл теми же словами — нет, поэтому важные факты сверяйте по цитатам."
+        title={`Сверяются слова и числа ответа с ${onPage ? "содержимым страницы портала" : "найденными фрагментами документов"}. Выдуманные числа и детали проверка ловит; перепутанный смысл теми же словами — нет, поэтому важные факты сверяйте по цитатам.`}
       >
-        {alarms === 0 ? "✔" : "⚠"} Найдено в документах: {confirmed} из {grounding.total} утверждений
+        {alarms === 0 ? "✔" : "⚠"} {onPage ? "Сверено со страницей" : "Найдено в документах"}: {confirmed} из{" "}
+        {grounding.total} утверждений
       </div>
 
       {alarms > 0 && (
         <div className="rounded-lg border border-warning-line bg-warning-soft p-3 text-xs text-warning">
-          <div className="font-semibold mb-1">Не найдено в документах — проверьте:</div>
+          <div className="font-semibold mb-1">
+            {onPage ? "Нет на странице — проверьте:" : "Не найдено в документах — проверьте:"}
+          </div>
           <ul className="list-disc pl-4 space-y-0.5">
             {grounding.unsupported.map((text, i) => (
               <li key={i}>{text}</li>

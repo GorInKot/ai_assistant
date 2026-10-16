@@ -12,8 +12,9 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, get_db
 from app.db import Conversation, Message, User
 from app.schemas import AskAttachment, AskRequest, AskResponse, DialogClearRequest, RatingRequest
-from app.services import gaps, timing
+from app.services import gaps, page_context, timing
 from app.services.ask_service import clear_dialog, process_ask
+from app.services.page_context import PageContext
 from app.services.chat_documents import handle_chat_files
 from app.services.document_processing import MAX_FILES, DocumentError
 from app.state import llm_service
@@ -51,6 +52,9 @@ def ask(
 ) -> AskResponse:
     raw_question = payload.question.strip()
     conversation: Conversation | None = None
+    page = page_context.sanitize(payload.page_context) if payload.page_context else None
+    # В истории и журнале — только метка раздела, не текст страницы.
+    page_label = page_context.label(page) if page else None
 
     # Если фронт передал conversation_id — пишем историю в БД.
     # Без conversation_id остаётся обратная совместимость со старым UI: история не пишется.
@@ -65,6 +69,7 @@ def ask(
             conversation_id=conversation.id,
             role="user",
             content=raw_question,
+            page_label=page_label,
         ))
         conversation.updated_at = func.now()
         db.commit()
@@ -76,8 +81,11 @@ def ask(
         current_user=current_user,
         db=db,
         conversation_id=conversation.id if conversation else None,
+        page=page,
     )
     timing.add_machine_seconds(db, current_user.id, time.monotonic() - started)  # если идёт замер
+    if page is not None:
+        response.portal_section = page_context.section_for(page.path)
 
     message_id: int | None = None
     if conversation is not None:
@@ -100,6 +108,24 @@ def ask(
         db, user=current_user, response=response, fallback_question=raw_question, message_id=message_id
     )
     return response
+
+
+@router.post("/page-context/preview")
+def page_context_preview(
+    payload: PageContext,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Что ассистент увидит на странице портала — для плашки «Видит: …» над полем ввода.
+    Ровно тот текст, что уйдёт модели вместе с вопросом."""
+    page = page_context.sanitize(payload)
+    text = page_context.render(page)
+    return {
+        "label": page_context.label(page),
+        "section": page_context.section_for(page.path),
+        "rows": page_context.table_rows(page),
+        "fields": len(page.fields),
+        "text": text,
+    }
 
 
 @router.post("/ask-files", response_model=AskResponse)

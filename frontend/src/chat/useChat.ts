@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { AskResponse, ChatMessage, ConversationDetail, ConversationSummary } from "../api/types";
+import type { AskResponse, ChatMessage, ConversationDetail, ConversationSummary, PageContext } from "../api/types";
 
 // Беседа с ассистентом: общая для полной версии (ChatPage) и компактной панели (WidgetPage),
 // поэтому беседы из панели видны в обычной истории.
@@ -38,7 +38,13 @@ export function useChat({ loadList = true }: { loadList?: boolean } = {}) {
     setMessages([]);
   }, []);
 
-  const send = async (text: string, files: File[] = []) => {
+  // page — что открыто на странице портала (панель кнопки): уходит вместе с вопросом,
+  // в истории остаётся только метка раздела.
+  const send = async (
+    text: string,
+    files: File[] = [],
+    page?: { context: PageContext; label: string } | null,
+  ) => {
     setError(null);
     setSending(true);
 
@@ -61,6 +67,7 @@ export function useChat({ loadList = true }: { loadList?: boolean } = {}) {
         content: userContent,
         sources: [],
         no_exact_match: false,
+        page_label: files.length === 0 ? page?.label ?? null : null,
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMsg]);
@@ -74,6 +81,7 @@ export function useChat({ loadList = true }: { loadList?: boolean } = {}) {
           : await api.post<AskResponse>("/api/ask", {
               question: text,
               conversation_id: conversationId,
+              page_context: page?.context ?? null,
             });
 
       const assistantMsg: ChatMessage = {
