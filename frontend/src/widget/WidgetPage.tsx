@@ -48,7 +48,9 @@ export function WidgetPage() {
     writeConversation(activeId);
   }, [activeId]);
 
+  // На портале — полная версия на плитке портала (вход тем же пропуском), иначе — новая вкладка ассистента.
   const openFull = () => {
+    if (notifyHost({ type: "open-full", conversation: activeId })) return;
     const url = activeId === null ? "/" : `/?conversation=${activeId}`;
     window.open(url, "_blank", "noopener");
   };
@@ -56,16 +58,20 @@ export function WidgetPage() {
   return (
     <div className="flex flex-col h-screen bg-surface-muted">
       <header className="bg-inverse text-inverse-fg sidebar-rule px-3 py-2 flex items-center gap-1">
-        <span className="font-display text-sm font-bold uppercase tracking-wide mr-auto">ИИ-ассистент</span>
+        {/* на совсем узком экране название прячется, чтобы кнопки шапки уместились в строку */}
+        <span className="font-display text-sm font-bold uppercase tracking-wide whitespace-nowrap max-[400px]:hidden">
+          ИИ-ассистент
+        </span>
+        <span className="flex-1" />
         <button onClick={newConversation} disabled={chat.sending} className={headerBtn} title="Начать новую беседу">
           + Новая беседа
         </button>
-        <button onClick={openFull} className={headerBtn} title="Открыть ассистент в новой вкладке">
+        <button onClick={openFull} className={headerBtn} title="Открыть полную версию в новой вкладке">
           Открыть полностью ↗
         </button>
         {embedded && (
           <button
-            onClick={() => notifyHost("close")}
+            onClick={() => notifyHost({ type: "close" })}
             className={`${headerBtn} text-base leading-none`}
             title="Закрыть панель"
             aria-label="Закрыть панель"
@@ -91,4 +97,4 @@ export function WidgetPage() {
 }
 
 const headerBtn =
-  "rounded-md px-2 py-1 text-xs text-inverse-muted hover:text-inverse-fg hover:bg-inverse-raised disabled:opacity-50";
+  "whitespace-nowrap rounded-md px-2 py-1 text-xs text-inverse-muted hover:text-inverse-fg hover:bg-inverse-raised disabled:opacity-50";

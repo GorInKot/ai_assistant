@@ -12,7 +12,10 @@
 
 Без PORTAL_SSO_SECRET вход из портала выключен. PORTAL_ORIGINS — адреса портала через
 пробел: только им разрешено встраивать ассистент в iframe (заголовок frame-ancestors).
-Куда перейти после входа (`next`) — только раздел из списка ALLOWED_NEXT, иначе чат.
+Куда перейти после входа (`next`) — только раздел из списка ALLOWED_NEXT, иначе чат; номер беседы
+(`conversation`) — только для чата. `host` — адрес страницы портала, в которую встроена панель
+(widget.js): запоминается в окне ассистента, только если он из PORTAL_ORIGINS, — на него панель
+шлёт сообщения («закрыть», «открыть полностью»).
 """
 
 from __future__ import annotations
@@ -40,8 +43,9 @@ MIN_SECRET_LEN = 32
 MAX_TTL_SECONDS = 120  # пропуск дольше двух минут не принимаем, даже если портал так подписал
 _SUB_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _ROLES = {ROLE_ADMIN, ROLE_MANAGER, ROLE_USER}
-# Разделы ассистента, в которые портал может вести после входа: чат и «Конструктор и чертежи».
-ALLOWED_NEXT = ("/", "/tools")
+# Разделы ассистента, в которые портал может вести после входа: чат, «Конструктор и чертежи»
+# и компактная панель для кнопки на страницах портала.
+ALLOWED_NEXT = ("/", "/tools", "/widget")
 
 router = APIRouter()
 
@@ -145,19 +149,32 @@ _LANDING = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><title>Вход</title></head>
 <body><script>
 localStorage.setItem("ai_assistant_token", {token});
+{host}
 location.replace({next});
 </script></body></html>"""
 
 
-def safe_next(value: str | None) -> str:
-    """Адрес перехода после входа: только раздел из списка, без параметров и чужих адресов."""
-    return value if value in ALLOWED_NEXT else "/"
+def safe_next(value: str | None, conversation: str | None = None) -> str:
+    """Адрес перехода после входа: только раздел из списка, без чужих адресов; у чата — номер беседы."""
+    target = value if value in ALLOWED_NEXT else "/"
+    if target == "/" and conversation and conversation.isdigit() and len(conversation) <= 12 and int(conversation) > 0:
+        target += f"?conversation={int(conversation)}"
+    return target
+
+
+def host_script(host: str | None) -> str:
+    """Запомнить адрес страницы портала с панелью — только из PORTAL_ORIGINS, иначе забыть."""
+    if host and host in portal_origins():
+        return f'sessionStorage.setItem("ai_assistant_host", {json.dumps(host)});'
+    return 'sessionStorage.removeItem("ai_assistant_host");'
 
 
 @router.post("/sso/portal", response_class=HTMLResponse)
 def portal_login(
     token: str = Form(..., max_length=4096),
     next: str = Form("/", max_length=64),
+    conversation: str = Form("", max_length=16),
+    host: str = Form("", max_length=200),
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     secret = sso_secret()
@@ -171,5 +188,9 @@ def portal_login(
     user = _sync_user(db, payload)
     access_token = create_access_token({"sub": user.email})
     # JWT — base64url и точки, json.dumps даёт безопасный JS-литерал.
-    html = _LANDING.replace("{token}", json.dumps(access_token)).replace("{next}", json.dumps(safe_next(next)))
+    html = (
+        _LANDING.replace("{token}", json.dumps(access_token))
+        .replace("{host}", host_script(host))
+        .replace("{next}", json.dumps(safe_next(next, conversation)))
+    )
     return HTMLResponse(html, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})

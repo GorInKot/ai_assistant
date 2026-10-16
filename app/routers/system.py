@@ -45,6 +45,16 @@ for _path in SPA_PATHS:
     router.add_api_route(_path, root, methods=["GET"], include_in_schema=False)
 
 
+@router.get("/widget.js", include_in_schema=False)
+def widget_script() -> FileResponse:
+    """Кнопка ассистента для страниц портала (frontend/public/widget.js; в сборке — dist/widget.js)."""
+    for path in (_frontend_dist_path() / "widget.js", settings.base_dir / "frontend" / "public" / "widget.js"):
+        if path.exists():
+            # Без долгого кэша: портал подхватывает новую версию кнопки после обновления ассистента.
+            return FileResponse(path, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+    raise HTTPException(status_code=404, detail="widget.js не найден")
+
+
 @router.get("/api/health")
 def health() -> dict[str, str | int]:
     with kb_lock:

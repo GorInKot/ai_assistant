@@ -14,6 +14,7 @@
     <form id="assistant-sso" method="post" action="{{ assistant_url }}/sso/portal" target="assistant-frame" hidden>
       <input type="hidden" name="token" value="{{ token }}">
       <input type="hidden" name="next" value="{{ next_path }}">
+      {% if conversation %}<input type="hidden" name="conversation" value="{{ conversation }}">{% endif %}
     </form>
     <iframe class="assistant-frame" name="assistant-frame" title="{{ title }}"></iframe>
     <script>document.getElementById("assistant-sso").submit();</script>

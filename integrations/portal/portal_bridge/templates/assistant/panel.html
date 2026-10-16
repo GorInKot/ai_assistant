@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ИИ-ассистент</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body { display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;
+           font: 14px/1.5 Arial, sans-serif; color: #4b5563; text-align: center; }
+  </style>
+</head>
+<body>
+  {% if token %}
+    <p>Вход в ассистент…</p>
+    {# Окно выезжающей панели: пропуск уходит POST-запросом в это же окно, ассистент открывает /widget. #}
+    <form id="assistant-sso" method="post" action="{{ assistant_url }}/sso/portal" hidden>
+      <input type="hidden" name="token" value="{{ token }}">
+      <input type="hidden" name="next" value="{{ next_path }}">
+      <input type="hidden" name="host" value="{{ host }}">
+    </form>
+    <script>document.getElementById("assistant-sso").submit();</script>
+  {% else %}
+    <p>Ассистент не настроен: не задан общий секрет ASSISTANT_SSO_SECRET. Обратитесь к администратору портала.</p>
+  {% endif %}
+</body>
+</html>

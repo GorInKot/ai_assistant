@@ -77,6 +77,13 @@ body {
   margin: 0.4em 0;
   padding-left: 1.4em;
 }
+/* маркеры списков: preflight Tailwind их убирает */
+.prose-msg ul {
+  list-style: disc;
+}
+.prose-msg ol {
+  list-style: decimal;
+}
 .prose-msg li {
   margin: 0.15em 0;
 }

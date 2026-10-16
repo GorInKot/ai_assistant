@@ -1,6 +1,7 @@
 #!/bin/sh
-# Запуск портала portalrnsk с разделом «ИИ-ассистент». Файлы портала не меняются:
-# надстройка подключается через DJANGO_SETTINGS_MODULE, данные демо-портала — в .data/.
+# Запуск портала portalrnsk с разделом «ИИ-ассистент» и кнопкой ассистента на всех страницах.
+# Файлы портала не меняются: надстройка подключается через DJANGO_SETTINGS_MODULE и
+# portal_bridge.asgi (кнопка), данные демо-портала — в .data/.
 #
 #   PORTAL_DIR=путь/к/порталу ./run_portal.sh     (по умолчанию — PROJFORTERMINAL рядом с проектом)
 #
@@ -22,4 +23,4 @@ for db in default metrology protocol tkzaii; do
 done
 
 cd "$PORTAL_DIR"
-exec "$PYTHON" -m uvicorn portalrnsk.asgi:application --host 127.0.0.1 --port "${PORTAL_PORT:-8080}"
+exec "$PYTHON" -m uvicorn portal_bridge.asgi:application --host 127.0.0.1 --port "${PORTAL_PORT:-8080}"

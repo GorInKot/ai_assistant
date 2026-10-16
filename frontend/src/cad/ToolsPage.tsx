@@ -7,6 +7,10 @@ import { DrawingPage } from "./DrawingPage";
 
 type Section = "cad" | "drawing";
 
+// В портале раздел — своя плитка (окно внутри портала): ссылка «к ассистенту» там лишняя.
+// Открытый из чата — отдельная страница, и ссылка ведёт обратно в чат.
+const insidePortal = window.parent !== window;
+
 function sectionFromHash(): Section {
   return window.location.hash === "#drawing" ? "drawing" : "cad";
 }
@@ -28,9 +32,11 @@ export function ToolsPage() {
   return (
     <div className="flex flex-col h-screen">
       <nav className="bg-inverse text-inverse-fg border-b border-inverse-line px-6 flex items-center gap-6">
-        <a href="/" className="text-sm text-inverse-muted hover:text-inverse-fg py-3">
-          ← К ассистенту
-        </a>
+        {!insidePortal && (
+          <a href="/" className="text-sm text-inverse-muted hover:text-inverse-fg py-3">
+            ← К ассистенту
+          </a>
+        )}
         <span className="font-display text-base font-bold uppercase tracking-wide py-3">Конструктор и чертежи</span>
         <div className="flex items-stretch gap-1 self-stretch" role="tablist">
           <SectionTab active={section === "cad"} onClick={() => open("cad")}>

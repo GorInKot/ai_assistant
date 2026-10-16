@@ -20,6 +20,8 @@ ASSISTANT_SSO_SECRET = os.environ.get("ASSISTANT_SSO_SECRET", "")
 # Адрес ассистента; пусто — тот же хост, что у портала, порт ASSISTANT_PORT.
 ASSISTANT_URL = os.environ.get("ASSISTANT_URL", "").rstrip("/")
 ASSISTANT_PORT = os.environ.get("ASSISTANT_PORT", "8000")
+# Кнопка ассистента на всех страницах портала (portal_bridge/asgi.py); 0 — выключить.
+ASSISTANT_WIDGET = os.environ.get("ASSISTANT_WIDGET", "1") != "0"
 
 _data_dir = os.environ.get("PORTAL_DATA_DIR")
 if _data_dir:
