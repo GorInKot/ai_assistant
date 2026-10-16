@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from threading import Lock
 
+from app import netguard
 from app.actions import ActionsStore
 from app.config import load_settings
 from app.dialog_state import DialogStateStore
@@ -33,7 +34,13 @@ settings = load_settings()
 # Embedder: локальный (EMBEDDINGS_BASE_URL + EMBEDDINGS_MODEL) приоритетнее Yandex.
 # Без обоих KB работает на одном BM25.
 embedder: OpenAICompatEmbedder | YandexEmbedder | None = None
-if settings.embeddings_base_url and settings.embeddings_model:
+# Закрытый контур: модели — только на этой машине или во внутренней сети (app/netguard.py).
+_embeddings_ok, _embeddings_why = netguard.model_endpoint_allowed(
+    settings.embeddings_base_url, settings.embeddings_api_key
+)
+if settings.embeddings_base_url and settings.embeddings_model and not _embeddings_ok:
+    logger.error("Эмбеддинги отключены: %s", _embeddings_why)
+elif settings.embeddings_base_url and settings.embeddings_model:
     embedder = OpenAICompatEmbedder(
         OpenAICompatEmbedderConfig(
             base_url=settings.embeddings_base_url,
@@ -44,6 +51,8 @@ if settings.embeddings_base_url and settings.embeddings_model:
         )
     )
     logger.info("Local embedder enabled (%s @ %s)", settings.embeddings_model, settings.embeddings_base_url)
+elif settings.yc_api_key and settings.yc_folder_id and not netguard.external_models_allowed():
+    logger.error("Эмбеддинги Yandex отключены: облачный сервис вне контура (разрешить — ALLOW_EXTERNAL_MODELS=1)")
 elif settings.yc_api_key and settings.yc_folder_id:
     embedder = YandexEmbedder(
         YandexEmbedderConfig(api_key=settings.yc_api_key, folder_id=settings.yc_folder_id)
@@ -58,10 +67,13 @@ kb_index = KnowledgeBaseIndex(
     embeddings_cache_path=settings.embeddings_cache_path,
 )
 kb_lock = Lock()
+_llm_ok, _llm_why = netguard.model_endpoint_allowed(settings.llm_base_url, settings.llm_api_key)
+if not _llm_ok:
+    logger.error("Языковая модель отключена: %s", _llm_why)
 llm_service = LLMService(
-    settings.llm_api_key,
+    settings.llm_api_key if _llm_ok else None,
     settings.llm_model,
-    base_url=settings.llm_base_url,
+    base_url=settings.llm_base_url if _llm_ok else None,
     enable_rerank=settings.enable_llm_rerank,
     rerank_candidates=settings.rerank_candidates,
     reasoning_effort=settings.llm_reasoning_effort,
