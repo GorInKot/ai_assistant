@@ -57,6 +57,10 @@ def clean_db():
         conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
     init_db()  # миграции до head + сиды ролей + INITIAL_ADMIN
     state.dialog_state._clarifications.clear()
+    # разобранные документы из чата: в тестах одинаковые файлы разбираются с разными подменами
+    from app.services import chat_documents
+
+    chat_documents._parsed.clear()
     yield
 
 

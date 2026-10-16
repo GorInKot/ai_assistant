@@ -176,6 +176,33 @@ def test_order_by_revision_in_filename(first, second, old):
     assert sc.order_documents(a, b)[0].filename == old
 
 
+@pytest.mark.parametrize("first, second, swap", [
+    ("договор_новый.docx", "договор_старый.docx", True),
+    ("Акт old.pdf", "Акт.pdf", False),
+    ("письмо.docx", "письмо_исправленное.docx", False),
+    ("протокол 15.10.2026.pdf", "протокол 01.10.2026.pdf", True),
+    ("план_2026-09-30.xlsx", "план_2026-10-02.xlsx", False),
+])
+def test_order_by_words_and_dates_in_names(first, second, swap):
+    assert sc.order_by_names(first, second)[0] is swap
+
+
+@pytest.mark.parametrize("first, second", [
+    ("a.pdf", "b.pdf"),
+    ("x изм.3.pdf", "x_R04.pdf"),            # разные схемы нумерации
+    ("старт_новый.pdf", "новый_план.pdf"),   # «новый» в обоих, «старт» — не «старый»
+    ("от 31.02.2026.pdf", "от 01.03.2026.pdf"),  # несуществующая дата не считается
+])
+def test_no_order_by_names_means_ask(first, second):
+    assert sc.order_by_names(first, second) is None
+
+
+def test_user_choice_beats_attachment_order():
+    a, b = _doc("a.pdf", _base()), _doc("b.pdf", _base())
+    old, _new, note = sc.order_documents(a, b, chosen=True)
+    assert old.filename == "a.pdf" and note == sc.ORDER_BY_USER
+
+
 # ---------------------------------- Excel -----------------------------------
 
 
@@ -227,7 +254,7 @@ def test_chat_refuses_to_compare_different_documents(monkeypatch, ocr_ready):
     files = [("a.pdf", b"%PDF"), ("b.pdf", b"%PDF")]
     result = cd.handle_chat_files("что изменилось?", files, llm=None)
     assert result.attachment is None and "не версии одного документа" in result.answer
-    forced = cd.handle_chat_files("сравни всё равно", files, llm=None)
+    forced = cd.handle_chat_files("сравни всё равно, старая — первая", files, llm=None)
     assert forced.attachment is not None and "по вашей просьбе" in forced.answer
 
 
@@ -245,7 +272,7 @@ def test_chat_compares_other_pdfs_by_text(monkeypatch, ocr_ready):
     words = "Письмо о переносе срока поставки на две недели по просьбе подрядчика".split()
     monkeypatch.setattr(tc, "load_document", lambda content, name: tc.TextDoc(
         name, [tc.Word(w, tc.word_key(w), "стр. 1") for w in words]))
-    result = cd.handle_chat_files("сравни", [("a.pdf", b"%PDF"), ("letter.pdf", b"%PDF")], llm=None)
+    result = cd.handle_chat_files("сравни, старая — первая", [("a.pdf", b"%PDF"), ("letter.pdf", b"%PDF")], llm=None)
     assert "Сравнение документов" in result.answer and "Различий в тексте нет" in result.answer
 
 

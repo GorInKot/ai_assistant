@@ -448,12 +448,13 @@ def classify(old: list[Word], new: list[Word], scan: bool) -> tuple[str, list[st
     return (STATUS_CHECK if reasons else status), reasons
 
 
-def compare(first: TextDoc, second: TextDoc, *, force: bool = False) -> TextComparison:
-    """Сравнить две версии. Непохожие документы не сравниваются (если не force)."""
+def compare(first: TextDoc, second: TextDoc, *, force: bool = False, chosen: bool = False) -> TextComparison:
+    """Сравнить две версии. Непохожие документы не сравниваются (если не force).
+    chosen — старую версию указал пользователь (первая)."""
     from app.services.spec_compare import order_files
 
     started = time.time()
-    swap, order_note = order_files(first.filename, second.filename)
+    swap, order_note = order_files(first.filename, second.filename, chosen=chosen)
     old, new = (second, first) if swap else (first, second)
     a, b = [w.key for w in old.words], [w.key for w in new.words]
     shared = shared_share(a, b)

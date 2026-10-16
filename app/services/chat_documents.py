@@ -12,6 +12,11 @@
 from __future__ import annotations
 
 import base64
+import copy
+import hashlib
+import re
+import threading
+import time
 from dataclasses import asdict, dataclass, field
 
 from app.llm import LLMService
@@ -156,9 +161,14 @@ def _diff_two_xlsx(
 ) -> ChatFileResult:
     """Сравнить два .xlsx, выбрав режим: бланк-форма или таблица-реестр.
 
-    Старый файл — по номеру редакции в именах, иначе первый приложенный. Не похожие
-    друг на друга файлы не сравниваются (если не попросили «сравни всё равно»)."""
-    swap, _note = spec_compare.order_files(files[0][0], files[1][0])
+    Старый файл — по именам файлов или по указанию пользователя, иначе ассистент спрашивает.
+    Не похожие друг на друга файлы не сравниваются (если не попросили «сравни всё равно»)."""
+    names = [name for name, _ in files]
+    ordered_files, chosen, ask = _version_order(msg, files)
+    if ordered_files[0] is not files[0]:
+        workbooks = workbooks[::-1]
+    files = ordered_files
+    swap, _note = spec_compare.order_files(files[0][0], files[1][0], chosen=chosen)
     if swap:
         files, workbooks = files[::-1], workbooks[::-1]
     force = _has(msg, _ANYWAY_KW)
@@ -170,12 +180,110 @@ def _diff_two_xlsx(
         same, evidence = form_similarity(a, b)
         if not same and not force:
             return _not_similar(files, "одного бланка", evidence)
+        if ask:
+            return _ask_old_version(msg, names)
         return _answer_diff_form(files[0][0], files[1][0], a, b)
     if workbooks[0].sheets and workbooks[1].sheets:
         same, evidence = table_similarity(workbooks[0].sheets[0], workbooks[1].sheets[0])
         if not same and not force:
             return _not_similar(files, "одной таблицы", evidence)
+    if ask:
+        return _ask_old_version(msg, names)
     return _answer_diff_xlsx(workbooks[0], workbooks[1])
+
+
+_OLD_RE = re.compile(r"\bстар")
+_NEW_RE = re.compile(r"\bнов")
+
+
+def _chosen_old(msg: str, names: list[str]) -> int | None:
+    """Какую версию пользователь назвал старой: «старая — «имя файла»», «новая — …»,
+    «старая — первая / вторая». Индекс старой или None, если не сказано однозначно."""
+    if _OLD_RE.search(msg):
+        named_old = True
+    elif _NEW_RE.search(msg):
+        named_old = False
+    else:
+        return None
+    low = [n.lower() for n in names]
+    hit = None
+    if low[0] != low[1]:
+        for pattern in ("«{}»", "{}"):
+            hits = [i for i, n in enumerate(low) if pattern.format(n) in msg]
+            if len(hits) == 1:
+                hit = hits[0]
+                break
+    if hit is None:
+        first, second = "перв" in msg, "втор" in msg
+        if first == second:
+            return None
+        hit = 0 if first else 1
+    return hit if named_old else 1 - hit
+
+
+def _short_name(name: str, limit: int = 40) -> str:
+    return name if len(name) <= limit else f"{name[:limit - 12]}…{name[-11:]}"
+
+
+def _ask_old_version(msg: str, names: list[str]) -> ChatFileResult:
+    """По именам не понять, какая версия старая, — спросить, а не угадывать по порядку."""
+    base = msg if _has(msg, _COMPARE_KW) else f"сравни {msg}".strip()
+    if names[0].lower() == names[1].lower():
+        options = [("первый приложенный файл", "старая — первый файл"),
+                   ("второй приложенный файл", "старая — второй файл")]
+    else:
+        options = [(_short_name(n), f"старая — «{n}»") for n in names]
+    suggestions = [doc_identify.Suggestion(f"Старая — {label}", f"{base} ({choice})") for label, choice in options]
+    return ChatFileResult(
+        answer=(
+            "**Какая версия старая?** По именам файлов это не определить: нет номера редакции "
+            "(R, rC, изм., ред.), дат или слов «старый / новый». Угадывать по порядку приложения не буду — "
+            "от этого зависит, что попадёт в «добавлено», а что в «удалено».\n\n"
+            "Выберите кнопкой или напишите, например: «сравни, старая — первая»."
+        ),
+        suggestions=[asdict(s) for s in suggestions],
+    )
+
+
+def _version_order(
+    msg: str, files: list[tuple[str, bytes]]
+) -> tuple[list[tuple[str, bytes]], bool, bool]:
+    """Порядок двух версий: (файлы — указанная старая первой, указал ли её пользователь,
+    нужно ли спросить). Если порядок виден по именам, его наводит само сравнение. Спрашивать
+    стоит только после проверки, что это версии одного документа."""
+    names = [name for name, _ in files]
+    if spec_compare.order_by_names(names[0], names[1]) is not None:
+        return files, False, False
+    chosen = _chosen_old(msg, names)
+    if chosen is None:
+        return files, False, True
+    return (files if chosen == 0 else files[::-1]), True, False
+
+
+# Разобранные документы держим недолго: после ответа «какая версия старая» сканы не
+# распознаются заново. Ключ — имя и хэш содержимого; копия на выдаче, чтобы сравнение
+# не меняло сохранённое.
+_PARSED_TTL = 15 * 60
+_PARSED_MAX = 8
+_parsed: dict[tuple[str, str, str], tuple[float, object]] = {}
+_parsed_lock = threading.Lock()
+
+
+def _parsed_once(kind: str, name: str, content: bytes, load):
+    key = (kind, name, hashlib.sha256(content).hexdigest())
+    now = time.time()
+    with _parsed_lock:
+        hit = _parsed.get(key)
+        if hit and hit[0] > now:
+            return copy.deepcopy(hit[1])
+    value = load()
+    with _parsed_lock:
+        for old_key in [k for k, (expires, _) in _parsed.items() if expires <= now]:
+            del _parsed[old_key]
+        while len(_parsed) >= _PARSED_MAX:
+            del _parsed[next(iter(_parsed))]
+        _parsed[key] = (now + _PARSED_TTL, copy.deepcopy(value))
+    return value
 
 
 def _not_similar(files: list[tuple[str, bytes]], what: str, evidence: str) -> ChatFileResult:
@@ -402,11 +510,18 @@ CHAT_TEXT_CHANGES = 15  # сколько изменений текста пок�
 
 def _handle_text_compare(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
     """Две версии документа (PDF — текст или скан, Word) — что изменилось в тексте."""
-    import time
+    return _text_compare_ordered(msg, files, *_version_order(msg, files))
 
+
+def _text_compare_ordered(
+    msg: str, original: list[tuple[str, bytes]], files: list[tuple[str, bytes]], chosen: bool, ask: bool
+) -> ChatFileResult:
     started = time.time()
-    docs = [text_compare.load_document(content, name) for name, content in files]
-    result = text_compare.compare(docs[0], docs[1], force=_has(msg, _ANYWAY_KW))
+    docs = [
+        _parsed_once("text", name, content, lambda c=content, n=name: text_compare.load_document(c, n))
+        for name, content in files
+    ]
+    result = text_compare.compare(docs[0], docs[1], force=_has(msg, _ANYWAY_KW), chosen=chosen)
     result.seconds = round(time.time() - started, 1)
     if not result.same_document and not _has(msg, _ANYWAY_KW):
         return ChatFileResult(answer=(
@@ -415,6 +530,8 @@ def _handle_text_compare(msg: str, files: list[tuple[str, bytes]]) -> ChatFileRe
             "как изменённый, поэтому его не делаю.\n\n"
             "Если это всё-таки версии одного документа, напишите «сравни всё равно»."
         ))
+    if ask:
+        return _ask_old_version(msg, [name for name, _ in original])
     answer = _text_compare_summary(result)
     if not result.changes:
         return ChatFileResult(answer=answer)
@@ -720,20 +837,30 @@ def _spec_summary(result: "spec_registry.SpecRegistry") -> str:
 
 def _handle_pdf_compare(msg: str, files: list[tuple[str, bytes]]) -> ChatFileResult:
     """Два PDF: если оба — спецификации по форме ГОСТ 21.110, сравнение по позициям,
-    иначе — по тексту."""
+    иначе — по тексту. Какая версия старая, спрашиваем после проверки, что это версии
+    одного документа; разобранное не распознаётся повторно после ответа."""
+    original = files
+    files, chosen, ask = _version_order(msg, files)
     if spec_registry.unavailable_reason() is None:
         for name, content in files:
             spec_registry.check_pdf(content, name)
         budget = spec_registry.MAX_SPEC_PAGES // 2
-        docs = [spec_registry.process_pdf(content, name, budget) for name, content in files]
+        docs = [
+            _parsed_once(f"spec{budget}", name, content,
+                         lambda c=content, n=name: spec_registry.process_pdf(c, n, budget))
+            for name, content in files
+        ]
         if all(not d.error and d.table_pages for d in docs):
-            return _answer_spec_compare(msg, docs)
-    return _handle_text_compare(msg, files)
+            return _answer_spec_compare(msg, docs, chosen, [name for name, _ in original] if ask else None)
+    return _text_compare_ordered(msg, original, files, chosen, ask)
 
 
-def _answer_spec_compare(msg: str, docs: list["spec_registry.SpecDocument"]) -> ChatFileResult:
-    """Две редакции спецификации: что изменилось по позициям."""
-    result = spec_compare.compare(*docs)
+def _answer_spec_compare(
+    msg: str, docs: list["spec_registry.SpecDocument"], chosen: bool = False, ask_names: list[str] | None = None
+) -> ChatFileResult:
+    """Две редакции спецификации: что изменилось по позициям. ask_names — порядок не известен:
+    если это редакции одного документа, спросить, какая старая."""
+    result = spec_compare.compare(*docs, chosen=chosen)
     result.seconds = round(sum(d.seconds for d in docs) + result.seconds, 1)
     if not result.same_document and not _has(msg, _ANYWAY_KW):
         return ChatFileResult(answer=(
@@ -741,6 +868,8 @@ def _answer_spec_compare(msg: str, docs: list["spec_registry.SpecDocument"]) -> 
             f"({result.evidence}). Сравнение по позициям здесь ничего не покажет, поэтому его не делаю.\n\n"
             "Если это всё-таки редакции одного документа, напишите «сравни всё равно»."
         ))
+    if ask_names:
+        return _ask_old_version(msg, ask_names)
     attachment = Attachment(
         filename="spec_comparison.xlsx",
         content_base64=base64.b64encode(spec_compare.build_compare_xlsx(result)).decode("ascii"),

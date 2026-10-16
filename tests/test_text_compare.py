@@ -200,15 +200,64 @@ def test_chat_compares_pdf_with_word():
     new = list(LETTER)
     new[2] = new[2].replace("480 000", "520 000")
     files = [("letter.docx", _docx(LETTER)), ("letter_signed.pdf", _text_pdf(new))]
-    result = cd.handle_chat_files("", files, llm=None)  # PDF и Word — сравнение по умолчанию
+    result = cd.handle_chat_files("старая — первая", files, llm=None)  # PDF и Word — сравнение по умолчанию
     assert "Изменено: **1**" in result.answer and "**480** 000" in result.answer and "**520** 000" in result.answer
     assert result.attachment.filename == "comparison.docx"
 
 
 @needs_font
 def test_chat_identical_documents_have_no_attachment():
-    result = cd.handle_chat_files("сравни", [("a.docx", _docx(LETTER)), ("b.pdf", _text_pdf(LETTER))], llm=None)
+    result = cd.handle_chat_files("сравни, старая — первая", [("a.docx", _docx(LETTER)), ("b.pdf", _text_pdf(LETTER))], llm=None)
     assert "Различий в тексте нет" in result.answer and result.attachment is None
+
+
+def _changed_letter() -> list[str]:
+    new = list(LETTER)
+    new[2] = new[2].replace("480 000", "520 000")
+    return new
+
+
+def test_chat_asks_which_version_is_old_instead_of_guessing():
+    files = [("a.docx", _docx(_changed_letter())), ("b.docx", _docx(LETTER))]
+    asked = cd.handle_chat_files("сравни", files, llm=None)
+    assert "Какая версия старая?" in asked.answer and asked.attachment is None
+    assert [s["label"] for s in asked.suggestions] == ["Старая — a.docx", "Старая — b.docx"]
+
+    # кнопка «Старая — b.docx» повторно отправляет те же файлы со своим текстом
+    answered = cd.handle_chat_files(asked.suggestions[1]["message"], files, llm=None)
+    assert "Старая: «b.docx», новая: «a.docx» (старую версию указали вы)" in answered.answer
+    assert "**480** 000" in answered.answer and answered.attachment is not None
+
+
+def test_chat_understands_new_version_named_by_user():
+    files = [("a.docx", _docx(LETTER)), ("b.docx", _docx(_changed_letter()))]
+    result = cd.handle_chat_files("сравни, новая — «a.docx»", files, llm=None)
+    assert "Старая: «b.docx», новая: «a.docx» (старую версию указали вы)" in result.answer
+
+
+def test_chat_same_file_names_ask_by_position():
+    files = [("письмо.docx", _docx(LETTER)), ("письмо.docx", _docx(_changed_letter()))]
+    asked = cd.handle_chat_files("сравни", files, llm=None)
+    assert [s["label"] for s in asked.suggestions] == ["Старая — первый приложенный файл",
+                                                       "Старая — второй приложенный файл"]
+    answered = cd.handle_chat_files(asked.suggestions[0]["message"], files, llm=None)
+    assert "старую версию указали вы" in answered.answer and "**480** 000" in answered.answer
+
+
+def test_chat_revision_in_names_needs_no_question():
+    files = [("письмо ред.2.docx", _docx(_changed_letter())), ("письмо ред.1.docx", _docx(LETTER))]
+    result = cd.handle_chat_files("сравни", files, llm=None)
+    assert result.suggestions == [] and "по номеру редакции" in result.answer
+
+
+def test_answer_to_the_question_does_not_parse_files_again(monkeypatch):
+    calls = []
+    load = tc.load_document
+    monkeypatch.setattr(tc, "load_document", lambda content, name: calls.append(name) or load(content, name))
+    files = [("a.docx", _docx(_changed_letter())), ("b.docx", _docx(LETTER))]
+    asked = cd.handle_chat_files("сравни", files, llm=None)
+    cd.handle_chat_files(asked.suggestions[0]["message"], files, llm=None)
+    assert sorted(calls) == ["a.docx", "b.docx"]  # разобраны один раз — при вопросе
 
 
 def test_chat_refuses_unrelated_word_files():
@@ -216,7 +265,7 @@ def test_chat_refuses_unrelated_word_files():
                    "отсыпаны щебнем, освещение работает, замечаний к подрядчику нет."])
     result = cd.handle_chat_files("сравни", [("a.docx", _docx(LETTER)), ("b.docx", other)], llm=None)
     assert "не версии одного документа" in result.answer and result.attachment is None
-    forced = cd.handle_chat_files("сравни всё равно", [("a.docx", _docx(LETTER)), ("b.docx", other)], llm=None)
+    forced = cd.handle_chat_files("сравни всё равно, старая — первая", [("a.docx", _docx(LETTER)), ("b.docx", other)], llm=None)
     assert "по вашей просьбе" in forced.answer
 
 
@@ -226,7 +275,7 @@ def test_end_to_end_word_against_scan():
     new = list(LETTER)
     new[2] = new[2].replace("480 000", "520 000")
     files = [("letter.docx", _docx(LETTER)), ("letter_scan.pdf", _scan(_text_pdf(new)))]
-    result = cd.handle_chat_files("сравни", files, llm=None)
+    result = cd.handle_chat_files("сравни, старая — первая", files, llm=None)
     assert "Сканы распознаны автоматически" in result.answer
     assert "Изменено: **1**, добавлено: **0**, удалено: **0**" in result.answer
     assert "**480** 000" in result.answer and "**520** 000" in result.answer

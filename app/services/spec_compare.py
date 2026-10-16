@@ -19,6 +19,7 @@ import io
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import date
 from difflib import SequenceMatcher
 
 import numpy as np
@@ -285,24 +286,77 @@ def revision(filename: str) -> tuple[str, int] | None:
     return None
 
 
-def order_files(first: str, second: str) -> tuple[bool, str]:
-    """Какой файл старый: по номеру редакции в именах (одна схема нумерации), иначе — по
-    порядку, в котором файлы приложены. Возвращает (поменять ли местами, пояснение)."""
+ORDER_BY_USER = "старую версию указали вы"
+ORDER_BY_ATTACHMENT = "старой считается первый приложенный файл: по именам файлов порядок не определить"
+
+# Слова в имени файла, которые прямо говорят, какая версия старая, а какая новая.
+_OLD_WORDS = {"старый", "старая", "старое", "стар", "прежний", "прежняя", "прежнее", "исходный", "исходная",
+              "исходное", "было", "old", "orig", "original"}
+_NEW_WORDS = {"новый", "новая", "новое", "нов", "исправленный", "исправленная", "исправленное", "стало",
+              "new", "final", "финал"}
+_DATE_RES = (
+    re.compile(r"(?<!\d)(\d{2})[._-](\d{2})[._-](\d{4})(?!\d)"),  # 15.10.2026
+    re.compile(r"(?<!\d)(\d{4})[._-](\d{2})[._-](\d{2})(?!\d)"),  # 2026-10-15
+)
+
+
+def _name_words(filename: str) -> set[str]:
+    stem = filename.rsplit(".", 1)[0].lower()
+    return set(re.split(r"[^a-zа-яё0-9]+", stem)) - {""}
+
+
+def _name_date(filename: str) -> tuple[int, int, int] | None:
+    """Единственная корректная дата в имени файла (год, месяц, день), иначе None."""
+    found = set()
+    for i, pattern in enumerate(_DATE_RES):
+        for m in pattern.finditer(filename):
+            d, mo, y = (m.group(1), m.group(2), m.group(3)) if i == 0 else (m.group(3), m.group(2), m.group(1))
+            try:
+                day = date(int(y), int(mo), int(d))  # 31.02 — не дата
+            except ValueError:
+                continue
+            if 1990 <= day.year <= 2100:
+                found.add((day.year, day.month, day.day))
+    return found.pop() if len(found) == 1 else None
+
+
+def order_by_names(first: str, second: str) -> tuple[bool, str] | None:
+    """Какой файл старый — по однозначным признакам в именах: номер редакции (одна схема
+    нумерации), слова «старый / новый», даты. (поменять ли местами, пояснение) или None."""
     a, b = revision(first), revision(second)
     if a and b and a[0] == b[0] and a[1] != b[1]:
         return a[1] > b[1], "определено по номеру редакции в именах файлов"
-    return False, "старой считается первый приложенный файл: номер редакции по именам файлов не определить"
+    wa, wb = _name_words(first), _name_words(second)
+    first_old = bool(wa & _OLD_WORDS or wb & _NEW_WORDS)
+    second_old = bool(wb & _OLD_WORDS or wa & _NEW_WORDS)
+    if first_old != second_old:
+        return second_old, "определено по словам «старый / новый» в именах файлов"
+    da, db = _name_date(first), _name_date(second)
+    if da and db and da != db:
+        return da > db, "определено по датам в именах файлов"
+    return None
 
 
-def order_documents(first: SpecDocument, second: SpecDocument) -> tuple[SpecDocument, SpecDocument, str]:
-    swap, note = order_files(first.filename, second.filename)
+def order_files(first: str, second: str, *, chosen: bool = False) -> tuple[bool, str]:
+    """Какой файл старый. chosen — пользователь сам указал, что старый — первый. Иначе по
+    именам файлов, а если по ним не определить — первый приложенный (в чате до этого не
+    доходит: ассистент спрашивает). Возвращает (поменять ли местами, пояснение)."""
+    if chosen:
+        return False, ORDER_BY_USER
+    return order_by_names(first, second) or (False, ORDER_BY_ATTACHMENT)
+
+
+def order_documents(
+    first: SpecDocument, second: SpecDocument, *, chosen: bool = False
+) -> tuple[SpecDocument, SpecDocument, str]:
+    swap, note = order_files(first.filename, second.filename, chosen=chosen)
     return (second, first, note) if swap else (first, second, note)
 
 
-def compare(first: SpecDocument, second: SpecDocument) -> SpecComparison:
-    """Сравнить две разобранные редакции спецификации."""
+def compare(first: SpecDocument, second: SpecDocument, *, chosen: bool = False) -> SpecComparison:
+    """Сравнить две разобранные редакции спецификации. chosen — старую указал пользователь (первая)."""
     started = time.time()
-    old, new, order_note = order_documents(first, second)
+    old, new, order_note = order_documents(first, second, chosen=chosen)
     old_items = [_Item.of(p) for p in old.positions if not p.excluded]
     new_items = [_Item.of(p) for p in new.positions if not p.excluded]
     rows: list[Row] = []

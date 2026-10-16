@@ -89,7 +89,7 @@ def test_route_single_xlsx_with_title_row():
 def test_route_two_xlsx_default_diff():
     a = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Пётр"]])
     b = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Павел"]])
-    res = cd.handle_chat_files("", [("a.xlsx", a), ("b.xlsx", b)], _StubLLM())
+    res = cd.handle_chat_files("старая — первая", [("a.xlsx", a), ("b.xlsx", b)], _StubLLM())
     assert "Различия между файлами" in res.answer
     assert "Пётр" in res.answer and "Павел" in res.answer
 
@@ -123,7 +123,7 @@ def test_route_single_docx_summary_uses_llm():
 def test_route_two_docx_diff():
     a = _docx_bytes([("Первый.", ""), ("Второй.", "")])
     b = _docx_bytes([("Первый.", ""), ("Второй изменён.", "")])
-    res = cd.handle_chat_files("сравни", [("a.docx", a), ("b.docx", b)], _StubLLM())
+    res = cd.handle_chat_files("сравни, старая — первая", [("a.docx", a), ("b.docx", b)], _StubLLM())
     assert "Сравнение документов" in res.answer
     assert "добавлено «…Первый. Второй **изменён.**»" in res.answer
     assert res.attachment.filename == "comparison.docx"
@@ -133,7 +133,7 @@ def test_docx_diff_attributes_lines_to_document():
     # Строка «000» есть только во втором документе — значит, добавлена, а не удалена.
     one = _docx_bytes([("Общая строка.", ""), ("Ещё общая.", "")])
     two = _docx_bytes([("Общая строка.", ""), ("000", ""), ("Ещё общая.", "")])
-    res = cd.handle_chat_files("сравни", [("1.docx", one), ("2.docx", two)], _StubLLM())
+    res = cd.handle_chat_files("сравни, старая — первая", [("1.docx", one), ("2.docx", two)], _StubLLM())
     assert "добавлено: **1**, удалено: **0**" in res.answer
     assert "абз. 2: добавлено «…Общая строка. **000** Ещё общая.…»" in res.answer
 
@@ -304,7 +304,7 @@ def test_form_diff_uses_labels_not_positions():
     b = _form_xlsx(
         [("Ф.И.О. работника", "Петров Иван Иванович, 89123451234", ""), ("Подразделение", "ИТ", "")]
     )
-    res = cd.handle_chat_files("сравни", [("Заявка1.xlsx", a), ("Заявка2.xlsx", b)], _StubLLM())
+    res = cd.handle_chat_files("сравни, старая — первая", [("Заявка1.xlsx", a), ("Заявка2.xlsx", b)], _StubLLM())
     assert "Различия между бланками" in res.answer
     assert "Ф.И.О. работника" in res.answer  # подпись, а не «строка N» / значение-колонка
     assert "89123451234" in res.answer
@@ -313,7 +313,7 @@ def test_form_diff_uses_labels_not_positions():
 
 def test_form_diff_identical():
     a = _form_xlsx([("Поле", "Значение", "")])
-    res = cd.handle_chat_files("сравни", [("a.xlsx", a), ("b.xlsx", a)], _StubLLM())
+    res = cd.handle_chat_files("сравни, старая — первая", [("a.xlsx", a), ("b.xlsx", a)], _StubLLM())
     assert "идентичны" in res.answer
 
 
@@ -321,7 +321,7 @@ def test_dense_table_still_uses_table_diff():
     # Плотная таблица-реестр не должна попасть в режим форм.
     a = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Пётр"]])
     b = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Павел"]])
-    res = cd.handle_chat_files("сравни", [("a.xlsx", a), ("b.xlsx", b)], _StubLLM())
+    res = cd.handle_chat_files("сравни, старая — первая", [("a.xlsx", a), ("b.xlsx", b)], _StubLLM())
     assert "Различия между бланками" not in res.answer  # табличный режим
     assert "изменено ячеек" in res.answer
 
@@ -330,7 +330,7 @@ def test_table_diff_attributes_rows_to_document():
     # У b есть лишняя строка (ID 3) — должна быть подписана документом b.
     a = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Пётр"]])
     b = _xlsx_bytes(["ID", "Имя"], [[1, "Иван"], [2, "Пётр"], [3, "Семён"]])
-    res = cd.handle_chat_files("сравни", [("реестр1.xlsx", a), ("реестр2.xlsx", b)], _StubLLM())
+    res = cd.handle_chat_files("сравни, старая — первая", [("реестр1.xlsx", a), ("реестр2.xlsx", b)], _StubLLM())
     assert "Только в документе «реестр2.xlsx»" in res.answer
     assert "Семён" in res.answer
     assert "Только в документе «реестр1.xlsx»" not in res.answer
@@ -341,7 +341,7 @@ def test_unrelated_tables_are_not_compared():
     pumps = _xlsx_bytes(["Марка насоса", "Подача, м3/ч", "Напор, м"], [["НД-25", 2.5, 40], ["НД-40", 4, 32]])
     res = cd.handle_chat_files("сравни", [("staff.xlsx", staff), ("pumps.xlsx", pumps)], _StubLLM())
     assert "не версии одной таблицы" in res.answer and "общих заголовков колонок — 0 %" in res.answer
-    forced = cd.handle_chat_files("сравни всё равно", [("staff.xlsx", staff), ("pumps.xlsx", pumps)], _StubLLM())
+    forced = cd.handle_chat_files("сравни всё равно, старая — первая", [("staff.xlsx", staff), ("pumps.xlsx", pumps)], _StubLLM())
     assert "Различия между файлами" in forced.answer
 
 
