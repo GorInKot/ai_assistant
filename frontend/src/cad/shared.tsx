@@ -41,7 +41,7 @@ export function HistoryPanel({
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
         {items.length === 0 && (
           <p className="text-xs text-ink-faint px-2 py-4 text-center">
-            Здесь будут ваши запросы к конструктору.
+            Здесь будут ваши запросы.
           </p>
         )}
         {items.map((item) => {

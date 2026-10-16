@@ -3,10 +3,6 @@ import { api, ApiError } from "../api/client";
 import type { CadHistoryItem, CadResult, CadStatus } from "../api/types";
 import { base64ToBlob, HistoryPanel, TabButton, useBlobUrl } from "./shared";
 
-interface Props {
-  onBackToChat: () => void;
-}
-
 const EXAMPLES = [
   "Стальная пластина 100 на 60 мм, толщина 5 мм, четыре отверстия диаметром 6 мм по углам на расстоянии 10 мм от краёв, углы скруглить радиусом 5",
   "Фланец из нержавеющей стали диаметром 200 мм, толщина 16 мм, центральное отверстие 80 мм, восемь отверстий по 18 мм на окружности диаметром 160 мм",
@@ -16,7 +12,7 @@ const EXAMPLES = [
 
 type Tab = "build" | "editor";
 
-export function CadPage({ onBackToChat }: Props) {
+export function CadPage() {
   const [status, setStatus] = useState<CadStatus | null>(null);
   const [tab, setTab] = useState<Tab>("build");
   const [description, setDescription] = useState("");
@@ -86,11 +82,8 @@ export function CadPage({ onBackToChat }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-surface-muted">
+    <div className="flex flex-col h-full bg-surface-muted">
       <header className="border-b border-line bg-surface px-6 py-3 flex items-center gap-3">
-        <button onClick={onBackToChat} className="text-sm text-ink-muted hover:text-ink">
-          ← Назад в чат
-        </button>
         <h1 className="font-display text-base font-bold uppercase tracking-wide text-ink">Конструктор деталей</h1>
         <div className="ml-auto flex items-center gap-2">
           <TabButton active={tab === "build"} onClick={() => setTab("build")}>

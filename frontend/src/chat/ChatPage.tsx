@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { CadPage } from "../cad/CadPage";
-import { DrawingPage } from "../cad/DrawingPage";
 import { GapsAdmin } from "../admin/GapsAdmin";
 import { formatDuration, TimingPage, useElapsed } from "../admin/TimingPage";
 import { UsersAdmin } from "../admin/UsersAdmin";
@@ -38,7 +36,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps" | "cad" | "drawing" | "timing">("chat");
+  const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps" | "timing">("chat");
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const { isAdmin, isManager } = useCurrentUser();
@@ -200,22 +198,12 @@ export function ChatPage() {
         onOpenProfile={() => setProfileOpen(true)}
         onOpenUsersAdmin={() => setView("admin-users")}
         onOpenGaps={() => setView("admin-gaps")}
-        onOpenCad={() => setView("cad")}
-        onOpenDrawing={() => setView("drawing")}
         onOpenTiming={() => setView("timing")}
         onLogout={handleLogout}
       />
       {view === "admin-users" ? (
         <main className="flex-1">
           <UsersAdmin onBackToChat={() => setView("chat")} />
-        </main>
-      ) : view === "drawing" ? (
-        <main className="flex-1">
-          <DrawingPage onBackToChat={() => setView("chat")} />
-        </main>
-      ) : view === "cad" ? (
-        <main className="flex-1">
-          <CadPage onBackToChat={() => setView("chat")} />
         </main>
       ) : view === "timing" ? (
         <main className="flex-1">

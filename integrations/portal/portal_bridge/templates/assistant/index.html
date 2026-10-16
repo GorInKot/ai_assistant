@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}ИИ-ассистент — ООО «РН-СтройКонтроль»{% endblock %}
+{% block title %}{{ title }} — ООО «РН-СтройКонтроль»{% endblock %}
 
 {% block extra_style %}
     body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -13,10 +13,11 @@
     {# Пропуск уходит POST-запросом прямо в окно ассистента: не попадает в адресную строку и журналы. #}
     <form id="assistant-sso" method="post" action="{{ assistant_url }}/sso/portal" target="assistant-frame" hidden>
       <input type="hidden" name="token" value="{{ token }}">
+      <input type="hidden" name="next" value="{{ next_path }}">
     </form>
-    <iframe class="assistant-frame" name="assistant-frame" title="ИИ-ассистент"></iframe>
+    <iframe class="assistant-frame" name="assistant-frame" title="{{ title }}"></iframe>
     <script>document.getElementById("assistant-sso").submit();</script>
   {% else %}
-    <p class="assistant-off">Раздел «ИИ-ассистент» не настроен: не задан общий секрет ASSISTANT_SSO_SECRET. Обратитесь к администратору портала.</p>
+    <p class="assistant-off">Раздел «{{ title }}» не настроен: не задан общий секрет ASSISTANT_SSO_SECRET. Обратитесь к администратору портала.</p>
   {% endif %}
 {% endblock %}

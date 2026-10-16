@@ -15,8 +15,6 @@ interface Props {
   onOpenProfile: () => void;
   onOpenUsersAdmin: () => void;
   onOpenGaps: () => void;
-  onOpenCad: () => void;
-  onOpenDrawing: () => void;
   onOpenTiming: () => void;
   onLogout: () => void;
 }
@@ -35,8 +33,6 @@ export function Sidebar({
   onOpenProfile,
   onOpenUsersAdmin,
   onOpenGaps,
-  onOpenCad,
-  onOpenDrawing,
   onOpenTiming,
   onLogout,
 }: Props) {
@@ -91,12 +87,9 @@ export function Sidebar({
           💬
         </button>
         <div className="flex-1" />
-        <button onClick={onOpenCad} className={railBtn} title="Конструктор деталей" aria-label="Конструктор деталей">
-          🧩
-        </button>
-        <button onClick={onOpenDrawing} className={railBtn} title="Чертёж трассы" aria-label="Чертёж трассы">
-          📐
-        </button>
+        <a href={TOOLS_URL} className={railBtn} title="Конструктор и чертежи" aria-label="Конструктор и чертежи">
+          🛠
+        </a>
         {isManager && (
           <button onClick={onOpenGaps} className={railBtn} title="Пробелы в знаниях" aria-label="Пробелы в знаниях">
             📊
@@ -188,12 +181,9 @@ export function Sidebar({
       </div>
 
       <div className="p-3 border-t border-inverse-line space-y-1">
-        <button onClick={onOpenCad} className={footerBtn}>
-          🧩 Конструктор деталей
-        </button>
-        <button onClick={onOpenDrawing} className={footerBtn}>
-          📐 Чертёж трассы
-        </button>
+        <a href={TOOLS_URL} className={`${footerBtn} block`}>
+          🛠 Конструктор и чертежи
+        </a>
         {isManager && (
           <button onClick={onOpenGaps} className={footerBtn}>
             📊 Пробелы в знаниях
@@ -294,6 +284,9 @@ function ConversationItem({
     </div>
   );
 }
+
+// Конструктор деталей и чертёж трассы — отдельный раздел (/tools), не вкладки чата.
+const TOOLS_URL = "/tools";
 
 const railBtn =
   "w-10 h-10 flex items-center justify-center rounded-lg text-lg text-inverse-fg hover:bg-inverse-raised";

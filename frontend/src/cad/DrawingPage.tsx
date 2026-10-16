@@ -3,10 +3,6 @@ import { api, ApiError } from "../api/client";
 import type { CadHistoryItem, CadStatus, RouteResult } from "../api/types";
 import { base64ToBlob, HistoryPanel, TabButton, useBlobUrl } from "./shared";
 
-interface Props {
-  onBackToChat: () => void;
-}
-
 const EXAMPLES = [
   "Труба Ø219×8: 12 м, затем налево на 90° и 8 м, затем направо на 45° и 10 м, и ещё 14 м",
   "Трасса стальной трубы 114x6: 250 м, поворот направо на 60°, 120 м, поворот налево на 60°, 300 м",
@@ -15,7 +11,7 @@ const EXAMPLES = [
 
 type Tab = "build" | "editor";
 
-export function DrawingPage({ onBackToChat }: Props) {
+export function DrawingPage() {
   const [status, setStatus] = useState<CadStatus | null>(null);
   const [tab, setTab] = useState<Tab>("build");
   const [description, setDescription] = useState("");
@@ -87,11 +83,8 @@ export function DrawingPage({ onBackToChat }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-surface-muted">
+    <div className="flex flex-col h-full bg-surface-muted">
       <header className="border-b border-line bg-surface px-6 py-3 flex items-center gap-3">
-        <button onClick={onBackToChat} className="text-sm text-ink-muted hover:text-ink">
-          ← Назад в чат
-        </button>
         <h1 className="font-display text-base font-bold uppercase tracking-wide text-ink">Чертёж трассы</h1>
         <div className="ml-auto flex items-center gap-2">
           <TabButton active={tab === "build"} onClick={() => setTab("build")}>

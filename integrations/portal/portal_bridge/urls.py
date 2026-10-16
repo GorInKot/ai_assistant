@@ -1,4 +1,4 @@
-"""Адреса портала как есть плюс /assistant/; главная — с плиткой ассистента."""
+"""Адреса портала как есть плюс /assistant/ и /assistant/tools/; главная — с плитками ассистента."""
 
 from django.urls import path
 
@@ -9,5 +9,6 @@ from . import views
 urlpatterns = [
     path("", views.home, name="home"),
     path("assistant/", views.assistant, name="assistant"),
+    path("assistant/tools/", views.assistant_tools, name="assistant_tools"),
     *portal_urlpatterns,
 ]

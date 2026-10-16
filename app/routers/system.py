@@ -22,7 +22,10 @@ def _frontend_dist_path():
     return settings.base_dir / "frontend" / "dist"
 
 
-@router.get("/")
+# Разделы React-фронта со своим адресом: отдаётся тот же index.html, раздел выбирает фронт.
+SPA_PATHS = ("/", "/tools")
+
+
 def root() -> FileResponse:
     dist_index = _frontend_dist_path() / "index.html"
     if dist_index.exists():
@@ -36,6 +39,10 @@ def root() -> FileResponse:
         status_code=404,
         detail="UI не найден. Соберите фронт: cd frontend && npm install && npm run build",
     )
+
+
+for _path in SPA_PATHS:
+    router.add_api_route(_path, root, methods=["GET"], include_in_schema=False)
 
 
 @router.get("/api/health")

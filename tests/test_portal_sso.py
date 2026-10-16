@@ -114,3 +114,27 @@ def test_pass_made_by_portal_bridge_is_accepted(client):
 def test_only_portal_may_frame_the_assistant(client):
     policy = client.get("/api/health").headers["content-security-policy"]
     assert policy == "frame-ancestors 'self' http://127.0.0.1:8080"
+
+
+def _next(resp) -> str:
+    return re.search(r"location\.replace\((\"[^\"]*\")\)", resp.text).group(1)
+
+
+def test_after_login_goes_to_requested_section(client):
+    assert _next(_login(client, _pass())) == '"/"'
+    resp = client.post("/sso/portal", data={"token": _pass(), "next": "/tools"})
+    assert resp.status_code == 200 and _next(resp) == '"/tools"'
+
+
+@pytest.mark.parametrize("target", ["https://evil.example", "//evil.example", "/tools?x=1", "/api/health",
+                                    "javascript:alert(1)", "/tools</script>"])
+def test_unknown_next_falls_back_to_chat(client, target):
+    resp = client.post("/sso/portal", data={"token": _pass(), "next": target})
+    assert resp.status_code == 200 and _next(resp) == '"/"'
+
+
+def test_tools_section_is_served_like_chat(client):
+    root, tools = client.get("/"), client.get("/tools")
+    assert tools.status_code == root.status_code
+    if root.status_code == 200:
+        assert tools.content == root.content
