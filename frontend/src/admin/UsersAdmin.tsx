@@ -85,18 +85,18 @@ export function UsersAdmin({ onBackToChat }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-3 flex items-center gap-3">
-        <button onClick={onBackToChat} className="text-sm text-slate-600 hover:text-slate-900">
+    <div className="flex flex-col h-screen bg-surface-muted">
+      <header className="border-b border-line bg-surface px-6 py-3 flex items-center gap-3">
+        <button onClick={onBackToChat} className="text-sm text-ink-muted hover:text-ink">
           ← Назад в чат
         </button>
-        <h1 className="text-sm font-semibold text-slate-700">Пользователи системы</h1>
+        <h1 className="font-display text-base font-bold uppercase tracking-wide text-ink">Пользователи системы</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-6 space-y-4">
           {error && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div className="text-sm text-danger bg-danger-soft border border-danger-line rounded-lg px-3 py-2">
               {error}
               <button onClick={() => setError(null)} className="ml-2 underline">
                 закрыть
@@ -105,11 +105,11 @@ export function UsersAdmin({ onBackToChat }: Props) {
           )}
 
           {loading ? (
-            <p className="text-sm text-slate-500">Загрузка…</p>
+            <p className="text-sm text-ink-subtle">Загрузка…</p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-line bg-surface">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
+                <thead className="bg-surface-muted text-xs font-semibold text-ink-muted">
                   <tr>
                     <th className="px-3 py-2 text-left">Email</th>
                     <th className="px-3 py-2 text-left">ФИО</th>
@@ -118,19 +118,19 @@ export function UsersAdmin({ onBackToChat }: Props) {
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {users.map((user) => {
                     const isSelf = me?.email === user.email;
                     return (
-                      <tr key={user.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 font-medium text-slate-800">
+                      <tr key={user.id} className="hover:bg-surface-muted">
+                        <td className="px-3 py-2 font-medium text-ink">
                           {user.email}
                           {isSelf && (
-                            <span className="ml-2 text-xs text-slate-400">(вы)</span>
+                            <span className="ml-2 text-xs text-ink-faint">(вы)</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">{user.full_name || "—"}</td>
-                        <td className="px-3 py-2 text-slate-600">
+                        <td className="px-3 py-2 text-ink-muted">{user.full_name || "—"}</td>
+                        <td className="px-3 py-2 text-ink-muted">
                           {user.division || "—"}
                           {user.subdivision ? ` / ${user.subdivision}` : ""}
                         </td>
@@ -154,8 +154,8 @@ export function UsersAdmin({ onBackToChat }: Props) {
                                   className={
                                     "text-xs rounded-full border px-3 py-0.5 transition " +
                                     (active
-                                      ? "bg-accent text-white border-accent"
-                                      : "bg-white text-slate-600 border-slate-300 hover:border-accent") +
+                                      ? "bg-primary text-primary-fg border-primary"
+                                      : "bg-surface text-ink-muted border-line-strong hover:border-primary") +
                                     (disabled ? " opacity-50 cursor-not-allowed" : "")
                                   }
                                 >
@@ -169,7 +169,7 @@ export function UsersAdmin({ onBackToChat }: Props) {
                           <button
                             onClick={() => resetPassword(user)}
                             disabled={busyId === user.id}
-                            className="text-xs text-accent hover:underline mr-3 disabled:opacity-50"
+                            className="text-xs text-primary-strong hover:underline mr-3 disabled:opacity-50"
                           >
                             сброс пароля
                           </button>
@@ -177,7 +177,7 @@ export function UsersAdmin({ onBackToChat }: Props) {
                             <button
                               onClick={() => deleteUser(user)}
                               disabled={busyId === user.id}
-                              className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                              className="text-xs text-danger hover:underline disabled:opacity-50"
                             >
                               удалить
                             </button>
@@ -191,7 +191,7 @@ export function UsersAdmin({ onBackToChat }: Props) {
             </div>
           )}
 
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-ink-faint">
             Роли: <code>admin</code> — полный доступ, <code>manager</code> — CRUD сотрудников,
             <code> user</code> — обычный пользователь чата.
             Сброс пароля назначает новый без подтверждения старого.

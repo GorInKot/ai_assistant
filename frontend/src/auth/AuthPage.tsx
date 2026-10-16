@@ -14,10 +14,10 @@ export function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+      <div className="w-full max-w-md bg-surface rounded-2xl shadow-xl border border-line p-8">
         <header className="mb-6 text-center">
-          <h1 className="text-xl font-semibold text-slate-800">Корпоративный ИИ-ассистент</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-wide text-ink">Корпоративный ИИ-ассистент</h1>
+          <p className="text-sm text-ink-subtle mt-1">
             {mode === "login" ? "Войдите, чтобы продолжить" : "Создание учётной записи"}
           </p>
         </header>
@@ -31,7 +31,7 @@ export function AuthPage() {
               <button
                 type="button"
                 onClick={() => setMode("register")}
-                className="text-accent font-medium hover:underline"
+                className="text-primary-strong font-medium hover:underline"
               >
                 Зарегистрироваться
               </button>
@@ -42,7 +42,7 @@ export function AuthPage() {
               <button
                 type="button"
                 onClick={() => setMode("login")}
-                className="text-accent font-medium hover:underline"
+                className="text-primary-strong font-medium hover:underline"
               >
                 Войти
               </button>
@@ -95,7 +95,7 @@ function LoginForm() {
           className={inputClass}
         />
       </Field>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <button type="submit" disabled={submitting} className={primaryBtnClass}>
         {submitting ? "Вход..." : "Войти"}
       </button>
@@ -186,7 +186,7 @@ function RegisterForm({ onRegistered }: { onRegistered: () => void }) {
           className={inputClass}
         />
       </Field>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <button type="submit" disabled={submitting} className={primaryBtnClass}>
         {submitting ? "Регистрация..." : "Создать аккаунт"}
       </button>
@@ -195,15 +195,15 @@ function RegisterForm({ onRegistered }: { onRegistered: () => void }) {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent";
+  "w-full rounded-lg border border-line-strong px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary";
 
 const primaryBtnClass =
-  "w-full rounded-lg bg-accent text-white font-medium py-2.5 hover:bg-accent-dark disabled:opacity-60 disabled:cursor-not-allowed transition";
+  "btn-primary w-full rounded-lg font-medium py-2.5 disabled:opacity-60 disabled:cursor-not-allowed transition";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-xs font-medium text-slate-600 mb-1 block">{label}</span>
+      <span className="text-xs font-medium text-ink-muted mb-1 block">{label}</span>
       {children}
     </label>
   );

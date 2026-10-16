@@ -59,7 +59,7 @@ export function Sidebar({
   if (collapsed) {
     return (
       <>
-      <aside className="w-14 shrink-0 bg-slate-900 text-slate-100 flex flex-col items-center h-screen py-3 gap-1">
+      <aside className="w-14 shrink-0 bg-inverse text-inverse-fg flex flex-col items-center h-screen py-3 gap-1">
         <button
           onClick={onToggleCollapsed}
           className={railBtn}
@@ -81,7 +81,7 @@ export function Sidebar({
         </button>
         <button
           onClick={() => setHistoryOpen((open) => !open)}
-          className={`${railBtn} ${historyOpen ? "bg-slate-700" : ""}`}
+          className={`${railBtn} ${historyOpen ? "bg-inverse-hover" : ""}`}
           title="Список бесед"
           aria-label="Список бесед"
           aria-pressed={historyOpen}
@@ -116,13 +116,13 @@ export function Sidebar({
       {historyOpen && (
         <>
           <div className="fixed top-0 bottom-0 left-14 right-0 z-20" onClick={() => setHistoryOpen(false)} />
-          <div className="fixed top-0 bottom-0 left-14 w-72 z-30 bg-slate-900 text-slate-100 border-l border-slate-800 shadow-2xl flex flex-col">
-            <div className="px-4 py-3 border-b border-slate-800 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="fixed top-0 bottom-0 left-14 w-72 z-30 bg-inverse text-inverse-fg border-l border-inverse-line shadow-2xl flex flex-col">
+            <div className="px-4 py-3 border-b border-inverse-line text-xs font-semibold uppercase tracking-wide text-inverse-muted">
               История обращений
             </div>
             <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
               {conversations.length === 0 && (
-                <p className="text-xs text-slate-400 px-2 py-4 text-center">Здесь будут ваши беседы.</p>
+                <p className="text-xs text-inverse-muted px-2 py-4 text-center">Здесь будут ваши беседы.</p>
               )}
               {conversations.map((conv) => (
                 <ConversationItem
@@ -146,17 +146,17 @@ export function Sidebar({
   }
 
   return (
-    <aside className="w-72 shrink-0 bg-slate-900 text-slate-100 flex flex-col h-screen">
-      <div className="p-3 border-b border-slate-800 flex items-center gap-2">
+    <aside className="w-72 shrink-0 bg-inverse text-inverse-fg flex flex-col h-screen">
+      <div className="p-3 sidebar-rule flex items-center gap-2">
         <button
           onClick={onNew}
-          className="flex-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 px-3 py-2 text-sm text-left flex items-center gap-2"
+          className="flex-1 btn-primary rounded-lg px-3 py-2 text-sm font-medium text-left flex items-center gap-2"
         >
           <span className="text-lg leading-none">+</span> Новая беседа
         </button>
         <button
           onClick={onToggleCollapsed}
-          className="shrink-0 rounded-lg px-2.5 py-2 text-slate-300 hover:bg-slate-800"
+          className="shrink-0 rounded-lg px-2.5 py-2 text-inverse-muted hover:bg-inverse-raised"
           title="Свернуть историю обращений"
           aria-label="Свернуть историю обращений"
         >
@@ -166,7 +166,7 @@ export function Sidebar({
 
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {conversations.length === 0 && (
-          <p className="text-xs text-slate-400 px-2 py-4 text-center">Здесь будут ваши беседы.</p>
+          <p className="text-xs text-inverse-muted px-2 py-4 text-center">Здесь будут ваши беседы.</p>
         )}
         {conversations.map((conv) => (
           <ConversationItem
@@ -180,7 +180,7 @@ export function Sidebar({
         ))}
       </div>
 
-      <div className="p-3 border-t border-slate-800 space-y-1">
+      <div className="p-3 border-t border-inverse-line space-y-1">
         <button onClick={onOpenCad} className={footerBtn}>
           🧩 Конструктор деталей
         </button>
@@ -240,7 +240,7 @@ function ConversationItem({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => setEditing(false)}
-          className="w-full text-sm rounded bg-slate-800 border border-slate-600 px-2 py-1 text-slate-100"
+          className="w-full text-sm rounded bg-inverse-raised border border-inverse-line px-2 py-1 text-inverse-fg"
         />
       </form>
     );
@@ -249,7 +249,7 @@ function ConversationItem({
   return (
     <div
       className={`group rounded-lg px-2 py-1.5 cursor-pointer flex items-center gap-1 ${
-        isActive ? "bg-slate-700" : "hover:bg-slate-800"
+        isActive ? "sidebar-item-active" : "hover:bg-inverse-raised"
       }`}
       onClick={onSelect}
     >
@@ -284,7 +284,7 @@ function ConversationItem({
 }
 
 const railBtn =
-  "w-10 h-10 flex items-center justify-center rounded-lg text-lg text-slate-200 hover:bg-slate-800";
+  "w-10 h-10 flex items-center justify-center rounded-lg text-lg text-inverse-fg hover:bg-inverse-raised";
 
 const footerBtn =
-  "w-full text-left text-sm rounded-lg px-3 py-2 hover:bg-slate-800 text-slate-200";
+  "w-full text-left text-sm rounded-lg px-3 py-2 hover:bg-inverse-raised text-inverse-fg";

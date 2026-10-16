@@ -43,8 +43,8 @@ export function ProfileDialog({ onClose }: Props) {
   if (!profile) {
     return (
       <ModalShell onClose={onClose} title="Профиль">
-        <p className="text-sm text-slate-500">Загрузка…</p>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        <p className="text-sm text-ink-subtle">Загрузка…</p>
+        {error && <p className="mt-2 text-sm text-danger">{error}</p>}
       </ModalShell>
     );
   }
@@ -106,9 +106,9 @@ export function ProfileDialog({ onClose }: Props) {
           />
         </Field>
         <Field label="Email">
-          <input value={profile.email} disabled className={inputClass + " bg-slate-100 text-slate-500"} />
+          <input value={profile.email} disabled className={inputClass + " bg-surface-sunken text-ink-subtle"} />
         </Field>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className={secondaryBtn}>
             Отмена
@@ -119,7 +119,7 @@ export function ProfileDialog({ onClose }: Props) {
         </div>
       </form>
 
-      <div className="pt-4 mt-4 border-t border-slate-200">
+      <div className="pt-4 mt-4 border-t border-line">
         <PasswordChangeSection />
       </div>
     </ModalShell>
@@ -140,7 +140,7 @@ function PasswordChangeSection() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-sm text-accent hover:underline"
+        className="text-sm text-primary-strong hover:underline"
       >
         Сменить пароль
       </button>
@@ -174,7 +174,7 @@ function PasswordChangeSection() {
 
   return (
     <form className="space-y-3" onSubmit={handleSubmit}>
-      <div className="text-xs font-semibold text-slate-700">Смена пароля</div>
+      <div className="text-xs font-semibold text-ink-soft">Смена пароля</div>
       <Field label="Текущий пароль">
         <input
           type="password"
@@ -204,8 +204,8 @@ function PasswordChangeSection() {
           className={inputClass}
         />
       </Field>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {status && <p className="text-sm text-emerald-700">{status}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
+      {status && <p className="text-sm text-success">{status}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={() => setOpen(false)} className={secondaryBtn}>
           Закрыть
@@ -228,11 +228,11 @@ function ModalShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200">
-        <header className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
-          <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-lg leading-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse/40 px-4">
+      <div className="w-full max-w-md bg-surface rounded-2xl shadow-xl border border-line">
+        <header className="flex items-center justify-between px-5 py-3 border-b border-line">
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          <button onClick={onClose} className="text-ink-faint hover:text-ink-soft text-lg leading-none">
             ×
           </button>
         </header>
@@ -243,16 +243,16 @@ function ModalShell({
 }
 
 const inputClass =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent";
+  "w-full rounded-lg border border-line-strong px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary";
 const primaryBtn =
-  "rounded-lg bg-accent text-white font-medium px-4 py-2 text-sm hover:bg-accent-dark disabled:opacity-60";
+  "btn-primary rounded-lg font-medium px-4 py-2 text-sm disabled:opacity-60";
 const secondaryBtn =
-  "rounded-lg border border-slate-300 text-slate-700 font-medium px-4 py-2 text-sm hover:bg-slate-100";
+  "rounded-lg border border-line-strong text-ink-soft font-medium px-4 py-2 text-sm hover:bg-surface-sunken";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-xs font-medium text-slate-600 mb-1 block">{label}</span>
+      <span className="text-xs font-medium text-ink-muted mb-1 block">{label}</span>
       {children}
     </label>
   );

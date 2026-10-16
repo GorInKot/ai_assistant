@@ -59,12 +59,12 @@ export function GapsAdmin({ onBackToChat }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-3 flex items-center gap-3">
-        <button onClick={onBackToChat} className="text-sm text-slate-600 hover:text-slate-900">
+    <div className="flex flex-col h-screen bg-surface-muted">
+      <header className="border-b border-line bg-surface px-6 py-3 flex items-center gap-3">
+        <button onClick={onBackToChat} className="text-sm text-ink-muted hover:text-ink">
           ← Назад в чат
         </button>
-        <h1 className="text-sm font-semibold text-slate-700">Пробелы в знаниях</h1>
+        <h1 className="font-display text-base font-bold uppercase tracking-wide text-ink">Пробелы в знаниях</h1>
         <div className="ml-auto flex items-center gap-2">
           {PERIODS.map((p) => (
             <button
@@ -73,8 +73,8 @@ export function GapsAdmin({ onBackToChat }: Props) {
               className={
                 "text-xs rounded-full border px-3 py-1 transition " +
                 (days === p.days
-                  ? "bg-accent text-white border-accent"
-                  : "bg-white text-slate-600 border-slate-300 hover:border-accent")
+                  ? "bg-primary text-primary-fg border-primary"
+                  : "bg-surface text-ink-muted border-line-strong hover:border-primary")
               }
             >
               {p.label}
@@ -83,7 +83,7 @@ export function GapsAdmin({ onBackToChat }: Props) {
           <button
             onClick={exportXlsx}
             disabled={exporting || loading}
-            className="text-xs rounded-lg border border-accent/40 bg-accent/5 px-3 py-1 font-medium text-accent hover:bg-accent/10 disabled:opacity-50"
+            className="btn-soft text-xs rounded-lg px-3 py-1 font-medium disabled:opacity-50"
           >
             {exporting ? "Готовлю…" : "⬇ Excel"}
           </button>
@@ -93,7 +93,7 @@ export function GapsAdmin({ onBackToChat }: Props) {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
           {error && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div className="text-sm text-danger bg-danger-soft border border-danger-line rounded-lg px-3 py-2">
               {error}
               <button onClick={() => setError(null)} className="ml-2 underline">
                 закрыть
@@ -102,7 +102,7 @@ export function GapsAdmin({ onBackToChat }: Props) {
           )}
 
           {loading && !report ? (
-            <p className="text-sm text-slate-500">Строю отчёт…</p>
+            <p className="text-sm text-ink-subtle">Строю отчёт…</p>
           ) : (
             report && <Report report={report} />
           )}
@@ -116,7 +116,7 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
   const s = report.summary;
   if (s.questions === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+      <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-ink-subtle">
         За выбранный период вопросов к базе знаний ещё не было. Отчёт появится, когда сотрудники
         начнут пользоваться ассистентом.
       </div>
@@ -152,9 +152,9 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Чего не хватает в базе</h2>
+        <h2 className="text-sm font-semibold text-ink-soft">Чего не хватает в базе</h2>
         {report.gaps.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-4 text-sm text-ink-subtle">
             Проблемных тем нет: нет отказов, неразрешённых просьб уточнить и ответов с оценкой «не полезно».
           </div>
         ) : (
@@ -164,7 +164,7 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
             ))}
           </ul>
         )}
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-ink-faint">
           Похожие вопросы объединены{" "}
           {report.grouping === "embeddings" ? "по смыслу (эмбеддинги)" : "по общим словам"}.
           Считаются разные сотрудники, а не повторы одного вопроса.
@@ -172,20 +172,20 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Документы</h2>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+        <h2 className="text-sm font-semibold text-ink-soft">Документы</h2>
+        <div className="rounded-xl border border-line bg-surface p-4 space-y-4">
           <div>
-            <div className="text-xs font-semibold text-slate-600 mb-1">
+            <div className="text-xs font-semibold text-ink-muted mb-1">
               Ответы по этим документам чаще оценивают как «не полезно»
             </div>
             {report.documents.weak.length === 0 ? (
-              <p className="text-xs text-slate-500">Таких документов нет.</p>
+              <p className="text-xs text-ink-subtle">Таких документов нет.</p>
             ) : (
               <ul className="space-y-1 text-sm">
                 {report.documents.weak.map((d) => (
                   <li key={d.relative_path} className="flex flex-wrap gap-x-3">
-                    <span className="font-medium text-slate-800">{d.file_name}</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="font-medium text-ink">{d.file_name}</span>
+                    <span className="text-xs text-ink-subtle">
                       в ответах: {d.used} · 👍 {d.useful} · 👎 {d.not_useful}
                     </span>
                   </li>
@@ -194,21 +194,21 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
             )}
           </div>
           <div>
-            <div className="text-xs font-semibold text-slate-600 mb-1">
+            <div className="text-xs font-semibold text-ink-muted mb-1">
               Не использовались в ответах за период
             </div>
             {!report.documents.unused_checked ? (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ink-subtle">
                 Мало вопросов, чтобы судить об этом: нужно не меньше 20.
               </p>
             ) : report.documents.unused.length === 0 ? (
-              <p className="text-xs text-slate-500">Каждый документ хотя бы раз участвовал в ответе.</p>
+              <p className="text-xs text-ink-subtle">Каждый документ хотя бы раз участвовал в ответе.</p>
             ) : (
               <details>
-                <summary className="cursor-pointer text-xs text-accent">
+                <summary className="cursor-pointer text-xs text-primary-strong">
                   показать ({report.documents.unused.length})
                 </summary>
-                <ul className="mt-1 list-disc pl-5 text-sm text-slate-700 space-y-0.5">
+                <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft space-y-0.5">
                   {report.documents.unused.map((d) => (
                     <li key={d.relative_path} title={d.relative_path}>
                       {d.file_name}
@@ -230,21 +230,21 @@ function Report({ report }: { report: KnowledgeGapsReport }) {
 function CadDemandSection({ cad }: { cad: CadDemand }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-slate-700">
+      <h2 className="text-sm font-semibold text-ink-soft">
         Конструктор деталей: что просили построить, но это пока не поддерживается
       </h2>
       {cad.requests === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+        <div className="rounded-xl border border-line bg-surface p-4 text-sm text-ink-subtle">
           За выбранный период запросов к конструктору не было.
         </div>
       ) : (
         <>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-subtle">
             Запросов к конструктору: {cad.requests} · построено: {cad.built} · «пока не поддерживается»:{" "}
             {cad.unsupported} · нужно уточнить: {cad.clarify} · не получилось: {cad.errors}
           </p>
           {cad.topics.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+            <div className="rounded-xl border border-line bg-surface p-4 text-sm text-ink-subtle">
               Запросов, которые конструктор не умеет, не было.
             </div>
           ) : (
@@ -254,7 +254,7 @@ function CadDemandSection({ cad }: { cad: CadDemand }) {
               ))}
             </ul>
           )}
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-ink-faint">
             Темы объединены {cad.grouping === "embeddings" ? "по смыслу (эмбеддинги)" : "по общим словам"}.
             Это подсказка, что добавить в конструктор следующим: чем больше разных сотрудников просили одно и то
             же, тем важнее.
@@ -268,28 +268,28 @@ function CadDemandSection({ cad }: { cad: CadDemand }) {
 function CadTopicCard({ topic }: { topic: CadDemandTopic }) {
   const refused = topic.kind === "refused";
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-4">
+    <li className="rounded-xl border border-line bg-surface p-4">
       <div className="flex flex-wrap items-start gap-2">
         <span
           className={
             "text-xs rounded-full px-2.5 py-0.5 font-medium " +
-            (refused ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-700")
+            (refused ? "bg-warning-soft text-warning" : "bg-surface-sunken text-ink-soft")
           }
         >
           {refused ? "Отказ: конструктор не умеет" : "Деталь построена без этого"}
         </span>
-        <span className="text-xs text-slate-500 pt-0.5">
+        <span className="text-xs text-ink-subtle pt-0.5">
           {topic.people} {pluralPeople(topic.people)} · запросов: {topic.requests}
           {topic.divisions.length > 0 ? ` · ${topic.divisions.join(", ")}` : ""}
         </span>
       </div>
-      <div className="mt-2 text-sm font-medium text-slate-800">{topic.topic}</div>
+      <div className="mt-2 text-sm font-medium text-ink">{topic.topic}</div>
       {topic.examples.length > 0 && (
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-accent">
+          <summary className="cursor-pointer text-xs text-primary-strong">
             как просили ({topic.examples.length})
           </summary>
-          <ul className="mt-1 list-disc pl-5 text-xs text-slate-600 space-y-0.5">
+          <ul className="mt-1 list-disc pl-5 text-xs text-ink-muted space-y-0.5">
             {topic.examples.map((text, i) => (
               <li key={i}>{text}</li>
             ))}
@@ -314,12 +314,12 @@ function Card({
   return (
     <div
       className={
-        "rounded-xl border bg-white p-4 " + (tone === "warn" ? "border-amber-300" : "border-slate-200")
+        "rounded-xl border bg-surface p-4 " + (tone === "warn" ? "border-warning-line" : "border-line")
       }
     >
-      <div className="text-xs text-slate-500">{title}</div>
-      <div className="text-2xl font-semibold text-slate-800 mt-1">{value}</div>
-      <div className="text-xs text-slate-400 mt-1">{hint}</div>
+      <div className="text-xs text-ink-subtle">{title}</div>
+      <div className="text-2xl font-semibold text-ink mt-1">{value}</div>
+      <div className="text-xs text-ink-faint mt-1">{hint}</div>
     </div>
   );
 }
@@ -327,30 +327,30 @@ function Card({
 function GapCard({ gap }: { gap: KnowledgeGap }) {
   const missing = gap.problem === "no_document";
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-4">
+    <li className="rounded-xl border border-line bg-surface p-4">
       <div className="flex flex-wrap items-start gap-2">
         <span
           className={
             "text-xs rounded-full px-2.5 py-0.5 font-medium " +
-            (missing ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800")
+            (missing ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")
           }
         >
           {gap.problem_label}
         </span>
-        <span className="text-xs text-slate-500 pt-0.5">
+        <span className="text-xs text-ink-subtle pt-0.5">
           {gap.people} {pluralPeople(gap.people)} · обращений: {gap.requests}
           {gap.not_useful > 0 ? ` · 👎 ${gap.not_useful}` : ""}
           {gap.divisions.length > 0 ? ` · ${gap.divisions.join(", ")}` : ""}
         </span>
       </div>
-      <div className="mt-2 text-sm font-medium text-slate-800">{gap.topic}</div>
+      <div className="mt-2 text-sm font-medium text-ink">{gap.topic}</div>
 
       {gap.examples.length > 1 && (
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-accent">
+          <summary className="cursor-pointer text-xs text-primary-strong">
             как спрашивали ({gap.examples.length})
           </summary>
-          <ul className="mt-1 list-disc pl-5 text-xs text-slate-600 space-y-0.5">
+          <ul className="mt-1 list-disc pl-5 text-xs text-ink-muted space-y-0.5">
             {gap.examples.map((q, i) => (
               <li key={i}>{q}</li>
             ))}
@@ -359,12 +359,12 @@ function GapCard({ gap }: { gap: KnowledgeGap }) {
       )}
 
       {gap.sources.length > 0 && (
-        <div className="mt-2 text-xs text-slate-500">
+        <div className="mt-2 text-xs text-ink-subtle">
           {missing ? "Ближайшие документы в базе: " : "Ответ строился по: "}
           {gap.sources.map((s) => s.relative_path.split("/").pop()).join(", ")}
         </div>
       )}
-      <div className="mt-2 text-xs text-slate-400">
+      <div className="mt-2 text-xs text-ink-faint">
         {missing
           ? "Что делать: добавьте документ или раздел, отвечающий на этот вопрос."
           : "Что делать: проверьте, полно и актуально ли написан документ."}

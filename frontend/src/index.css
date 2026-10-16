@@ -1,3 +1,5 @@
+@import "./styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,7 +11,55 @@ body,
 }
 
 body {
-  font-family: "Segoe UI", "Arial", sans-serif;
+  font-family: var(--font-body);
+  color: rgb(var(--color-ink));
+  background: rgb(var(--color-canvas));
+}
+
+/* Компоненты дизайн-системы: значения — из компонентного слоя tokens.css */
+@layer components {
+  .btn-primary {
+    background: rgb(var(--button-primary-bg));
+    color: rgb(var(--button-primary-fg));
+    transition: background-color 150ms ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: rgb(var(--button-primary-bg-hover));
+  }
+
+  .btn-soft {
+    background: rgb(var(--button-soft-bg));
+    color: rgb(var(--button-soft-fg));
+    border: 1px solid rgb(var(--button-soft-border));
+    transition: background-color 150ms ease;
+  }
+  .btn-soft:hover:not(:disabled) {
+    background: rgb(var(--button-soft-bg-hover));
+  }
+
+  .btn-primary:focus-visible,
+  .btn-soft:focus-visible {
+    outline: 2px solid rgb(var(--focus-ring));
+    outline-offset: 2px;
+  }
+
+  /* боковая панель: золотая черта под шапкой и у активной беседы, как в портале */
+  .sidebar-rule {
+    border-bottom: 3px solid rgb(var(--sidebar-rule));
+  }
+  .sidebar-item-active {
+    background: rgb(var(--sidebar-item-active-bg));
+    box-shadow: inset 3px 0 0 rgb(var(--sidebar-item-active-indicator));
+  }
+
+  .avatar-assistant {
+    background: rgb(var(--avatar-assistant-bg));
+    color: rgb(var(--avatar-assistant-fg));
+  }
+  .avatar-user {
+    background: rgb(var(--avatar-user-bg));
+    color: rgb(var(--avatar-user-fg));
+  }
 }
 
 /* Markdown в ответах ассистента */
@@ -31,16 +81,16 @@ body {
   margin: 0.15em 0;
 }
 .prose-msg code {
-  background: #eef2f6;
+  background: rgb(var(--code-inline-bg));
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.92em;
 }
 .prose-msg pre {
-  background: #1e293b;
-  color: #f1f5f9;
-  padding: 12px;
-  border-radius: 8px;
+  background: rgb(var(--code-block-bg));
+  color: rgb(var(--code-block-fg));
+  padding: theme("spacing.3");
+  border-radius: var(--radius-md);
   overflow-x: auto;
   font-size: 0.88em;
 }
@@ -54,4 +104,8 @@ body {
 .prose-msg h3 {
   margin: 0.6em 0 0.3em;
   font-weight: 600;
+}
+.prose-msg a {
+  color: rgb(var(--color-primary-strong));
+  text-decoration: underline;
 }

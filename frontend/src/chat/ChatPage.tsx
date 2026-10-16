@@ -40,7 +40,6 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const { isAdmin, isManager } = useCurrentUser();
-
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
@@ -209,14 +208,14 @@ export function ChatPage() {
           <GapsAdmin onBackToChat={() => setView("chat")} />
         </main>
       ) : (
-        <main className="flex-1 flex flex-col bg-slate-50">
+        <main className="flex-1 flex flex-col bg-surface-muted">
           <Header />
           <MessageList messages={messages} loading={sending} onSuggest={handleSend} />
           {error && (
             <div className="mx-auto max-w-3xl w-full px-6">
-              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
+              <div className="text-sm text-danger bg-danger-soft border border-danger-line rounded-lg px-3 py-2 mb-2">
                 {error}
-                <button onClick={() => setError(null)} className="ml-2 underline text-red-600">
+                <button onClick={() => setError(null)} className="ml-2 underline text-danger">
                   закрыть
                 </button>
               </div>
@@ -232,8 +231,8 @@ export function ChatPage() {
 
 function Header() {
   return (
-    <header className="border-b border-slate-200 bg-white px-6 py-3">
-      <h1 className="text-sm font-semibold text-slate-700">Корпоративный ИИ-ассистент</h1>
+    <header className="border-b border-line bg-surface px-6 py-3">
+      <h1 className="font-display text-base font-bold uppercase tracking-wide text-ink">Корпоративный ИИ-ассистент</h1>
     </header>
   );
 }

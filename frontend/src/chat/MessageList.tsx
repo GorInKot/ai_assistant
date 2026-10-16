@@ -19,9 +19,9 @@ export function MessageList({ messages, loading, onSuggest }: Props) {
 
   if (messages.length === 0 && !loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-400 text-sm px-6">
+      <div className="flex-1 flex items-center justify-center text-ink-faint text-sm px-6">
         <div className="text-center max-w-md">
-          <h2 className="text-lg font-semibold text-slate-700 mb-2">Чем могу помочь?</h2>
+          <h2 className="font-display text-xl font-bold text-ink mb-2">Чем могу помочь?</h2>
           <p>
             Задайте вопрос по корпоративным процессам: ЦУС, ЕКТП, лаборатория ИИ, обучение и
             медосмотр.
@@ -40,7 +40,7 @@ export function MessageList({ messages, loading, onSuggest }: Props) {
         {loading && (
           <div className="flex gap-3">
             <Avatar role="assistant" />
-            <div className="flex-1 text-sm text-slate-400 pt-1.5">Печатает…</div>
+            <div className="flex-1 text-sm text-ink-faint pt-1.5">Печатает…</div>
           </div>
         )}
         <div ref={endRef} />
@@ -63,10 +63,10 @@ function MessageBubble({
     <div className="flex gap-3">
       <Avatar role={msg.role} />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-semibold text-slate-500 mb-1">
+        <div className="text-xs font-semibold text-ink-subtle mb-1">
           {isUser ? "Вы" : "Ассистент"}
         </div>
-        <div className="prose-msg text-sm text-slate-800 whitespace-pre-wrap break-words">
+        <div className="prose-msg text-sm text-ink whitespace-pre-wrap break-words">
           {isUser ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
         </div>
         {msg.grounding && msg.grounding.total > 0 && <GroundingBlock grounding={msg.grounding} />}
@@ -80,7 +80,7 @@ function MessageBubble({
                 type="button"
                 disabled={busy}
                 onClick={() => onSuggest(s.message, msg.files ?? [])}
-                className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs text-sky-800 transition hover:border-sky-500 hover:bg-sky-100 disabled:opacity-50"
+                className="btn-soft rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50"
               >
                 {s.label}
               </button>
@@ -117,16 +117,16 @@ function RatingButtons({ messageId, initial }: { messageId: number; initial: num
   };
 
   const base = "rounded-md border px-2 py-0.5 text-xs transition disabled:opacity-50 ";
-  const idle = "border-slate-200 bg-white text-slate-500 hover:border-slate-400";
+  const idle = "border-line bg-surface text-ink-subtle hover:border-line-strong";
   return (
-    <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+    <div className="mt-2 flex items-center gap-2 text-xs text-ink-faint">
       <span>Ответ был полезен?</span>
       <button
         type="button"
         disabled={busy}
         aria-pressed={rating === 1}
         onClick={() => choose(1)}
-        className={base + (rating === 1 ? "border-emerald-400 bg-emerald-50 text-emerald-800" : idle)}
+        className={base + (rating === 1 ? "border-success-line bg-success-soft text-success" : idle)}
       >
         👍 Полезно
       </button>
@@ -135,11 +135,11 @@ function RatingButtons({ messageId, initial }: { messageId: number; initial: num
         disabled={busy}
         aria-pressed={rating === -1}
         onClick={() => choose(-1)}
-        className={base + (rating === -1 ? "border-amber-400 bg-amber-50 text-amber-800" : idle)}
+        className={base + (rating === -1 ? "border-warning-line bg-warning-soft text-warning" : idle)}
       >
         👎 Не полезно
       </button>
-      {failed && <span className="text-red-600">Не удалось сохранить оценку</span>}
+      {failed && <span className="text-danger">Не удалось сохранить оценку</span>}
     </div>
   );
 }
@@ -164,7 +164,7 @@ function AttachmentDownload({ attachment }: { attachment: AskAttachment }) {
       <a
         href={href}
         download={attachment.filename}
-        className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/5 px-3 py-2 text-sm font-medium text-accent hover:bg-accent/10"
+        className="btn-soft inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
       >
         ⬇️ Скачать {attachment.filename}
       </a>
@@ -177,7 +177,7 @@ function Avatar({ role }: { role: "user" | "assistant" }) {
   return (
     <div
       className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-semibold ${
-        isUser ? "bg-slate-200 text-slate-700" : "bg-accent text-white"
+        isUser ? "avatar-user" : "avatar-assistant"
       }`}
     >
       {isUser ? "Я" : "ИИ"}
@@ -193,7 +193,7 @@ function GroundingBlock({ grounding }: { grounding: Grounding }) {
     <div className="mt-3 space-y-2">
       <div
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-          alarms === 0 ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
+          alarms === 0 ? "bg-success-soft text-success" : "bg-warning-soft text-warning"
         }`}
         title="Сверяются слова и числа ответа с найденными фрагментами документов. Выдуманные числа и детали проверка ловит; перепутанный смысл теми же словами — нет, поэтому важные факты сверяйте по цитатам."
       >
@@ -201,7 +201,7 @@ function GroundingBlock({ grounding }: { grounding: Grounding }) {
       </div>
 
       {alarms > 0 && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="rounded-lg border border-warning-line bg-warning-soft p-3 text-xs text-warning">
           <div className="font-semibold mb-1">Не найдено в документах — проверьте:</div>
           <ul className="list-disc pl-4 space-y-0.5">
             {grounding.unsupported.map((text, i) => (
@@ -212,17 +212,17 @@ function GroundingBlock({ grounding }: { grounding: Grounding }) {
       )}
 
       {grounding.citations.length > 0 && (
-        <details className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
-          <summary className="cursor-pointer font-semibold text-slate-600">
+        <details className="rounded-lg border border-line bg-surface p-3 text-xs">
+          <summary className="cursor-pointer font-semibold text-ink-muted">
             На что опирается ответ: цитаты ({grounding.citations.length})
           </summary>
           <ul className="mt-2 space-y-2.5">
             {grounding.citations.map((c, i) => (
               <li key={i}>
-                <blockquote className="border-l-2 border-accent/50 pl-2.5 text-slate-700 italic">
+                <blockquote className="border-l-2 border-primary/50 pl-2.5 text-ink-soft italic">
                   «{c.quote}»
                 </blockquote>
-                <div className="mt-0.5 pl-2.5 text-slate-500">
+                <div className="mt-0.5 pl-2.5 text-ink-subtle">
                   {c.file_name}
                   {c.page != null ? `, стр. ${c.page}` : ""}
                   {c.section ? ` · ${c.section}` : ""}
@@ -238,21 +238,21 @@ function GroundingBlock({ grounding }: { grounding: Grounding }) {
 
 function SourcesList({ sources }: { sources: ChatSource[] }) {
   return (
-    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <div className="text-xs font-semibold text-slate-600 mb-1.5">Источники</div>
+    <div className="mt-3 rounded-lg border border-line bg-surface-muted p-3">
+      <div className="text-xs font-semibold text-ink-muted mb-1.5">Источники</div>
       <ul className="space-y-1">
         {sources.map((src) => (
           <li key={src.relative_path} className="text-xs flex flex-wrap items-center gap-2">
-            <span className="font-medium text-slate-700">{src.file_name}</span>
+            <span className="font-medium text-ink-soft">{src.file_name}</span>
             <a
               href={src.url}
               target="_blank"
               rel="noreferrer"
-              className="text-accent hover:underline"
+              className="text-primary-strong hover:underline"
             >
               открыть
             </a>
-            <a href={src.download_url} className="text-accent hover:underline">
+            <a href={src.download_url} className="text-primary-strong hover:underline">
               скачать
             </a>
           </li>

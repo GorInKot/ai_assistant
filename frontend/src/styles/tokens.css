@@ -1,0 +1,149 @@
+/*
+ * Дизайн-токены ассистента в корпоративных цветах: чёрный, графит, золотисто-жёлтый.
+ * Значения базового слоя совпадают с темой корпоративного портала (ассистент открывается
+ * внутри него) — при смене брендбука меняется только этот слой.
+ *
+ * Три слоя: базовые значения → смысловые роли → компоненты. Код интерфейса ссылается
+ * только на смысловые роли (классы Tailwind из tailwind.config.js) и компонентные классы
+ * (index.css), а не на сами цвета.
+ *
+ * Цвета — тройки RGB без rgb(): так работают модификаторы прозрачности Tailwind (bg-primary/20).
+ */
+
+/* === 1. БАЗОВЫЕ ЗНАЧЕНИЯ === */
+:root {
+  /* чёрный и графит */
+  --rn-black-950: 11 13 16;      /* #0b0d10 */
+  --rn-black-900: 21 25 32;      /* #151920 */
+  --rn-black-800: 27 33 43;      /* #1b212b */
+  --rn-graphite-700: 42 49 60;   /* #2a313c */
+  --rn-graphite-600: 58 66 78;   /* #3a424e */
+
+  /* нейтральные */
+  --rn-ink: 23 26 31;            /* #171a1f */
+  --rn-gray-700: 47 53 61;       /* #2f353d */
+  --rn-gray-600: 75 82 92;       /* #4b525c */
+  --rn-gray-500: 100 107 118;    /* #646b76 — контраст 4.8:1 на фоне страницы */
+  --rn-gray-400: 138 145 156;    /* #8a919c — только иконки и неактивное */
+  --rn-gray-350: 169 176 186;    /* #a9b0ba — второстепенный текст на тёмном */
+  --rn-gray-300: 207 212 220;    /* #cfd4dc */
+  --rn-gray-200: 227 230 235;    /* #e3e6eb */
+  --rn-gray-100: 242 243 245;    /* #f2f3f5 */
+  --rn-gray-50: 248 249 251;     /* #f8f9fb */
+  --rn-white: 255 255 255;
+
+  /* золотисто-жёлтый */
+  --rn-gold-50: 255 248 230;     /* #fff8e6 */
+  --rn-gold-100: 253 239 200;    /* #fdefc8 */
+  --rn-gold-300: 255 206 84;     /* #ffce54 */
+  --rn-gold-500: 232 164 25;     /* #e8a419 — фирменный */
+  --rn-gold-600: 212 146 15;     /* #d4920f */
+  --rn-gold-700: 185 121 10;     /* #b9790a */
+  --rn-gold-800: 138 90 6;       /* #8a5a06 — текст на светлом, 5.9:1 */
+
+  /* состояния */
+  --rn-green-700: 20 108 67;     /* #146c43 */
+  --rn-green-200: 183 226 203;
+  --rn-green-50: 231 246 238;
+  --rn-orange-800: 154 79 5;     /* #9a4f05 */
+  --rn-orange-200: 245 207 154;
+  --rn-orange-50: 253 240 221;
+  --rn-red-700: 180 35 24;       /* #b42318 */
+  --rn-red-200: 246 193 187;
+  --rn-red-50: 253 234 232;
+  --rn-blue-700: 29 79 191;      /* #1d4fbf */
+  --rn-blue-200: 188 210 251;
+  --rn-blue-50: 234 241 255;
+
+  /* шрифты, скругления (углы строже, как в портале), тени */
+  --rn-font-body: "Roboto", "Segoe UI", Arial, sans-serif;
+  --rn-font-display: "Roboto Condensed", "Arial Narrow", Arial, sans-serif;
+  --rn-radius-1: 2px;
+  --rn-radius-2: 4px;
+  --rn-radius-3: 6px;
+  --rn-radius-4: 8px;
+  --rn-shadow-pop: 0 14px 34px rgb(11 13 16 / 0.18);
+}
+
+/* === 2. СМЫСЛОВЫЕ РОЛИ === */
+:root {
+  --color-canvas: var(--rn-gray-100);          /* фон страницы */
+  --color-surface: var(--rn-white);            /* карточки, окна, поле ввода */
+  --color-surface-muted: var(--rn-gray-50);    /* фон чата, вторичные панели */
+  --color-surface-sunken: var(--rn-gray-100);  /* подложки, наведение */
+  --color-line: var(--rn-gray-200);
+  --color-line-strong: var(--rn-gray-300);
+
+  --color-ink: var(--rn-ink);                  /* основной текст */
+  --color-ink-soft: var(--rn-gray-700);
+  --color-ink-muted: var(--rn-gray-600);
+  --color-ink-subtle: var(--rn-gray-500);      /* подписи, время */
+  --color-ink-faint: var(--rn-gray-400);       /* иконки, неактивное */
+
+  --color-primary: var(--rn-gold-500);         /* главное действие, акцент */
+  --color-primary-hover: var(--rn-gold-600);
+  --color-primary-fg: var(--rn-black-950);     /* текст на золоте, 9.6:1 */
+  --color-primary-soft: var(--rn-gold-50);
+  --color-primary-strong: var(--rn-gold-800);  /* ссылки и акцентный текст на светлом */
+
+  --color-inverse: var(--rn-black-900);        /* тёмные зоны: боковая панель */
+  --color-inverse-raised: var(--rn-black-800);
+  --color-inverse-hover: var(--rn-graphite-700);
+  --color-inverse-line: var(--rn-graphite-600);
+  --color-inverse-fg: var(--rn-gray-100);
+  --color-inverse-muted: var(--rn-gray-350);
+
+  --color-success: var(--rn-green-700);
+  --color-success-soft: var(--rn-green-50);
+  --color-success-line: var(--rn-green-200);
+  --color-warning: var(--rn-orange-800);
+  --color-warning-soft: var(--rn-orange-50);
+  --color-warning-line: var(--rn-orange-200);
+  --color-danger: var(--rn-red-700);
+  --color-danger-soft: var(--rn-red-50);
+  --color-danger-line: var(--rn-red-200);
+  --color-info: var(--rn-blue-700);
+  --color-info-soft: var(--rn-blue-50);
+  --color-info-line: var(--rn-blue-200);
+
+  --color-focus: var(--rn-gold-500);
+
+  --font-body: var(--rn-font-body);
+  --font-display: var(--rn-font-display);
+  --radius-sm: var(--rn-radius-1);
+  --radius-md: var(--rn-radius-2);
+  --radius-lg: var(--rn-radius-2);
+  --radius-xl: var(--rn-radius-3);
+  --radius-2xl: var(--rn-radius-4);
+  --shadow-pop: var(--rn-shadow-pop);
+}
+
+/* === 3. КОМПОНЕНТЫ === */
+:root {
+  /* главная кнопка: золото с тёмным текстом */
+  --button-primary-bg: var(--color-primary);
+  --button-primary-bg-hover: var(--color-primary-hover);
+  --button-primary-fg: var(--color-primary-fg);
+  /* второстепенная кнопка-действие: светлое золото, тёмно-золотой текст */
+  --button-soft-bg: var(--color-primary-soft);
+  --button-soft-bg-hover: var(--rn-gold-100);
+  --button-soft-fg: var(--color-primary-strong);
+  --button-soft-border: var(--rn-gold-300);
+
+  /* боковая панель: как шапка портала — чёрная с золотой чертой */
+  --sidebar-bg: var(--color-inverse);
+  --sidebar-rule: var(--color-primary);
+  --sidebar-item-active-bg: var(--color-inverse-hover);
+  --sidebar-item-active-indicator: var(--color-primary);
+
+  /* сообщения */
+  --avatar-assistant-bg: var(--color-primary);
+  --avatar-assistant-fg: var(--color-primary-fg);
+  --avatar-user-bg: var(--color-line);
+  --avatar-user-fg: var(--color-ink-soft);
+  --code-inline-bg: var(--color-surface-sunken);
+  --code-block-bg: var(--color-inverse);
+  --code-block-fg: var(--color-inverse-fg);
+
+  --focus-ring: var(--color-focus);
+}
