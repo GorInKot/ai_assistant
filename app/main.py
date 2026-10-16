@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from app.db import init_db
@@ -22,6 +22,7 @@ from app.routers import (
     conversations,
     documents,
     knowledge_gaps,
+    portal_sso,
     profile,
     system,
     users_admin,
@@ -44,6 +45,15 @@ app.include_router(cad_router.router)
 app.include_router(actions.router)
 app.include_router(profile.router)
 app.include_router(users_admin.router)
+app.include_router(portal_sso.router)
+
+
+@app.middleware("http")
+async def frame_policy(request: Request, call_next):
+    # Встраивать ассистент в iframe можно только ему самому и порталу (PORTAL_ORIGINS).
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", f"frame-ancestors {portal_sso.frame_ancestors()}")
+    return response
 
 # Веб-редактор SolidCraft для вкладки «Конструктор» (ставится scripts/fetch_solidcraft.sh).
 _editor = cad.editor_dir(settings.solidcraft_dir)

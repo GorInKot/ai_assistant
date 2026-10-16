@@ -14,6 +14,7 @@ from app.auth import (
     verify_password,
 )
 from app.db import User
+from app.routers.portal_sso import is_portal_email
 from app.schemas import LoginRequest, RegisterRequest, TokenResponse
 
 
@@ -24,6 +25,8 @@ router = APIRouter(prefix="/api")
 def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=400, detail="Пароли не совпадают")
+    if is_portal_email(payload.email):
+        raise HTTPException(status_code=400, detail="Этот адрес зарезервирован для входа через портал")
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
 

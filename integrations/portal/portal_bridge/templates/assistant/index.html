@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}ИИ-ассистент — ООО «РН-СтройКонтроль»{% endblock %}
+
+{% block extra_style %}
+    body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .assistant-frame { flex: 1; width: 100%; border: 0; display: block; background: #fff; }
+    .assistant-off { margin: 44px auto; width: min(720px, calc(100% - 48px)); color: var(--ink-2); line-height: 1.55; }
+{% endblock %}
+
+{% block content %}
+  {% if token %}
+    {# Пропуск уходит POST-запросом прямо в окно ассистента: не попадает в адресную строку и журналы. #}
+    <form id="assistant-sso" method="post" action="{{ assistant_url }}/sso/portal" target="assistant-frame" hidden>
+      <input type="hidden" name="token" value="{{ token }}">
+    </form>
+    <iframe class="assistant-frame" name="assistant-frame" title="ИИ-ассистент"></iframe>
+    <script>document.getElementById("assistant-sso").submit();</script>
+  {% else %}
+    <p class="assistant-off">Раздел «ИИ-ассистент» не настроен: не задан общий секрет ASSISTANT_SSO_SECRET. Обратитесь к администратору портала.</p>
+  {% endif %}
+{% endblock %}
