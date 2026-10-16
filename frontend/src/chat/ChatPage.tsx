@@ -1,21 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { GapsAdmin } from "../admin/GapsAdmin";
 import { formatDuration, TimingPage, useElapsed } from "../admin/TimingPage";
 import { UsersAdmin } from "../admin/UsersAdmin";
-import { api, ApiError } from "../api/client";
+import { api } from "../api/client";
 import { clearToken } from "../auth/store";
 import { useCurrentUser } from "../auth/useCurrentUser";
-import type {
-  AskResponse,
-  ChatMessage,
-  ConversationDetail,
-  ConversationSummary,
-  TimingRun,
-} from "../api/types";
+import type { TimingRun } from "../api/types";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 import { ProfileDialog } from "./ProfileDialog";
 import { Sidebar } from "./Sidebar";
+import { useChat } from "./useChat";
 
 const SIDEBAR_KEY = "ai_assistant_sidebar_collapsed";
 
@@ -27,17 +22,17 @@ function readSidebarCollapsed(): boolean {
   }
 }
 
-let nextLocalId = -1;
-const localId = () => nextLocalId--;
+// «Открыть полностью» из панели ведёт сюда с номером беседы: /?conversation=42.
+function conversationFromUrl(): number | null {
+  const id = Number(new URLSearchParams(window.location.search).get("conversation"));
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
 
 export function ChatPage() {
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sending, setSending] = useState(false);
+  const chat = useChat();
+  const { openConversation, setError } = chat;
   const [profileOpen, setProfileOpen] = useState(false);
   const [view, setView] = useState<"chat" | "admin-users" | "admin-gaps" | "timing">("chat");
-  const [error, setError] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const { isAdmin, isManager } = useCurrentUser();
   // Идущий замер времени (страница «Замер») — плашка над чатом, пока участник работает.
@@ -51,6 +46,13 @@ export function ChatPage() {
       .catch(() => undefined);
   }, [isManager, view]);
 
+  useEffect(() => {
+    const id = conversationFromUrl();
+    if (id === null) return;
+    history.replaceState(null, "", window.location.pathname);
+    openConversation(id).catch((err) => setError(err?.message ?? "Не удалось открыть беседу"));
+  }, [openConversation, setError]);
+
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
@@ -63,113 +65,6 @@ export function ChatPage() {
     });
   };
 
-  const loadConversations = useCallback(async () => {
-    const data = await api.get<{ conversations: ConversationSummary[] }>("/api/conversations");
-    setConversations(data.conversations);
-    return data.conversations;
-  }, []);
-
-  const openConversation = useCallback(async (id: number) => {
-    setActiveId(id);
-    setMessages([]);
-    const data = await api.get<ConversationDetail>(`/api/conversations/${id}`);
-    setMessages(data.messages);
-  }, []);
-
-  useEffect(() => {
-    loadConversations().catch((err) => setError(err?.message ?? "Не удалось загрузить беседы"));
-  }, [loadConversations]);
-
-  const handleNew = () => {
-    setActiveId(null);
-    setMessages([]);
-  };
-
-  const handleSend = async (text: string, files: File[] = []) => {
-    setError(null);
-    setSending(true);
-
-    let conversationId = activeId;
-    try {
-      if (conversationId === null) {
-        const conv = await api.post<ConversationSummary>("/api/conversations", {});
-        conversationId = conv.id;
-        setActiveId(conv.id);
-        setConversations((prev) => [conv, ...prev]);
-      }
-
-      const userContent =
-        files.length > 0
-          ? `${text ? text + "\n\n" : ""}📎 ${files.map((f) => f.name).join(", ")}`
-          : text;
-      const userMsg: ChatMessage = {
-        id: localId(),
-        role: "user",
-        content: userContent,
-        sources: [],
-        no_exact_match: false,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
-
-      const response =
-        files.length > 0
-          ? await api.uploadMany<AskResponse>("/api/ask-files", files, {
-              message: text,
-              conversation_id: conversationId,
-            })
-          : await api.post<AskResponse>("/api/ask", {
-              question: text,
-              conversation_id: conversationId,
-            });
-
-      const assistantMsg: ChatMessage = {
-        id: response.message_id ?? localId(),
-        role: "assistant",
-        content: response.answer,
-        sources: response.sources,
-        grounding: response.grounding ?? null,
-        no_exact_match: response.no_exact_match,
-        created_at: new Date().toISOString(),
-        attachment: response.attachment ?? null,
-        suggestions: response.suggestions ?? [],
-        files: response.suggestions?.length ? files : undefined,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-
-      // Перезагрузим заголовки бесед — title мог обновиться через auto-title.
-      loadConversations().catch(() => {
-        /* безопасный no-op для UI */
-      });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Ошибка отправки");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleRename = async (id: number, title: string) => {
-    try {
-      const updated = await api.patch<ConversationSummary>(`/api/conversations/${id}`, { title });
-      setConversations((prev) => prev.map((c) => (c.id === id ? updated : c)));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Не удалось переименовать");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await api.delete<{ status: string }>(`/api/conversations/${id}`);
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeId === id) {
-        setActiveId(null);
-        setMessages([]);
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Не удалось удалить");
-    }
-  };
-
   const handleLogout = () => {
     if (confirm("Выйти из учётной записи?")) {
       clearToken();
@@ -179,8 +74,8 @@ export function ChatPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
-        conversations={conversations}
-        activeId={activeId}
+        conversations={chat.conversations}
+        activeId={chat.activeId}
         isAdmin={isAdmin}
         isManager={isManager}
         collapsed={sidebarCollapsed}
@@ -191,10 +86,10 @@ export function ChatPage() {
         }}
         onNew={() => {
           setView("chat");
-          handleNew();
+          chat.newConversation();
         }}
-        onRename={handleRename}
-        onDelete={handleDelete}
+        onRename={chat.rename}
+        onDelete={chat.remove}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenUsersAdmin={() => setView("admin-users")}
         onOpenGaps={() => setView("admin-gaps")}
@@ -217,18 +112,18 @@ export function ChatPage() {
         <main className="flex-1 flex flex-col bg-surface-muted">
           <Header />
           {activeRun && <TimingBanner run={activeRun} onOpen={() => setView("timing")} />}
-          <MessageList messages={messages} loading={sending} onSuggest={handleSend} />
-          {error && (
+          <MessageList messages={chat.messages} loading={chat.sending} onSuggest={chat.send} />
+          {chat.error && (
             <div className="mx-auto max-w-3xl w-full px-6">
               <div className="text-sm text-danger bg-danger-soft border border-danger-line rounded-lg px-3 py-2 mb-2">
-                {error}
+                {chat.error}
                 <button onClick={() => setError(null)} className="ml-2 underline text-danger">
                   закрыть
                 </button>
               </div>
             </div>
           )}
-          <Composer onSend={handleSend} disabled={sending} />
+          <Composer onSend={chat.send} disabled={chat.sending} />
         </main>
       )}
       {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}

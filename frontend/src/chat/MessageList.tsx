@@ -8,9 +8,11 @@ interface Props {
   loading: boolean;
   // Кнопка предложенного действия: отправить тот же файл с этой просьбой.
   onSuggest: (message: string, files: File[]) => void;
+  // Компактный вид для панели на портале: узкая колонка, меньше отступов.
+  compact?: boolean;
 }
 
-export function MessageList({ messages, loading, onSuggest }: Props) {
+export function MessageList({ messages, loading, onSuggest, compact = false }: Props) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function MessageList({ messages, loading, onSuggest }: Props) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
+      <div className={compact ? "px-3 py-4 space-y-5" : "max-w-3xl mx-auto px-6 py-6 space-y-6"}>
         {messages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} busy={loading} onSuggest={onSuggest} />
         ))}
@@ -66,7 +68,8 @@ function MessageBubble({
         <div className="text-xs font-semibold text-ink-subtle mb-1">
           {isUser ? "Вы" : "Ассистент"}
         </div>
-        <div className="prose-msg text-sm text-ink whitespace-pre-wrap break-words">
+        {/* переносы строк сохраняем только у вопроса: ответ верстает Markdown, иначе — лишние пустые строки */}
+        <div className={`prose-msg text-sm text-ink break-words ${isUser ? "whitespace-pre-wrap" : ""}`}>
           {isUser ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
         </div>
         {msg.grounding && msg.grounding.total > 0 && <GroundingBlock grounding={msg.grounding} />}

@@ -133,8 +133,9 @@ def test_unknown_next_falls_back_to_chat(client, target):
     assert resp.status_code == 200 and _next(resp) == '"/"'
 
 
-def test_tools_section_is_served_like_chat(client):
-    root, tools = client.get("/"), client.get("/tools")
-    assert tools.status_code == root.status_code
+@pytest.mark.parametrize("section", ["/tools", "/widget"])
+def test_sections_are_served_like_chat(client, section):
+    root, page = client.get("/"), client.get(section)
+    assert page.status_code == root.status_code
     if root.status_code == 200:
-        assert tools.content == root.content
+        assert page.content == root.content

@@ -23,7 +23,7 @@ def _frontend_dist_path():
 
 
 # Разделы React-фронта со своим адресом: отдаётся тот же index.html, раздел выбирает фронт.
-SPA_PATHS = ("/", "/tools")
+SPA_PATHS = ("/", "/tools", "/widget")
 
 
 def root() -> FileResponse:

@@ -3,12 +3,14 @@ import { useRef, useState, KeyboardEvent } from "react";
 interface Props {
   onSend: (text: string, files: File[]) => void;
   disabled: boolean;
+  // Компактный вид для панели на портале: меньше отступов, без строки-подсказки.
+  compact?: boolean;
 }
 
 const ACCEPT = ".xlsx,.docx,.doc,.pdf";
 const MAX_FILES = 20;
 
-export function Composer({ onSend, disabled }: Props) {
+export function Composer({ onSend, disabled, compact = false }: Props) {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -48,7 +50,7 @@ export function Composer({ onSend, disabled }: Props) {
 
   return (
     <div className="border-t border-line bg-surface">
-      <div className="max-w-3xl mx-auto px-6 py-4">
+      <div className={compact ? "px-3 py-3" : "max-w-3xl mx-auto px-6 py-4"}>
         {files.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {files.map((f, i) => (
@@ -97,7 +99,7 @@ export function Composer({ onSend, disabled }: Props) {
               el.style.height = Math.min(el.scrollHeight, 220) + "px";
             }}
             onKeyDown={handleKey}
-            placeholder="Спросите ассистента или прикрепите файл…"
+            placeholder={compact ? "Спросите или прикрепите файл…" : "Спросите ассистента или прикрепите файл…"}
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm text-ink placeholder-ink-subtle focus:outline-none py-1.5"
           />
@@ -111,9 +113,11 @@ export function Composer({ onSend, disabled }: Props) {
             →
           </button>
         </div>
-        <p className="mt-2 text-xs text-ink-faint text-center">
-          Enter — отправить. Прикрепите .xlsx/.docx/.doc: «сделай выжимку», «сравни», «объедини».
-        </p>
+        {!compact && (
+          <p className="mt-2 text-xs text-ink-faint text-center">
+            Enter — отправить. Прикрепите .xlsx/.docx/.doc: «сделай выжимку», «сравни», «объедини».
+          </p>
+        )}
       </div>
     </div>
   );
