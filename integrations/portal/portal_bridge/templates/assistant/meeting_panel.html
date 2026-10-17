@@ -1,0 +1,263 @@
+<style>
+#meetingBackdrop[hidden],#meetingResults[hidden],#meetingTranscriptPanel[hidden]{display:none!important}
+#meetingBackdrop{position:fixed;inset:0;z-index:240;background:rgba(11,20,35,.62);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:28px 14px}
+#meetingDialog{width:min(100%,960px);background:#fff;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);color:var(--text)}
+.meeting-header{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--navy);color:#fff;border-radius:10px 10px 0 0}
+.meeting-header h2{margin:0;font-size:18px}.meeting-header button{margin-left:auto;border:0;background:transparent;color:#fff;font-size:24px;line-height:1;cursor:pointer}
+.meeting-content{padding:20px}.meeting-lead{margin:0 0 16px;color:var(--muted)}.meeting-section{padding:16px 0;border-top:1px solid var(--line)}
+.meeting-section h3{margin:0 0 12px;font-size:15px}.meeting-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.meeting-note{margin:10px 0 0;font-size:12px;color:var(--muted)}.meeting-status{margin:12px 0 0;min-height:20px}
+.meeting-status.error{color:var(--danger)}.meeting-status.good{color:var(--ok)}
+.meeting-card{border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0}.meeting-card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.meeting-card-head a{margin-left:auto}.meeting-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(180px,1fr) 160px;gap:12px;margin:12px 0}
+.meeting-grid label{display:grid;gap:5px;font-size:12px;color:var(--muted);font-weight:600}.meeting-grid input,.meeting-grid textarea{width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit;color:var(--text)}
+.meeting-grid textarea{min-height:74px;resize:vertical}.meeting-quote{background:#f3f7fa;border-left:3px solid #8ab4d0;padding:10px 12px;border-radius:4px;font-size:13px;white-space:pre-wrap}
+#meetingTranscript{max-height:310px;overflow:auto}.meeting-line{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.meeting-time{flex:none;color:var(--info);font-variant-numeric:tabular-nums}.meeting-line-text{flex:1;white-space:pre-wrap}.meeting-line button{flex:none}
+body.meeting-open{overflow:hidden}@media(max-width:700px){#meetingBackdrop{padding:0}#meetingDialog{min-height:100vh;border-radius:0}.meeting-header{border-radius:0}.meeting-content{padding:14px}.meeting-grid{grid-template-columns:1fr}.meeting-line{flex-wrap:wrap}}
+</style>
+<div id="meetingBackdrop" hidden>
+  <div id="meetingDialog" role="dialog" aria-modal="true" aria-labelledby="meetingTitle">
+    <div class="meeting-header"><h2 id="meetingTitle">🎙 Запись совещания</h2><button id="meetingClose" type="button" aria-label="Закрыть">×</button></div>
+    <div class="meeting-content">
+      <p class="meeting-lead">Загрузите запись из IVA. После обработки проверьте поручения и подтвердите их добавление в протокол.</p>
+      <div class="meeting-actions"><button class="btn btn-gold" id="meetingChoose" type="button">Выбрать файл</button><span id="meetingFileName"></span></div>
+      <input id="meetingFile" type="file" accept=".mp4,.mov,.m4a,.mp3,.wav,.txt,.srt,.vtt" hidden>
+      <p class="meeting-note">Видео и аудио: MP4, MOV, M4A, MP3, WAV до 350 МБ. Готовая стенограмма: TXT, SRT, VTT до 2 МБ. Обработка выполняется локально.</p>
+      <p id="meetingProgress" class="meeting-status" role="status" aria-live="polite"></p>
+      <section class="meeting-section" id="meetingResults" hidden>
+        <h3>Проверьте поручения</h3><p id="meetingTaskCount" class="meeting-note"></p>
+        <datalist id="meetingPeople"></datalist><div id="meetingCards"></div>
+        <div class="meeting-actions"><button class="btn btn-primary" id="meetingConfirm" type="button">Добавить отмеченные в протокол</button><span id="meetingConfirmStatus" role="status"></span></div>
+      </section>
+      <section class="meeting-section" id="meetingTranscriptPanel" hidden><h3>Стенограмма</h3><div id="meetingTranscript"></div></section>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const backdrop = document.getElementById('meetingBackdrop');
+  const fileInput = document.getElementById('meetingFile');
+  const choose = document.getElementById('meetingChoose');
+  const progress = document.getElementById('meetingProgress');
+  const cards = document.getElementById('meetingCards');
+  const transcript = document.getElementById('meetingTranscript');
+  let job = null;
+  let pollTimer = null;
+  let uploadVersion = 0;
+
+  function node(tag, className, value) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (value !== undefined) element.textContent = value;
+    return element;
+  }
+  function clock(seconds) {
+    const total = Math.floor(Number(seconds) || 0);
+    return `${String(Math.floor(total / 3600)).padStart(2, '0')}:${String(Math.floor(total / 60) % 60).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+  function csrf() {
+    return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || '';
+  }
+  async function decode(response) {
+    const data = await response.json();
+    if (!response.ok) throw Error(data.error || 'Ошибка запроса');
+    return data;
+  }
+  function setProgress(message, kind = '') {
+    progress.textContent = message;
+    progress.className = `meeting-status ${kind}`;
+  }
+  function open() {
+    backdrop.hidden = false;
+    document.body.classList.add('meeting-open');
+    choose.focus();
+  }
+  function close() {
+    backdrop.hidden = true;
+    document.body.classList.remove('meeting-open');
+  }
+  function insertButton() {
+    const active = document.querySelector('#tabsNav button[data-tab="active"].active');
+    const toolbar = active && document.querySelector('#mainRoot .list-panel > .toolbar');
+    if (!toolbar || toolbar.querySelector('#meetingToolbarButton')) return;
+    const button = node('button', 'btn', '🎙 Запись совещания');
+    button.type = 'button';
+    button.id = 'meetingToolbarButton';
+    button.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+    toolbar.insertBefore(button, toolbar.querySelector('.spacer'));
+  }
+  document.getElementById('meetingClose').addEventListener('click', close);
+  backdrop.addEventListener('click', event => { if (event.target === backdrop) close(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !backdrop.hidden) close(); });
+  choose.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    open();
+    clearTimeout(pollTimer);
+    const version = ++uploadVersion;
+    job = null;
+    cards.replaceChildren();
+    transcript.replaceChildren();
+    document.getElementById('meetingResults').hidden = true;
+    document.getElementById('meetingTranscriptPanel').hidden = true;
+    document.getElementById('meetingConfirm').disabled = false;
+    document.getElementById('meetingConfirmStatus').textContent = '';
+    document.getElementById('meetingFileName').textContent = file.name;
+    choose.disabled = true;
+    setProgress('Загрузка записи…');
+    try {
+      const body = new FormData();
+      body.append('recording', file);
+      const data = await decode(await fetch('/protocol/meeting/upload/', {
+        method: 'POST', body, headers: {'X-CSRFToken': csrf()}
+      }));
+      if (version !== uploadVersion) return;
+      job = data.id;
+      setProgress('Запись загружена. Идёт распознавание и поиск поручений…');
+      poll(version);
+    } catch (error) {
+      if (version !== uploadVersion) return;
+      setProgress(error.message, 'error');
+      choose.disabled = false;
+    }
+  });
+  async function poll(version) {
+    try {
+      const data = await decode(await fetch(`/protocol/meeting/${job}/`));
+      if (version !== uploadVersion) return;
+      if (data.status === 'ready' || data.status === 'confirmed') {
+        choose.disabled = false;
+        setProgress('Обработка завершена. Проверьте каждое поручение.', 'good');
+        render(data);
+        return;
+      }
+      if (data.status === 'error') {
+        choose.disabled = false;
+        setProgress(data.error || 'Не удалось обработать запись', 'error');
+        return;
+      }
+      setProgress(data.status === 'queued' ? 'Ожидание обработки…' : 'Идёт распознавание и поиск поручений…');
+      pollTimer = setTimeout(() => poll(version), 2500);
+    } catch (error) {
+      if (version !== uploadVersion) return;
+      choose.disabled = false;
+      setProgress(error.message, 'error');
+    }
+  }
+  function field(label, kind, value) {
+    const wrapper = node('label', '', label);
+    const input = kind === 'textarea' ? node('textarea') : node('input');
+    if (kind !== 'textarea') input.type = kind;
+    input.value = value || '';
+    wrapper.append(input);
+    return wrapper;
+  }
+  function addCard(task, data) {
+    const card = node('article', 'meeting-card');
+    card.dataset.id = task.id;
+    card.dataset.sourceId = task.source_id || '';
+    const head = node('div', 'meeting-card-head');
+    const checkbox = node('input', 'meeting-chosen');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    checkbox.setAttribute('aria-label', 'Добавить поручение');
+    head.append(checkbox, node('strong', '', `Фрагмент ${clock(task.source_time)}`));
+    if (data.has_media) {
+      const link = node('a', '', 'Открыть запись ↗');
+      link.href = `/protocol/meeting/${data.id}/media/#t=${Math.floor(task.source_time)}`;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      head.append(link);
+    }
+    const grid = node('div', 'meeting-grid');
+    const responsible = field('Ответственный из справочника', 'text', task.responsible);
+    responsible.querySelector('input').setAttribute('list', 'meetingPeople');
+    grid.append(field('Поручение', 'textarea', task.text), responsible, field('Срок', 'date', task.deadline));
+    card.append(head, grid, node('div', 'meeting-quote', task.source_text));
+    cards.append(card);
+    return card;
+  }
+  function render(data) {
+    cards.replaceChildren();
+    transcript.replaceChildren();
+    const people = document.getElementById('meetingPeople');
+    people.replaceChildren();
+    for (const name of data.people || []) {
+      const option = node('option');
+      option.value = name;
+      people.append(option);
+    }
+    document.getElementById('meetingResults').hidden = false;
+    document.getElementById('meetingTranscriptPanel').hidden = false;
+    document.getElementById('meetingTaskCount').textContent = data.tasks.length
+      ? `Найдено черновиков: ${data.tasks.length}. Сверьте формулировки с записью и снимите отметку с лишних.`
+      : 'Поручения не найдены. Проверьте стенограмму ниже.';
+    for (const task of data.tasks) addCard(task, data);
+    for (const segment of data.segments) {
+      const line = node('div', 'meeting-line');
+      line.append(node('span', 'meeting-time', clock(segment.start)), node('span', 'meeting-line-text', segment.text));
+      if (data.status !== 'confirmed') {
+        const button = node('button', 'btn btn-sm', '+ Поручение');
+        button.type = 'button';
+        button.addEventListener('click', () => {
+          const id = `manual-${segment.id}`;
+          let card = [...cards.children].find(item => item.dataset.id === id);
+          if (!card) card = addCard({id, source_id: segment.id, source_time: segment.start,
+            source_text: segment.text, text: '', responsible: '', deadline: ''}, data);
+          card.scrollIntoView({behavior: 'smooth', block: 'center'});
+          card.querySelector('textarea').focus();
+        });
+        line.append(button);
+      }
+      transcript.append(line);
+    }
+    if (data.status === 'confirmed') {
+      document.getElementById('meetingConfirm').disabled = true;
+      document.getElementById('meetingConfirmStatus').textContent = 'Поручения уже добавлены в протокол.';
+    }
+  }
+  document.getElementById('meetingConfirm').addEventListener('click', async () => {
+    const tasks = [];
+    for (const card of cards.children) {
+      if (!card.querySelector('.meeting-chosen').checked) continue;
+      tasks.push({id: card.dataset.id, source_id: card.dataset.sourceId,
+        text: card.querySelector('textarea').value,
+        responsible: card.querySelector('input[type="text"]').value,
+        deadline: card.querySelector('input[type="date"]').value});
+    }
+    const status = document.getElementById('meetingConfirmStatus');
+    if (!tasks.length) {
+      status.textContent = 'Отметьте хотя бы одно поручение.';
+      return;
+    }
+    const button = document.getElementById('meetingConfirm');
+    button.disabled = true;
+    status.textContent = 'Сохраняю…';
+    try {
+      const result = await decode(await fetch(`/protocol/meeting/${job}/confirm/`, {
+        method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf()},
+        body: JSON.stringify({tasks})
+      }));
+      status.replaceChildren(node('span', '', `Добавлено пунктов: ${result.item_ids.length}. `));
+      if (result.item_ids.length) {
+        const link = node('a', '', 'Открыть первый пункт →');
+        link.href = `/protocol/?item=${encodeURIComponent(result.item_ids[0])}`;
+        status.append(link);
+      }
+      if (typeof loadState === 'function') loadState();
+    } catch (error) {
+      button.disabled = false;
+      status.textContent = error.message;
+    }
+  });
+  const root = document.getElementById('mainRoot');
+  new MutationObserver(insertButton).observe(root, {childList: true, subtree: true});
+  insertButton();
+  if (new URLSearchParams(location.search).get('meeting') === '1') {
+    open();
+    history.replaceState(null, '', '/protocol/');
+  }
+})();
+</script>

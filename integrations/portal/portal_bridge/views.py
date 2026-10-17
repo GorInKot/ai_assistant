@@ -1,5 +1,7 @@
-from accounts.access import user_is_admin, user_is_manager_or_admin
-from accounts.models import Profile
+import re
+
+from accounts.access import user_can_view, user_is_admin, user_is_manager_or_admin
+from accounts.models import ModuleAccess, Profile
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http.request import split_domain_port
@@ -41,7 +43,13 @@ def home(request):
             TILE.format(url=reverse(name), accent=accent, title=title, description=description)
             for name, accent, title, description in TILES
         )
-        response.content = html.replace(GRID_MARKER, GRID_MARKER + tiles, 1).encode(response.charset)
+        html = html.replace(GRID_MARKER, GRID_MARKER + tiles, 1)
+        if user_can_view(request.user, ModuleAccess.MODULE_TASKS) and user_can_view(request.user, ModuleAccess.MODULE_PROTOCOL):
+            html = re.sub(
+                r'(<a class="panel cyan" href="/tasks/">\s*<div>\s*<h2>Панель задач</h2>\s*<p>).*?(</p>\s*</div>\s*<span class="status">)В разработке',
+                r'\1Поручения протокола по статусам и срокам.\2Доступно', html, count=1, flags=re.S,
+            )
+        response.content = html.encode(response.charset)
     return response
 
 
