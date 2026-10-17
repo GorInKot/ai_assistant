@@ -185,6 +185,13 @@ def build_fallback_answer(language: str, related_docs: list[dict], reason: str =
     )
 
 
+def _is_note(relative_path: str) -> bool:
+    """Markdown-заметка к документу — в источниках не показывается. Справка по разделам портала —
+    сам источник (другого документа у неё нет), поэтому показывается."""
+    path = str(relative_path)
+    return Path(path).suffix.lower() == ".md" and not path.startswith(page_context.PORTAL_KB_FOLDER + "/")
+
+
 def _source_extension(source: dict) -> str:
     return Path(str(source.get("relative_path", ""))).suffix.lower()
 
@@ -384,7 +391,7 @@ def _rank_sources_from_results(
         relative_path = chunk.relative_path
         if relative_path in exclude_paths:
             continue
-        if Path(relative_path).suffix.lower() == ".md":
+        if _is_note(relative_path):
             continue
         if process_hint and chunk.process != process_hint:
             continue
@@ -494,7 +501,7 @@ def select_display_sources(
     if ranked_from_retrieval:
         return _dedupe_sources(ranked_from_retrieval)[:4]
 
-    related_non_md = [source for source in related_sources if _source_extension(source) != ".md"]
+    related_non_md = [source for source in related_sources if not _is_note(source.get("relative_path", ""))]
     if target_process:
         process_related = [
             source for source in related_non_md if _source_process(source) == target_process
@@ -585,6 +592,7 @@ def process_ask(
 
     # ---- Обычный QA flow ----
     language = detect_language(effective_question)
+    section_doc = page_context.section_doc(page.path) if page is not None else None
 
     with kb_lock:
         process_hint = kb_index.detect_process_hint(effective_question)
@@ -594,6 +602,8 @@ def process_ask(
             effective_question,
             top_k=max(50, settings.rerank_candidates * 2),
         )
+        # Вопрос со страницы раздела — справка этого раздела в приоритете.
+        lexical_results = _prioritize_section(lexical_results, section_doc)
         reranked_results = llm_service.rerank_results(
             effective_question,
             lexical_results,
@@ -622,6 +632,12 @@ def process_ask(
         )
 
     final_sources = display_sources
+
+    # Вопрос со страницы раздела, на который лучше всего отвечает справка этого раздела, — по
+    # странице вместе со справкой: так учитывается и то, что на экране.
+    if page is not None and section_doc and context_results and context_results[0].chunk.relative_path == section_doc:
+        dialog_state.clear(session_id)
+        return _answer_from_page(raw_question, page, context_results)
 
     participant_query = is_participant_question(effective_question)
     responsibility_query = is_responsibility_question(effective_question)
@@ -733,14 +749,40 @@ def process_ask(
 
 
 PAGE_SOURCE = "Страница портала"
+SECTION_BOOST = 1.5  # во сколько раз поднимается оценка фрагментов справки раздела
+SECTION_CHUNKS = 3  # сколько фрагментов справки раздела получает ответ по странице
+MAX_PAGE_DOCS = 4
+
+
+def _prioritize_section(results: list[RetrievalResult], doc: str | None) -> list[RetrievalResult]:
+    """Фрагменты справки раздела, с которого задан вопрос, — первыми и с повышенной оценкой."""
+    if not doc:
+        return results
+    own = [RetrievalResult(chunk=r.chunk, score=r.score * SECTION_BOOST, coverage=r.coverage)
+           for r in results if r.chunk.relative_path == doc]
+    return own + [r for r in results if r.chunk.relative_path != doc]
+
+
+def _section_results(question: str, page: PageContext) -> list[RetrievalResult]:
+    """Подходящие к вопросу фрагменты справки раздела; не нашлось — её начало (обзор раздела)."""
+    doc = page_context.section_doc(page.path)
+    if not doc:
+        return []
+    with kb_lock:
+        found = [r for r in kb_index.hybrid_retrieve(question, top_k=50) if r.chunk.relative_path == doc]
+        if not found:
+            found = [RetrievalResult(chunk=c, score=0.0, coverage=0.0) for c in kb_index.chunks if c.relative_path == doc][:2]
+    return found[:SECTION_CHUNKS]
 
 
 def _answer_from_page(
     question: str, page: PageContext, context_results: list[RetrievalResult] | None = None
 ) -> AskResponse:
-    """Ответ по тому, что открыто на странице портала (и по документам, если нашлись)."""
+    """Ответ по тому, что открыто на странице портала, справке раздела и документам, если нашлись."""
     block = page_context.render(page)
-    context_results = list(context_results or [])[:3]
+    section = _section_results(question, page)
+    # Нашлась справка раздела — только она: другие документы базы здесь обычно случайные совпадения.
+    context_results = (section or list(context_results or []))[:MAX_PAGE_DOCS]
     try:
         answer = llm_service.generate_page_answer(question, block, context_results)
     except RuntimeError as exc:

@@ -260,3 +260,90 @@ def test_entered_data_question_is_answered_from_the_page(client, kb_and_llm):
 def test_dates_from_date_inputs_are_shown_in_one_format():
     text = page_context.render(PageContext(**FORM))
     assert "- Дата текущей поверки/калибровки: 01.10.2026" in text and "2026-10-01" not in text
+
+
+# ---------- справка по разделам (этап 5) ----------
+
+SECTION_TEXT = """# Раздел «Метрология»
+
+## Фильтры реестра
+«На подходе (30 дней)» — дата следующей поверки в ближайшие 30 дней, включая сегодня.
+«Просрочено» — дата следующей поверки раньше сегодняшней.
+"""
+
+OTHER_TEXT = """# Поверка манометров
+
+Поверка манометров проводится в аккредитованной лаборатории, срок — по паспорту прибора.
+Фильтры и сроки поверки манометров описаны в паспорте.
+"""
+
+
+def test_every_section_has_a_reference_document():
+    root = Path(__file__).resolve().parent.parent / "knowledge_base"
+    for path in ["/", "/metrology/", "/siz/", "/tkzaii/", "/protocol/", "/development-plan/", "/metrics/",
+                 "/tasks/", "/assistant/tools/", "/account/"]:
+        doc = page_context.section_doc(path)
+        assert doc and (root / doc).is_file(), path
+
+
+@pytest.fixture
+def section_kb(tmp_path: Path, monkeypatch):
+    portal = tmp_path / page_context.PORTAL_KB_FOLDER
+    portal.mkdir()
+    (portal / "Метрология.md").write_text(SECTION_TEXT, encoding="utf-8")
+    other = tmp_path / "Лаборатория"
+    other.mkdir()
+    (other / "Поверка.md").write_text(OTHER_TEXT, encoding="utf-8")
+    kb = KnowledgeBaseIndex(tmp_path)
+    kb.build()
+    monkeypatch.setattr(ask_service, "kb_index", kb)
+    monkeypatch.setattr(state.llm_service, "rerank_results", lambda q, cands, top_n=16: list(cands)[:top_n])
+    seen = {}
+
+    def page_answer(question, block, ctx):
+        seen["page_docs"] = [r.chunk.relative_path for r in ctx]
+        return "«На подходе» — дата следующей поверки в ближайшие 30 дней."
+
+    def kb_answer(question, ctx, intent="procedure"):
+        seen["kb_docs"] = [r.chunk.relative_path for r in ctx]
+        return "Поверка манометров проводится в аккредитованной лаборатории."
+
+    monkeypatch.setattr(state.llm_service, "generate_page_answer", page_answer)
+    monkeypatch.setattr(state.llm_service, "generate_answer", kb_answer)
+    return seen
+
+
+def test_page_answer_uses_the_section_reference_and_shows_it_as_a_source(client, section_kb):
+    headers = register(client, "sec@test.local")
+    body = _ask(client, headers, "Что значит фильтр «На подходе» на этой странице?", page={**PAGE, "path": "/metrology/"})
+    assert body["kind"] == "page"
+    assert section_kb["page_docs"][0] == f"{page_context.PORTAL_KB_FOLDER}/Метрология.md"
+    assert any(s["relative_path"].endswith("Метрология.md") for s in body["sources"])
+
+
+def test_question_best_answered_by_its_section_reference_goes_to_the_page(client, section_kb):
+    headers = register(client, "prio@test.local")
+    question = "Какие сроки поверки и фильтры поверки?"
+    body = _ask(client, headers, question, page={**PAGE, "path": "/metrology/", "fields": []})
+    assert body["kind"] == "page" and "kb_docs" not in section_kb
+    assert section_kb["page_docs"][0] == f"{page_context.PORTAL_KB_FOLDER}/Метрология.md"
+
+
+def test_same_question_without_page_uses_the_knowledge_base_and_shows_the_reference(client, section_kb):
+    headers = register(client, "chat@test.local")
+    resp = client.post("/api/ask", headers=headers, json={"question": "Что значит фильтр «На подходе» в метрологии?"})
+    body = resp.json()
+    assert body["kind"] == "answer"
+    assert any(s["relative_path"] == f"{page_context.PORTAL_KB_FOLDER}/Метрология.md" for s in body["sources"])
+
+
+def test_markdown_notes_outside_the_portal_stay_hidden():
+    assert ask_service._is_note("ЕКТП_Транспорт/инструкции/Подача_заявки.md")
+    assert not ask_service._is_note(f"{page_context.PORTAL_KB_FOLDER}/СИЗ.md")
+    assert not ask_service._is_note("ЕКТП_Транспорт/Инструкция.pdf")
+
+
+def test_section_overview_is_used_when_nothing_matches(client, section_kb):
+    headers = register(client, "ov@test.local")
+    _ask(client, headers, "что на экране?", page={**PAGE, "path": "/metrology/"})
+    assert section_kb["page_docs"][0] == f"{page_context.PORTAL_KB_FOLDER}/Метрология.md"
